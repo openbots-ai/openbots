@@ -445,10 +445,10 @@ const RoutineMock = () => {
 }
 
 const features = [
-    { label: 'A computer of its own', title: 'It keeps working after you put your phone down.', mock: <ComputerMock /> },
-    { label: 'Just text it', title: 'No workflows to build. Send a text and it gets handled.', mock: <TextItMock /> },
-    { label: 'One group chat', title: 'Add every agent to a group chat and talk to them all at once.', mock: <TeamMock /> },
-    { label: 'Show it once', title: 'Walk it through a job once and it runs it from then on.', mock: <RoutineMock /> },
+    { label: 'Its own computer', title: 'Updates your CRM at 2 AM while you stay asleep.', mock: <ComputerMock /> },
+    { label: 'Just text it', title: 'If you can send a text, you can delegate.', mock: <TextItMock /> },
+    { label: 'Group chat', title: 'Put every agent in one thread and run the company from your phone.', mock: <TeamMock /> },
+    { label: 'Show it once', title: 'Do the job once while it watches. It handles every Monday after that.', mock: <RoutineMock /> },
 ]
 
 export default function Features() {
@@ -457,8 +457,8 @@ export default function Features() {
             id="features"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="Less like prompting a bot. More like texting a teammate."
-                description="OpenDots agents have their own computer, remember how you like things done, and get sharper the more you work together."
+                title="Hire the team you can't afford yet"
+                description="Each agent gets its own computer in the cloud, logs into your tools and does the work. You text it like you'd text anyone on your team."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">

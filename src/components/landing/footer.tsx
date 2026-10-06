@@ -35,7 +35,7 @@ export default function Footer() {
             <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
                 <div className="col-span-2">
                     <Logo />
-                    <p className="type-body-sm text-muted-foreground mt-3 max-w-xs">Always-on AI agents you can text, built for iMessage.</p>
+                    <p className="type-body-sm text-muted-foreground mt-3 max-w-xs">A team of AI agents, one text away.</p>
                 </div>
                 {footerLinks.map((group) => (
                     <div
