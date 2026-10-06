@@ -15,9 +15,10 @@ import {
     UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform, type Variants } from 'motion/react'
+import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
-import { avatarBackground, callBackground } from '@/lib/avatars'
+import { callBackground } from '@/lib/avatars'
+import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 type Message = { from: 'me' | 'them'; text: string }
 type Contact = { name: string; role: string; hue: number; preview: string; time: string; messages?: Message[] }
@@ -57,7 +58,7 @@ const contacts: Contact[] = [
     },
     { name: 'Marcus', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
     { name: 'Nora', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
-    { name: 'Leo', role: 'Expense Manager', hue: 275, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
+    { name: 'Leo', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
     { name: 'Ava', role: 'Talent Scout', hue: 45, preview: 'Shortlist of 6 candidates is ready.', time: 'Monday' },
     { name: 'Sam', role: 'Data Analyst', hue: 230, preview: 'Q3 cohort report is in your inbox.', time: 'Sunday' },
 ]
@@ -85,6 +86,10 @@ const steps: Step[] = [
 ]
 
 const VH_PER_STEP = 130
+// The incoming call rings briefly, then scrolling drags the answer slider across the rest of its beat
+const RING = steps.findIndex((s) => s.view === 'call')
+const SLIDE_FROM = 0.2
+const SLIDE_TO = 0.9
 // What is on screen for a list of items whose last one is still arriving until the beat settles
 const arrival = (items: Message[], shown: number, settled: boolean) => {
     const arriving = !settled && shown > 0 ? items[shown - 1] : undefined
@@ -106,11 +111,10 @@ const layoutSpring = { type: 'spring', stiffness: 420, damping: 42 } as const
 const fade = { duration: 0.2, ease: 'easeOut' } as const
 
 const Avatar = ({ contact, className }: { contact: Contact; className?: string }) => (
-    <span
-        className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold text-white', className)}
-        style={{ background: avatarBackground(contact.name, contact.hue) }}>
-        {contact.name[0]}
-    </span>
+    <AgentAvatar
+        name={contact.name}
+        className={className}
+    />
 )
 
 // iOS-style status icons: cellular bars, solid Wi-Fi fan, filled battery
@@ -368,7 +372,13 @@ const InfoButton = () => (
     </span>
 )
 
-function IncomingCall({ contact, answering }: { contact: Contact; answering: boolean }) {
+function IncomingCall({ contact, slide }: { contact: Contact; slide: MotionValue<number> }) {
+    // The thumb's track grows with the scroll; the hint nudge and label give way as soon as it starts moving
+    const width = useTransform(slide, (p) => `calc(52px + (100% - 52px) * ${p})`)
+    const labelOpacity = useTransform(slide, [0, 0.4], [1, 0])
+    const [idle, setIdle] = useState(slide.get() === 0)
+    useMotionValueEvent(slide, 'change', (p) => setIdle(p === 0))
+
     return (
         <div
             className="relative flex h-full flex-col text-white"
@@ -395,18 +405,16 @@ function IncomingCall({ contact, answering }: { contact: Contact; answering: boo
                 {/* Slide to answer */}
                 <div className="relative flex h-[62px] items-center rounded-full bg-white/15 p-[5px] backdrop-blur-xl">
                     <motion.span
-                        animate={{ opacity: answering ? 0 : 1 }}
+                        style={{ opacity: labelOpacity }}
                         className="shimmer-text absolute inset-0 flex items-center justify-center pl-12 text-[17px]">
                         slide to answer
                     </motion.span>
                     <motion.div
-                        initial={false}
-                        animate={{ width: answering ? '100%' : '52px' }}
-                        transition={{ duration: 0.6, ease }}
+                        style={{ width }}
                         className="relative flex h-[52px] justify-end">
                         <motion.span
-                            animate={answering ? { x: 0 } : { x: [0, 10, 0] }}
-                            transition={answering ? {} : { duration: 1.2, repeat: Infinity, repeatDelay: 0.8 }}
+                            animate={idle ? { x: [0, 10, 0] } : { x: 0 }}
+                            transition={idle ? { duration: 1.2, repeat: Infinity, repeatDelay: 0.8 } : { duration: 0.15 }}
                             className="flex size-[52px] items-center justify-center rounded-full bg-white">
                             <Phone
                                 className="size-6 text-[#34C759]"
@@ -521,7 +529,7 @@ function InCall({ contact }: { contact: Contact }) {
 }
 
 // The swipe completes, then the screen settles into the in-call view with a running timer
-function CallFlow({ contact, phase }: { contact: Contact; phase: CallPhase }) {
+function CallFlow({ contact, phase, slide }: { contact: Contact; phase: CallPhase; slide: MotionValue<number> }) {
     const [connected, setConnected] = useState(false)
 
     useEffect(() => {
@@ -549,7 +557,7 @@ function CallFlow({ contact, phase }: { contact: Contact; phase: CallPhase }) {
                 ) : (
                     <IncomingCall
                         contact={contact}
-                        answering={phase === 'answering'}
+                        slide={slide}
                     />
                 )}
             </motion.div>
@@ -564,7 +572,7 @@ const nav: Variants = {
     exit: (dir: number) => (dir === 0 ? { opacity: 0 } : { x: dir > 0 ? '-30%' : '100%', zIndex: dir > 0 ? 1 : 2 }),
 }
 
-function Screen({ step, settled }: { step: Step; settled: boolean }) {
+function Screen({ step, settled, slide }: { step: Step; settled: boolean; slide: MotionValue<number> }) {
     let key: string
     let dir: number
     let content: ReactNode
@@ -597,6 +605,7 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
             <CallFlow
                 contact={contacts[step.chat]}
                 phase={step.phase}
+                slide={slide}
             />
         )
     }
@@ -651,6 +660,8 @@ export function PhoneDemo() {
         setBeat(next)
     })
 
+    const slide = useTransform(story, (v) => Math.min(1, Math.max(0, (v * steps.length - RING - SLIDE_FROM) / (SLIDE_TO - SLIDE_FROM))))
+
     const step = steps[beat >> 1]
     const onCall = step.view === 'call' && step.phase === 'answering'
 
@@ -688,6 +699,7 @@ export function PhoneDemo() {
                             <Screen
                                 step={step}
                                 settled={(beat & 1) === 1}
+                                slide={slide}
                             />
                         </div>
                         <img
