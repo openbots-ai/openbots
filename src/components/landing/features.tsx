@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useInView } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
-import { avatarBackground } from '@/lib/avatars'
+import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 // macOS-style window chrome the feature mockups sit in
 const Window = ({ title, dark, className, children }: { title: string; dark?: boolean; className?: string; children: ReactNode }) => (
@@ -22,15 +22,6 @@ const Window = ({ title, dark, className, children }: { title: string; dark?: bo
         </div>
         {children}
     </div>
-)
-
-// Same contact avatars as the phone demo, so every agent reads as the same person across the page
-const Avatar = ({ name, hue, className }: { name: string; hue: number; className?: string }) => (
-    <span
-        className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold text-white', className)}
-        style={{ background: avatarBackground(name, hue) }}>
-        {name[0]}
-    </span>
 )
 
 type Bubble = { from?: string; hue?: number; text: string; system?: boolean }
@@ -71,7 +62,7 @@ const TypingDots = () => (
 
 // A small iMessage thread that plays out message by message, used for the 1:1 and group chat mockups.
 // Every bubble keeps its slot from the start so the card never changes height.
-const Thread = ({ title, avatars, bubbles }: { title: string; avatars: { name: string; hue: number }[]; bubbles: Bubble[] }) => {
+const Thread = ({ title, avatars, bubbles }: { title: string; avatars: { name: string }[]; bubbles: Bubble[] }) => {
     const ref = useRef<HTMLDivElement>(null)
     const shown = useLoopedSteps(
         ref,
@@ -86,10 +77,10 @@ const Thread = ({ title, avatars, bubbles }: { title: string; avatars: { name: s
                 <ChevronLeft className="absolute left-3 top-4 size-4 text-[#0A84FF]" />
                 <div className="flex -space-x-2">
                     {avatars.map((a) => (
-                        <Avatar
+                        <AgentAvatar
                             key={a.name}
-                            {...a}
-                            className="size-8 text-xs ring-2 ring-white"
+                            name={a.name}
+                            className="size-8 ring-2 ring-white"
                         />
                     ))}
                 </div>
@@ -326,13 +317,13 @@ const ComputerMock = () => {
 const TextItMock = () => (
     <Thread
         title="Leo · Expense Manager"
-        avatars={[{ name: 'Leo', hue: 275 }]}
+        avatars={[{ name: 'Leo' }]}
         bubbles={[
             { text: 'can you deal with the invoices in my inbox?' },
-            { from: 'Leo', hue: 275, text: 'on it. found 9, paid 8 ✅' },
-            { from: 'Leo', hue: 275, text: 'the AWS one needs a PO number before I can pay it' },
+            { from: 'Leo', hue: 340, text: 'on it. found 9, paid 8 ✅' },
+            { from: 'Leo', hue: 340, text: 'the AWS one needs a PO number before I can pay it' },
             { text: 'PO-4471' },
-            { from: 'Leo', hue: 275, text: 'done. all 9 paid and filed 👌' },
+            { from: 'Leo', hue: 340, text: 'done. all 9 paid and filed 👌' },
         ]}
     />
 )
@@ -341,17 +332,17 @@ const TeamMock = () => (
     <Thread
         title="You + 4 agents"
         avatars={[
-            { name: 'Emily', hue: 278 },
-            { name: 'Marcus', hue: 200 },
-            { name: 'Jason', hue: 25 },
-            { name: 'Leo', hue: 275 },
+            { name: 'Emily' },
+            { name: 'Marcus' },
+            { name: 'Jason' },
+            { name: 'Leo' },
         ]}
         bubbles={[
             { system: true, text: 'You added Emily, Marcus, Jason and Leo to the conversation' },
             { text: 'morning team, what needs me today?' },
             { from: 'Emily', hue: 278, text: 'just one thing: sign off on the Northwind proposal' },
             { from: 'Marcus', hue: 200, text: 'it is in your inbox, 40 seats' },
-            { from: 'Leo', hue: 275, text: 'pricing checks out, margins look healthy ✅' },
+            { from: 'Leo', hue: 340, text: 'pricing checks out, margins look healthy ✅' },
             { text: 'approved 👍' },
         ]}
     />

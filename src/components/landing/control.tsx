@@ -1,5 +1,6 @@
 import { CircleCheck, KeyRound, ListChecks, PauseCircle, ShieldCheck } from 'lucide-react'
 import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
+import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 const points = [
     { icon: ShieldCheck, title: 'nothing sends without your yes', body: 'emails, payments, anything a customer sees. it all waits for one tap.' },
@@ -20,11 +21,10 @@ const ApprovalMock = () => (
     <div className="w-full max-w-sm space-y-3 text-left text-[13px] leading-snug">
         <div className="rounded-[1.6rem] bg-white p-4 text-black shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8">
             <div className="flex items-center gap-2">
-                <span
-                    className="flex size-7 items-center justify-center rounded-full text-xs font-semibold text-white"
-                    style={{ background: 'linear-gradient(180deg, hsl(200 35% 68%), hsl(200 30% 50%))' }}>
-                    M
-                </span>
+                <AgentAvatar
+                    name="Marcus"
+                    className="size-7"
+                />
                 <span className="text-xs font-semibold">Marcus</span>
                 <span className="ml-auto text-[11px] text-neutral-400">8:12 AM</span>
             </div>

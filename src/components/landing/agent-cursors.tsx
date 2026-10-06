@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
-import { avatarBackground } from '@/lib/avatars'
+import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 type Point = { x: number; y: number; duration?: number }
 type Rect = { left: number; top: number; width: number; height: number }
@@ -122,11 +122,10 @@ const Cursor = ({ agent, state }: { agent: Agent; state: CursorState }) => (
         <div
             className="ml-4 mt-0.5 flex w-max items-center gap-2.5 rounded-2xl py-2 pl-2 pr-4 shadow-sm"
             style={{ background: `hsl(${agent.hue} 85% 96%)`, boxShadow: `inset 0 0 0 1px hsl(${agent.hue} 60% 88%)` }}>
-            <span
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                style={{ background: avatarBackground(agent.name, agent.hue) }}>
-                {agent.name[0]}
-            </span>
+            <AgentAvatar
+                name={agent.name}
+                className="size-8"
+            />
             <span className="type-label whitespace-nowrap">
                 <span
                     className="block font-medium"
@@ -175,8 +174,8 @@ export function AgentCursors() {
             say('Highlighting a line')
             await move({ x: phrase.left - 2, y: phrase.top + phrase.height * 0.55, duration: 1.4 })
             await click()
-            setHighlight({ rect: phrase, duration: 0.9 })
-            await move({ x: phrase.left + phrase.width, y: phrase.top + phrase.height * 0.55, duration: 0.9 })
+            setHighlight({ rect: phrase, duration: 1.4 })
+            await move({ x: phrase.left + phrase.width, y: phrase.top + phrase.height * 0.55, duration: 1.4 })
             say('Love this line 👀')
             await wait(2800)
             setHighlight(null)
