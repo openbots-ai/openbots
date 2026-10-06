@@ -53,7 +53,7 @@ export default function App() {
         <MotionConfig reducedMotion="user">
             <ReactLenis
                 root
-                options={{ lerp: 0.09, smoothWheel: true, anchors: { offset: -80 } }}
+                options={{ lerp: 0.075, smoothWheel: true, wheelMultiplier: 0.9, anchors: { offset: -80 } }}
             />
             <Page />
         </MotionConfig>

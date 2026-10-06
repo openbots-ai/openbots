@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
+import { avatarBackground } from '@/lib/avatars'
 
 type Point = { x: number; y: number; duration?: number }
 type Rect = { left: number; top: number; width: number; height: number }
@@ -123,7 +124,7 @@ const Cursor = ({ agent, state }: { agent: Agent; state: CursorState }) => (
             style={{ background: `hsl(${agent.hue} 85% 96%)`, boxShadow: `inset 0 0 0 1px hsl(${agent.hue} 60% 88%)` }}>
             <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                style={{ background: `linear-gradient(180deg, hsl(${agent.hue} 35% 68%), hsl(${agent.hue} 30% 50%))` }}>
+                style={{ background: avatarBackground(agent.name, agent.hue) }}>
                 {agent.name[0]}
             </span>
             <span className="type-label whitespace-nowrap">

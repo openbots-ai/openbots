@@ -1,58 +1,59 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
     AlarmClock,
-    BatteryFull,
     ChevronLeft,
     ChevronRight,
     ListFilter,
     MessageCircle,
     Mic,
+    MicOff,
     Phone,
     Plus,
     Search,
     ArrowUp,
     SquarePen,
+    UserRoundPlus,
     Video,
-    Wifi,
 } from 'lucide-react'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { avatarBackground, callBackground } from '@/lib/avatars'
 
 type Message = { from: 'me' | 'them'; text: string }
 type Contact = { name: string; role: string; hue: number; preview: string; time: string; messages?: Message[] }
 
 const ME = 'me'
 
-const EMILY = 0
-const JASON = 1
+const JASON = 0
+const EMILY = 1
 
 const contacts: Contact[] = [
-    {
-        name: 'Emily',
-        role: 'Chief of Staff',
-        hue: 330,
-        preview: 'morning! your weekly brief is ready ☕️',
-        time: '8:42 AM',
-        messages: [
-            { from: 'them', text: 'morning! your weekly brief is ready ☕️' },
-            { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
-            { from: ME, text: 'what are the alerts?' },
-            { from: 'them', text: "EU signups dipped after Tuesday's deploy, I've looped in eng" },
-            { from: ME, text: 'perfect, thank you 🙏' },
-        ],
-    },
     {
         name: 'Jason',
         role: 'Growth Marketer',
         hue: 25,
         preview: 'variant B is winning checkout by 12% 👀',
-        time: '8:05 AM',
+        time: '8:42 AM',
         messages: [
             { from: 'them', text: 'variant B is winning checkout by 12% 👀' },
             { from: 'them', text: 'it hit significance an hour ago' },
             { from: ME, text: 'ship it to 100%' },
-            { from: 'them', text: "done. calling you with the retention numbers" },
-            { from: ME, text: 'go for it 📞' },
+            { from: 'them', text: "done. I'll watch retention for the week" },
+            { from: ME, text: 'love it 🚀' },
+        ],
+    },
+    {
+        name: 'Emily',
+        role: 'Chief of Staff',
+        hue: 278,
+        preview: 'morning! your weekly brief is ready ☕️',
+        time: '8:05 AM',
+        messages: [
+            { from: 'them', text: 'morning! your weekly brief is ready ☕️' },
+            { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
+            { from: ME, text: 'what are the alerts?' },
+            { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
+            { from: ME, text: 'go for it' },
         ],
     },
     { name: 'Marcus', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
@@ -65,25 +66,26 @@ const contacts: Contact[] = [
 type CallPhase = 'incoming' | 'answering'
 type Step =
     | { view: 'list'; read: number[]; press?: number }
-    | { view: 'chat'; chat: number; shown: number; pressBack?: boolean }
+    | { view: 'chat'; chat: number; shown: number; arrives?: boolean; pressBack?: boolean }
     | { view: 'call'; chat: number; phase: CallPhase }
 
-const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown }))
+// Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
+const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
 
-// One entry per scroll beat: open Emily, go back, open Jason, then Jason calls in and the swipe to answer ends it.
+// One entry per scroll beat: open Jason, go back, open Emily, then Emily calls in and the swipe to answer ends it.
 const steps: Step[] = [
     { view: 'list', read: [] },
-    { view: 'list', read: [], press: EMILY },
-    ...chatSteps(EMILY),
-    { view: 'chat', chat: EMILY, shown: contacts[EMILY].messages!.length, pressBack: true },
-    { view: 'list', read: [EMILY] },
-    { view: 'list', read: [EMILY], press: JASON },
+    { view: 'list', read: [], press: JASON },
     ...chatSteps(JASON),
-    { view: 'call', chat: JASON, phase: 'incoming' },
-    { view: 'call', chat: JASON, phase: 'answering' },
+    { view: 'chat', chat: JASON, shown: contacts[JASON].messages!.length, pressBack: true },
+    { view: 'list', read: [JASON] },
+    { view: 'list', read: [JASON], press: EMILY },
+    ...chatSteps(EMILY),
+    { view: 'call', chat: EMILY, phase: 'incoming' },
+    { view: 'call', chat: EMILY, phase: 'answering' },
 ]
 
-const VH_PER_STEP = 60
+const VH_PER_STEP = 130
 // What is on screen for a list of items whose last one is still arriving until the beat settles
 const arrival = (items: Message[], shown: number, settled: boolean) => {
     const arriving = !settled && shown > 0 ? items[shown - 1] : undefined
@@ -92,22 +94,59 @@ const arrival = (items: Message[], shown: number, settled: boolean) => {
 
 // Within each beat, the first part of the scroll shows the reply being typed and the rest shows it landed
 const TYPING_SPLIT = 0.45
+// How far (in steps) you must scroll back past a beat before it is undone, so tiny jitters never replay an animation
+const BACKTRACK = 0.12
+
+// Scroll position (in steps) at which a beat begins
+const beatStart = (beat: number) => (beat >> 1) + (beat & 1 ? TYPING_SPLIT : 0)
 const ease = [0.22, 1, 0.36, 1] as const
+
+// Critically damped springs: they settle quickly with no wobble, which is how iOS moves
+const bubbleSpring = { type: 'spring', stiffness: 380, damping: 36, mass: 0.9 } as const
+const layoutSpring = { type: 'spring', stiffness: 420, damping: 42 } as const
+const fade = { duration: 0.2, ease: 'easeOut' } as const
 
 const Avatar = ({ contact, className }: { contact: Contact; className?: string }) => (
     <span
         className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold text-white', className)}
-        style={{ background: `linear-gradient(180deg, hsl(${contact.hue} 35% 68%), hsl(${contact.hue} 30% 50%))` }}>
+        style={{ background: avatarBackground(contact.name, contact.hue) }}>
         {contact.name[0]}
     </span>
+)
+
+// iOS-style status icons: cellular bars, solid Wi-Fi fan, filled battery
+const Signal = () => (
+    <svg viewBox="0 0 18 12" className="h-[11px] w-[17px]" fill="currentColor" aria-hidden>
+        <rect x="0" y="8" width="3" height="4" rx="0.8" />
+        <rect x="5" y="5.5" width="3" height="6.5" rx="0.8" />
+        <rect x="10" y="3" width="3" height="9" rx="0.8" />
+        <rect x="15" y="0" width="3" height="12" rx="0.8" />
+    </svg>
+)
+
+const WifiFan = () => (
+    <svg viewBox="0 0 16 12" className="h-[11px] w-[15px]" fill="currentColor" aria-hidden>
+        <path d="M8 1.2c2.6 0 5 1 6.8 2.7.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A7.3 7.3 0 0 0 8 3.6c-1.9 0-3.7.7-5.1 2-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A9.8 9.8 0 0 1 8 1.2Z" />
+        <path d="M8 5c1.6 0 3 .6 4.1 1.6.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A3.5 3.5 0 0 0 8 7.4c-.9 0-1.7.3-2.4.9-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A6 6 0 0 1 8 5Z" />
+        <path d="M8 8.8c.6 0 1.1.2 1.5.6.2.2.2.5 0 .7L8.4 11.2c-.2.2-.5.2-.7 0L6.5 10.1c-.2-.2-.2-.5 0-.7.4-.4.9-.6 1.5-.6Z" />
+    </svg>
+)
+
+const Battery = () => (
+    <svg viewBox="0 0 27 13" className="h-[12px] w-[25px]" aria-hidden>
+        <rect x="0.5" y="0.5" width="23" height="12" rx="3.8" fill="none" stroke="currentColor" strokeOpacity="0.4" />
+        <rect x="2" y="2" width="20" height="9" rx="2.5" fill="currentColor" />
+        <path d="M25 4.5v4a2.2 2.2 0 0 0 0-4Z" fill="currentColor" fillOpacity="0.45" />
+    </svg>
 )
 
 const StatusBar = ({ dark }: { dark?: boolean }) => (
     <div className={cn('flex items-center justify-between px-7 pb-1 pt-3.5 text-[13px] font-semibold', dark && 'text-white')}>
         <span className="w-12">9:41</span>
-        <span className="flex items-center gap-1">
-            <Wifi className="size-3.5" strokeWidth={3} />
-            <BatteryFull className="size-4.5" strokeWidth={2} />
+        <span className="flex items-center gap-[5px]">
+            <Signal />
+            <WifiFan />
+            <Battery />
         </span>
     </div>
 )
@@ -135,16 +174,23 @@ function ListScreen({ read, press }: { read: number[]; press?: number }) {
                     const hasChat = !!contact.messages
                     const unread = hasChat && !read.includes(i)
                     const preview = read.includes(i) ? contact.messages!.at(-1)!.text : contact.preview
+                    // iOS hides the separators that touch a highlighted row, and the one after the last row
+                    const hideSeparator = i === contacts.length - 1 || press === i || press === i + 1
                     return (
                         <div
                             key={contact.name}
-                            className={cn('relative flex items-center gap-2.5 py-2 pl-5 pr-3 transition-colors duration-200', press === i && 'bg-neutral-200/80')}>
+                            className={cn('relative flex items-center gap-2.5 pl-5 transition-colors duration-150', press === i && 'bg-[#D1D1D6]')}>
                             {unread && <span className="absolute left-1.5 top-1/2 size-2 -translate-y-1/2 rounded-full bg-[#0A84FF]" />}
                             <Avatar
                                 contact={contact}
-                                className="size-10 text-base"
+                                className="size-11 text-base"
                             />
-                            <div className="min-w-0 flex-1 border-b border-neutral-200 pb-2">
+                            {/* The separator lives on the row's bottom edge, inset to the text and running to the screen edge */}
+                            <div
+                                className={cn(
+                                    'min-w-0 flex-1 border-b-[0.5px] py-3.5 pr-3 transition-colors duration-150',
+                                    hideSeparator ? 'border-transparent' : 'border-[#E5E5EA]'
+                                )}>
                                 <div className="flex items-baseline justify-between gap-2">
                                     <span className="truncate text-[13px] font-semibold">
                                         {contact.name} <span className="font-normal text-neutral-400">· {contact.role}</span>
@@ -154,7 +200,7 @@ function ListScreen({ read, press }: { read: number[]; press?: number }) {
                                         <ChevronRight className="size-3" />
                                     </span>
                                 </div>
-                                <p className="line-clamp-2 text-[11px] leading-snug text-neutral-500">{preview}</p>
+                                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-neutral-500">{preview}</p>
                             </div>
                         </div>
                     )
@@ -177,25 +223,17 @@ function ListScreen({ read, press }: { read: number[]; press?: number }) {
     )
 }
 
-const TypingBubble = () => (
-    <motion.div
-        initial={{ opacity: 0, scale: 0.6 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.12 } }}
-        transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-        style={{ originX: 0, originY: 1 }}
-        className="mt-2 flex">
-        <span className="imsg imsg-them imsg-tail relative flex gap-1 rounded-[18px] bg-[#E9E9EB] px-3 py-2.5">
-            {[0, 0.15, 0.3].map((delay) => (
-                <motion.span
-                    key={delay}
-                    className="size-1.5 rounded-full bg-neutral-400"
-                    animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 0.9, repeat: Infinity, delay }}
-                />
-            ))}
-        </span>
-    </motion.div>
+const TypingDots = () => (
+    <span className="imsg imsg-them imsg-tail relative flex gap-1 rounded-[18px] bg-[#E9E9EB] px-3 py-2.5">
+        {[0, 0.2, 0.4].map((delay) => (
+            <motion.span
+                key={delay}
+                className="size-1.5 rounded-full bg-neutral-500"
+                animate={{ opacity: [0.3, 0.85, 0.3] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut', delay }}
+            />
+        ))}
+    </span>
 )
 
 function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Contact; shown: number; settled: boolean; pressBack?: boolean; badge: number }) {
@@ -239,7 +277,10 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
             </div>
 
             <div className="flex flex-1 flex-col gap-0.5 overflow-hidden px-4 pt-[164px]">
-                <AnimatePresence initial={false}>
+                {/* popLayout lets everything else glide into place while a bubble enters or leaves */}
+                <AnimatePresence
+                    initial={false}
+                    mode="popLayout">
                     {visible.map((m, i) => {
                         const mine = m.from === ME
                         const firstOfRun = visible[i - 1]?.from !== m.from
@@ -247,10 +288,12 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                         return (
                             <motion.div
                                 key={i}
-                                initial={{ opacity: 0, y: 12, scale: 0.92 }}
+                                layout="position"
+                                // Incoming bubbles grow from their tail; yours rise up from the compose bar
+                                initial={mine ? { opacity: 0, y: 22, scale: 0.97 } : { opacity: 0, scale: 0.86 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.15 } }}
-                                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                                transition={{ default: bubbleSpring, opacity: fade, layout: layoutSpring }}
                                 style={{ originX: mine ? 1 : 0, originY: 1 }}
                                 className={cn('flex flex-col', mine ? 'items-end' : 'items-start', firstOfRun && i > 0 && 'mt-2')}>
                                 <p
@@ -261,11 +304,31 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                                     )}>
                                     {m.text}
                                 </p>
-                                {mine && i === visible.length - 1 && <span className="mr-1 mt-0.5 text-[10px] font-medium text-neutral-400">Delivered</span>}
+                                {mine && i === visible.length - 1 && (
+                                    <motion.span
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ ...fade, delay: 0.35 }}
+                                        className="mr-1 mt-0.5 text-[10px] font-medium text-neutral-400">
+                                        Delivered
+                                    </motion.span>
+                                )}
                             </motion.div>
                         )
                     })}
-                    {typing && <TypingBubble key="typing" />}
+                    {typing && (
+                        <motion.div
+                            key="typing"
+                            layout="position"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                            transition={{ default: bubbleSpring, opacity: fade, layout: layoutSpring }}
+                            style={{ originX: 0, originY: 1 }}
+                            className="mt-2 flex">
+                            <TypingDots />
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </div>
 
@@ -285,39 +348,53 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
     )
 }
 
-const callBackground = (contact: Contact) => ({
-    background: `radial-gradient(120% 70% at 50% 0%, hsl(${contact.hue} 30% 38%), transparent 70%), linear-gradient(180deg, #2b2f36, #121418)`,
-})
+
+// Contact block in the top-left, the way iOS 17+ lays out calls
+const CallHeader = ({ contact, subtitle }: { contact: Contact; subtitle: ReactNode }) => (
+    <div className="flex items-center gap-3 px-6 pt-9">
+        <Avatar
+            contact={contact}
+            className="size-[46px] text-lg"
+        />
+        <div className="min-w-0">
+            <p className="text-[13px] leading-tight tabular-nums text-white/55">{subtitle}</p>
+            <p className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-white">{contact.name}</p>
+        </div>
+    </div>
+)
+
+const InfoButton = () => (
+    <span className="absolute right-6 top-[3.4rem] flex size-[22px] items-center justify-center rounded-full ring-[1.5px] ring-white/85">
+        <span className="text-[13px] font-semibold leading-none text-white/90">i</span>
+    </span>
+)
 
 function IncomingCall({ contact, answering }: { contact: Contact; answering: boolean }) {
     return (
         <div
             className="relative flex h-full flex-col text-white"
-            style={callBackground(contact)}>
+            style={{ background: callBackground(contact.hue) }}>
             <StatusBar dark />
-            <div className="mt-10 flex flex-col items-center">
-                <Avatar
-                    contact={contact}
-                    className="size-20 text-3xl"
-                />
-                <span className="mt-4 text-[30px] font-light">{contact.name}</span>
-                <span className="text-sm text-white/60">is calling you</span>
-            </div>
+            <InfoButton />
+            <CallHeader
+                contact={contact}
+                subtitle="mobile"
+            />
 
             <div className="mt-auto px-6 pb-14">
-                <div className="mb-6 flex justify-between px-4 text-[11px] text-white/80">
-                    <span className="flex flex-col items-center gap-1">
-                        <AlarmClock className="size-5" />
+                <div className="mb-7 flex justify-between px-5 text-[12px] text-white/85">
+                    <span className="flex flex-col items-center gap-1.5">
+                        <AlarmClock className="size-[22px]" />
                         Remind Me
                     </span>
-                    <span className="flex flex-col items-center gap-1">
-                        <MessageCircle className="size-5" />
+                    <span className="flex flex-col items-center gap-1.5">
+                        <MessageCircle className="size-[22px]" />
                         Message
                     </span>
                 </div>
 
                 {/* Slide to answer */}
-                <div className="relative flex h-[60px] items-center rounded-full bg-white/15 p-1 backdrop-blur">
+                <div className="relative flex h-[62px] items-center rounded-full bg-white/15 p-[5px] backdrop-blur-xl">
                     <motion.span
                         animate={{ opacity: answering ? 0 : 1 }}
                         className="shimmer-text absolute inset-0 flex items-center justify-center pl-12 text-[17px]">
@@ -326,7 +403,7 @@ function IncomingCall({ contact, answering }: { contact: Contact; answering: boo
                     <motion.div
                         initial={false}
                         animate={{ width: answering ? '100%' : '52px' }}
-                        transition={{ duration: 0.7, ease }}
+                        transition={{ duration: 0.6, ease }}
                         className="relative flex h-[52px] justify-end">
                         <motion.span
                             animate={answering ? { x: 0 } : { x: [0, 10, 0] }}
@@ -343,6 +420,141 @@ function IncomingCall({ contact, answering }: { contact: Contact; answering: boo
             </div>
             <HomeIndicator dark />
         </div>
+    )
+}
+
+// Glyphs drawn to match iOS rather than generic icon-set shapes
+const SpeakerGlyph = () => (
+    <svg
+        viewBox="0 0 24 24"
+        className="size-[26px]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round">
+        <path
+            d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"
+            fill="currentColor"
+            stroke="none"
+        />
+        <path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.3 6.6a7.6 7.6 0 0 1 0 10.8" />
+    </svg>
+)
+
+const KeypadGlyph = () => (
+    <svg
+        viewBox="0 0 24 24"
+        className="size-[26px]"
+        fill="currentColor">
+        {[5, 12, 19].flatMap((y) =>
+            [5, 12, 19].map((x) => (
+                <circle
+                    key={`${x}-${y}`}
+                    cx={x}
+                    cy={y}
+                    r="2.3"
+                />
+            ))
+        )}
+    </svg>
+)
+
+const callControls = [
+    { label: 'Audio', icon: <SpeakerGlyph /> },
+    { label: 'FaceTime', icon: <Video className="size-[26px]" fill="currentColor" strokeWidth={0} /> },
+    { label: 'Mute', icon: <MicOff className="size-6" strokeWidth={2.2} /> },
+    { label: 'Add', icon: <UserRoundPlus className="size-6" strokeWidth={2.2} /> },
+    {
+        label: 'End',
+        end: true,
+        icon: (
+            <Phone
+                className="size-[26px] rotate-[135deg]"
+                fill="currentColor"
+                strokeWidth={0}
+            />
+        ),
+    },
+    { label: 'Keypad', icon: <KeypadGlyph /> },
+]
+
+function InCall({ contact }: { contact: Contact }) {
+    const [seconds, setSeconds] = useState(0)
+    const timer = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+
+    useEffect(() => {
+        const id = window.setInterval(() => setSeconds((s) => s + 1), 1000)
+        return () => clearInterval(id)
+    }, [])
+
+    return (
+        <div
+            className="relative flex h-full flex-col text-white"
+            style={{ background: callBackground(contact.hue) }}>
+            <StatusBar dark />
+            <InfoButton />
+            <CallHeader
+                contact={contact}
+                subtitle={timer}
+            />
+
+            <div className="mt-auto px-6 pb-12">
+                <div className="grid grid-cols-3 gap-x-5 gap-y-4">
+                    {callControls.map(({ label, icon, end }) => (
+                        <span
+                            key={label}
+                            className="flex flex-col items-center gap-1.5">
+                            <span
+                                className={cn(
+                                    'flex size-[66px] items-center justify-center rounded-full backdrop-blur-xl',
+                                    end ? 'bg-[#FF3B30]' : 'bg-white/[0.16]'
+                                )}>
+                                {icon}
+                            </span>
+                            <span className="text-[12px] text-white/90">{label}</span>
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <HomeIndicator dark />
+        </div>
+    )
+}
+
+// The swipe completes, then the screen settles into the in-call view with a running timer
+function CallFlow({ contact, phase }: { contact: Contact; phase: CallPhase }) {
+    const [connected, setConnected] = useState(false)
+
+    useEffect(() => {
+        if (phase !== 'answering') return
+        const id = window.setTimeout(() => setConnected(true), 750)
+        return () => {
+            clearTimeout(id)
+            setConnected(false)
+        }
+    }, [phase])
+
+    return (
+        <AnimatePresence
+            mode="wait"
+            initial={false}>
+            <motion.div
+                key={connected ? 'in-call' : 'incoming'}
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}>
+                {connected ? (
+                    <InCall contact={contact} />
+                ) : (
+                    <IncomingCall
+                        contact={contact}
+                        answering={phase === 'answering'}
+                    />
+                )}
+            </motion.div>
+        </AnimatePresence>
     )
 }
 
@@ -374,18 +586,18 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
             <ChatScreen
                 contact={contacts[step.chat]}
                 shown={step.shown}
-                settled={settled}
+                settled={settled || !step.arrives}
                 pressBack={step.pressBack}
-                badge={step.chat === EMILY ? 1 : 0}
+                badge={step.chat === JASON ? 1 : 0}
             />
         )
     } else {
         key = 'call'
         dir = 0
         content = (
-            <IncomingCall
+            <CallFlow
                 contact={contacts[step.chat]}
-                answering={step.phase === 'answering'}
+                phase={step.phase}
             />
         )
     }
@@ -401,7 +613,7 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.45, ease }}
+                transition={{ x: { type: 'spring', stiffness: 300, damping: 36 }, default: { duration: 0.3, ease } }}
                 className="absolute inset-0 shadow-[-8px_0_24px_rgba(0,0,0,0.08)]">
                 {content}
             </motion.div>
@@ -416,6 +628,7 @@ export function PhoneDemo() {
     const ref = useRef<HTMLDivElement>(null)
     // Beat = step index * 2, plus 1 once the step's typing part has been scrolled past
     const [beat, setBeat] = useState(1)
+    const beatRef = useRef(1)
     const [fit, setFit] = useState(fitScale)
 
     useEffect(() => {
@@ -432,8 +645,15 @@ export function PhoneDemo() {
     const { scrollYProgress: story } = useScroll({ target: ref, offset: ['start 64px', 'end end'] })
     useMotionValueEvent(story, 'change', (v) => {
         const at = Math.min(steps.length - 0.001, Math.max(0, v * steps.length))
-        setBeat(Math.floor(at) * 2 + (at % 1 >= TYPING_SPLIT ? 1 : 0))
+        const next = Math.floor(at) * 2 + (at % 1 >= TYPING_SPLIT ? 1 : 0)
+        // Moving forward applies immediately; moving back only once clearly past the current beat's start
+        if (next < beatRef.current && at > beatStart(beatRef.current) - BACKTRACK) return
+        beatRef.current = next
+        setBeat(next)
     })
+
+    const step = steps[beat >> 1]
+    const onCall = step.view === 'call' && step.phase === 'answering'
 
     return (
         <div
@@ -467,7 +687,7 @@ export function PhoneDemo() {
                                 clipPath: 'inset(0 round 15.75% / 7.25%)',
                             }}>
                             <Screen
-                                step={steps[beat >> 1]}
+                                step={step}
                                 settled={(beat & 1) === 1}
                             />
                         </div>
@@ -477,6 +697,19 @@ export function PhoneDemo() {
                             draggable={false}
                             className="pointer-events-none absolute inset-0 size-full select-none"
                         />
+                        {/* Orange mic-in-use dot in the Dynamic Island while the call is live */}
+                        <AnimatePresence>
+                            {onCall && (
+                                <motion.span
+                                    className="absolute size-[1.5%] -translate-1/2 rounded-full bg-[#FF9F0A]"
+                                    style={{ left: '53.3%', top: '6%', aspectRatio: 1 }}
+                                    initial={{ opacity: 0, scale: 0 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0 }}
+                                    transition={{ delay: 0.8, duration: 0.25 }}
+                                />
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 </div>
             </div>

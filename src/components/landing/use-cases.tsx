@@ -1,5 +1,6 @@
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
+import { avatarBackground } from '@/lib/avatars'
 
 const useCases = [
     {
@@ -19,7 +20,7 @@ const useCases = [
     {
         agent: 'Emily',
         role: 'Chief of Staff',
-        hue: 330,
+        hue: 278,
         title: 'Pipeline ops',
         body: 'Keeps the CRM clean, flags deals that have gone quiet, and sends a Monday scoreboard so the week starts with everyone on the same page.',
     },
@@ -49,7 +50,7 @@ export default function UseCases() {
                             <div className="flex items-center gap-3">
                                 <span
                                     className="flex size-10 items-center justify-center rounded-full font-semibold text-white"
-                                    style={{ background: `linear-gradient(180deg, hsl(${u.hue} 35% 68%), hsl(${u.hue} 30% 50%))` }}>
+                                    style={{ background: avatarBackground(u.agent, u.hue) }}>
                                     {u.agent[0]}
                                 </span>
                                 <div className="type-label">

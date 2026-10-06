@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useInView } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
+import { avatarBackground } from '@/lib/avatars'
 
 // macOS-style window chrome the feature mockups sit in
 const Window = ({ title, dark, className, children }: { title: string; dark?: boolean; className?: string; children: ReactNode }) => (
@@ -27,7 +28,7 @@ const Window = ({ title, dark, className, children }: { title: string; dark?: bo
 const Avatar = ({ name, hue, className }: { name: string; hue: number; className?: string }) => (
     <span
         className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold text-white', className)}
-        style={{ background: `linear-gradient(180deg, hsl(${hue} 35% 68%), hsl(${hue} 30% 50%))` }}>
+        style={{ background: avatarBackground(name, hue) }}>
         {name[0]}
     </span>
 )
@@ -340,7 +341,7 @@ const TeamMock = () => (
     <Thread
         title="You + 4 agents"
         avatars={[
-            { name: 'Emily', hue: 330 },
+            { name: 'Emily', hue: 278 },
             { name: 'Marcus', hue: 200 },
             { name: 'Jason', hue: 25 },
             { name: 'Leo', hue: 275 },
@@ -348,7 +349,7 @@ const TeamMock = () => (
         bubbles={[
             { system: true, text: 'You added Emily, Marcus, Jason and Leo to the conversation' },
             { text: 'morning team, what needs me today?' },
-            { from: 'Emily', hue: 330, text: 'just one thing: sign off on the Northwind proposal' },
+            { from: 'Emily', hue: 278, text: 'just one thing: sign off on the Northwind proposal' },
             { from: 'Marcus', hue: 200, text: 'it is in your inbox, 40 seats' },
             { from: 'Leo', hue: 275, text: 'pricing checks out, margins look healthy ✅' },
             { text: 'approved 👍' },
