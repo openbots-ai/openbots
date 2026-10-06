@@ -2,10 +2,10 @@ import { CircleCheck, KeyRound, ListChecks, PauseCircle, ShieldCheck } from 'luc
 import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
 
 const points = [
-    { icon: ShieldCheck, title: 'Nothing important goes out without you', body: 'Emails, payments and anything customer-facing wait for a one-tap yes in iMessage.' },
-    { icon: KeyRound, title: 'Each agent only sees what you grant', body: 'Give Marcus your CRM and Leo your invoices. Neither gets the keys to everything.' },
-    { icon: ListChecks, title: 'Every action is on the record', body: 'A plain-language log of what each agent did, when, and in which app.' },
-    { icon: PauseCircle, title: 'Pause or revoke anytime', body: 'Text "pause" to stop an agent mid-task, or remove its access in one tap.' },
+    { icon: ShieldCheck, title: 'Nothing sends without your yes', body: 'Emails, payments and anything a customer will see wait for one tap in iMessage.' },
+    { icon: KeyRound, title: 'Access, one app at a time', body: 'Marcus gets the CRM. Leo gets the invoices. Nobody gets the keys to everything.' },
+    { icon: ListChecks, title: 'Receipts for everything', body: 'Every click, edit and send is logged in plain English with a timestamp.' },
+    { icon: PauseCircle, title: 'Text "pause" to stop it', body: 'The agent stops mid-task. Pulling its access takes one tap.' },
 ]
 
 const activity = [
@@ -62,9 +62,9 @@ export default function Control() {
             <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
                 <div>
                     <Reveal>
-                        <h2 className="type-title text-balance">You stay in control</h2>
+                        <h2 className="type-title text-balance">You still sign off</h2>
                         <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                            Agents do the work. You make the calls. OpenDots is built so you can hand off more over time, at your own pace.
+                            Agents do the busywork. Anything that leaves the building waits for you.
                         </p>
                     </Reveal>
 

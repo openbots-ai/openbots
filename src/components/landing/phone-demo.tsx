@@ -692,7 +692,7 @@ export function PhoneDemo() {
                             />
                         </div>
                         <img
-                            src="/iphone-17-pro-silver.png"
+                            src="/device/iphone-frame.png"
                             alt=""
                             draggable={false}
                             className="pointer-events-none absolute inset-0 size-full select-none"

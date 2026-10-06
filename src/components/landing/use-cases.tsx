@@ -8,28 +8,28 @@ const useCases = [
         role: 'Sales Outbound',
         hue: 200,
         title: 'Sales outbound',
-        body: 'Researches accounts overnight, scores who is showing intent, and has personalized drafts waiting for your thumbs up by morning.',
+        body: 'Researches accounts overnight and has drafts in your voice ready to approve over coffee.',
     },
     {
         agent: 'Kai',
         role: 'Demo Prep',
         hue: 120,
         title: 'Demo readiness',
-        body: 'Checks the demo environment before every call, fixes stale data, and texts you a ready checklist an hour before you join.',
+        body: 'Clicks through the demo an hour before the call, fixes the stale data, and texts you when it is ready.',
     },
     {
         agent: 'Emily',
         role: 'Chief of Staff',
         hue: 278,
         title: 'Pipeline ops',
-        body: 'Keeps the CRM clean, flags deals that have gone quiet, and sends a Monday scoreboard so the week starts with everyone on the same page.',
+        body: 'Chases the deals that stalled. The Monday scoreboard lands before standup.',
     },
     {
         agent: 'Nora',
         role: 'Customer Support',
         hue: 160,
         title: 'Account follow-up',
-        body: 'Keeps customers warm with product updates, files support tickets, and syncs next steps wherever your team already works.',
+        body: 'Sends product updates and files the support tickets, so no account goes quiet on you.',
     },
 ]
 
@@ -39,8 +39,8 @@ export default function UseCases() {
             id="use-cases"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="What teams hand off first"
-                description="Start with one agent and one job. Most teams add a specialist for every lane within a few weeks."
+                title="Start with the work you keep putting off"
+                description="Hand one job to one agent. Add the next one when it earns it."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
