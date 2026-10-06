@@ -7,29 +7,29 @@ const useCases = [
         agent: 'Marcus',
         role: 'Sales Outbound',
         hue: 200,
-        title: 'Sales outbound',
-        body: 'Researches accounts overnight and has drafts in your voice ready to approve over coffee.',
+        title: 'sales outbound',
+        body: 'researches accounts overnight. drafts in your voice are ready before your coffee is.',
     },
     {
         agent: 'Kai',
         role: 'Demo Prep',
         hue: 120,
-        title: 'Demo readiness',
-        body: 'Clicks through the demo an hour before the call, fixes the stale data, and texts you when it is ready.',
+        title: 'demo prep',
+        body: 'clicks through the demo an hour before the call, fixes whatever broke and texts you "we are good".',
     },
     {
         agent: 'Emily',
         role: 'Chief of Staff',
         hue: 278,
-        title: 'Pipeline ops',
-        body: 'Chases the deals that stalled. The Monday scoreboard lands before standup.',
+        title: 'pipeline ops',
+        body: 'chases every deal that ghosted you. the monday scoreboard lands before standup.',
     },
     {
         agent: 'Nora',
         role: 'Customer Support',
         hue: 160,
-        title: 'Account follow-up',
-        body: 'Sends product updates and files the support tickets, so no account goes quiet on you.',
+        title: 'account follow-ups',
+        body: 'sends updates and files the tickets, so no customer feels left on read.',
     },
 ]
 
@@ -39,8 +39,8 @@ export default function UseCases() {
             id="use-cases"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="Start with the work you keep putting off"
-                description="Hand one job to one agent. Add the next one when it earns it."
+                title="start with the stuff you keep ignoring"
+                description="give one job to one agent. add another once it earns it."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -2,10 +2,10 @@ import { CircleCheck, KeyRound, ListChecks, PauseCircle, ShieldCheck } from 'luc
 import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
 
 const points = [
-    { icon: ShieldCheck, title: 'Nothing sends without your yes', body: 'Emails, payments and anything a customer will see wait for one tap in iMessage.' },
-    { icon: KeyRound, title: 'Access, one app at a time', body: 'Marcus gets the CRM. Leo gets the invoices. Nobody gets the keys to everything.' },
-    { icon: ListChecks, title: 'Receipts for everything', body: 'Every click, edit and send is logged in plain English with a timestamp.' },
-    { icon: PauseCircle, title: 'Text "pause" to stop it', body: 'The agent stops mid-task. Pulling its access takes one tap.' },
+    { icon: ShieldCheck, title: 'nothing sends without your yes', body: 'emails, payments, anything a customer sees. it all waits for one tap.' },
+    { icon: KeyRound, title: 'they only get the apps you give them', body: 'marcus gets the crm. leo gets the invoices. nobody gets your whole life.' },
+    { icon: ListChecks, title: 'receipts for everything', body: 'every click, edit and send gets logged with a timestamp.' },
+    { icon: PauseCircle, title: 'text "pause" and it stops', body: 'it stops mid-task. pulling its access is one tap.' },
 ]
 
 const activity = [
@@ -62,9 +62,9 @@ export default function Control() {
             <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
                 <div>
                     <Reveal>
-                        <h2 className="type-title text-balance">You still sign off</h2>
+                        <h2 className="type-title text-balance">you still have the final say</h2>
                         <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                            Agents do the busywork. Anything that leaves the building waits for you.
+                            they do the busywork. anything that leaves the building waits for your 👍
                         </p>
                     </Reveal>
 

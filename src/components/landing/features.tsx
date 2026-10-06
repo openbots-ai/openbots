@@ -445,10 +445,10 @@ const RoutineMock = () => {
 }
 
 const features = [
-    { label: 'Its own computer', title: 'Updates your CRM at 2 AM while you stay asleep.', mock: <ComputerMock /> },
-    { label: 'Just text it', title: 'If you can send a text, you can delegate.', mock: <TextItMock /> },
-    { label: 'Group chat', title: 'Put every agent in one thread and run the company from your phone.', mock: <TeamMock /> },
-    { label: 'Show it once', title: 'Do the job once while it watches. It handles every Monday after that.', mock: <RoutineMock /> },
+    { label: 'its own computer', title: 'your crm gets updated at 2am. you stay asleep, as you should.', mock: <ComputerMock /> },
+    { label: 'just text it', title: 'if you can text your friends, you can run a team.', mock: <TextItMock /> },
+    { label: 'group chat', title: 'put every agent in one gc. the most productive group chat you will ever be in.', mock: <TeamMock /> },
+    { label: 'show it once', title: 'do the job once while it watches. it has every monday after that.', mock: <RoutineMock /> },
 ]
 
 export default function Features() {
@@ -457,8 +457,8 @@ export default function Features() {
             id="features"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="Hire the team you can't afford yet"
-                description="Each agent gets its own computer in the cloud, logs into your tools and does the work. You text it like you'd text anyone on your team."
+                title="a whole team, no hiring required"
+                description="every agent gets its own computer, logs into your apps and does the actual work. you text it like you would text anyone."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
@@ -474,7 +474,7 @@ export default function Features() {
                                 <p className="type-label text-muted-foreground">{label}</p>
                                 <h3 className="type-heading mt-2 text-balance">{title}</h3>
                                 <a
-                                    href="#"
+                                    href="#early-access"
                                     className="type-body mt-6 inline-flex items-center gap-1.5 font-medium">
                                     Learn more
                                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />

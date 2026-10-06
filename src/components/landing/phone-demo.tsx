@@ -53,7 +53,6 @@ const contacts: Contact[] = [
             { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
             { from: ME, text: 'what are the alerts?' },
             { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
-            { from: ME, text: 'go for it' },
         ],
     },
     { name: 'Marcus', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
