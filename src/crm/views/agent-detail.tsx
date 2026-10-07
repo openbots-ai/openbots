@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigBar } from '@/components/agent-config-bar'
+import { SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
+import { INHERIT } from '@convex/lib/models'
 import { DEFAULT_CONFIG, languageOf, voiceOf } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
 import { useNav } from '../nav'
@@ -34,10 +36,21 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const agents = useQuery(api.agents.list)
     const numbers = useQuery(api.numbers.list)
     const knowledge = useQuery(api.knowledge.list)
+    const workspace = useQuery(api.workspace.get)
     const [form, setForm] = useState(() => pickAgentFields(agent))
 
     const set = <K extends keyof AgentFields>(key: K, value: AgentFields[K]) => setForm((f) => ({ ...f, [key]: value }))
-    const fieldsDirty = JSON.stringify(form) !== JSON.stringify(pickAgentFields(agent))
+    const fieldsDirty = JSON.stringify(pickAgentFields(form)) !== JSON.stringify(pickAgentFields(agent))
+    // What this agent picked for each slot (INHERIT when it follows the workspace)
+    const slotValue = (slot: SlotId) => form.models?.[slot] ?? (slot === 'brain' ? form.model : undefined) ?? INHERIT
+    const setSlot = (slot: SlotId, id: string) => {
+        const next = { ...form.models }
+        if (id === INHERIT) delete next[slot]
+        else next[slot] = id
+        set('models', next)
+        // The old single `model` field is the brain's override for agents made before slots
+        if (slot === 'brain') set('model', undefined)
+    }
     const folders = [...new Set((agents ?? []).flatMap((a) => (a.folder ? [a.folder] : [])))]
     const myNumbers = numbers?.filter((n) => n.agentId === agent._id) ?? []
     // The phone number is picked here but only assigned on Save, like every other field.
@@ -112,18 +125,19 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
             </Toolbar>
             <div className="border-b border-neutral-200/70 px-4 py-2.5">
                 <AgentConfigBar
-                    model={form.model ?? DEFAULT_CONFIG.model}
+                    model={resolveModels(workspace?.models, form.models, form.model).brain.option.id}
                     voice={form.voice ?? DEFAULT_CONFIG.voice}
                     language={form.language ?? DEFAULT_CONFIG.language}
                     temperature={form.temperature}
                     replyLength={form.replyLength}
                     playing={playing}
-                    onModelChange={(id) => set('model', id)}
+                    onModelChange={(id) => setSlot('brain', id)}
                     onVoiceChange={changeVoice}
                     onLanguageChange={(id) => set('language', id)}
                     onTemperatureChange={(value) => set('temperature', value)}
                     onReplyLengthChange={(value) => set('replyLength', value)}
                     onTogglePlay={'speechSynthesis' in window ? preview : undefined}
+                    slots={SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({ slot, value: slotValue(slot.id), inherited: slot.options.find((o) => o.id === (workspace?.models?.[slot.id] ?? slot.default)), onChange: (id: string) => setSlot(slot.id, id) }))}
                 />
             </div>
             <Scroll>

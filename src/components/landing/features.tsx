@@ -306,7 +306,7 @@ const ComputerMock = () => {
                             fill="currentColor"
                             strokeWidth={1.5}
                         />
-                        <span className="ml-3 rounded-full bg-sky-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">Marcus</span>
+                        <span className="ml-3 rounded-full bg-sky-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">Waffles</span>
                     </motion.div>
                 </div>
             </div>
@@ -316,14 +316,14 @@ const ComputerMock = () => {
 
 const TextItMock = () => (
     <Thread
-        title="Leo · Expense Manager"
-        avatars={[{ name: 'Leo' }]}
+        title="Penny · Expense Manager"
+        avatars={[{ name: 'Penny' }]}
         bubbles={[
             { text: 'can you deal with the invoices in my inbox?' },
-            { from: 'Leo', hue: 340, text: 'on it. found 9, paid 8 ✅' },
-            { from: 'Leo', hue: 340, text: 'the AWS one needs a PO number before I can pay it' },
+            { from: 'Penny', hue: 340, text: 'on it. found 9, paid 8 ✅' },
+            { from: 'Penny', hue: 340, text: 'the AWS one needs a PO number before I can pay it' },
             { text: 'PO-4471' },
-            { from: 'Leo', hue: 340, text: 'done. all 9 paid and filed 👌' },
+            { from: 'Penny', hue: 340, text: 'done. all 9 paid and filed 👌' },
         ]}
     />
 )
@@ -332,17 +332,17 @@ const TeamMock = () => (
     <Thread
         title="You + 4 agents"
         avatars={[
-            { name: 'Emily' },
-            { name: 'Marcus' },
-            { name: 'Jason' },
-            { name: 'Leo' },
+            { name: 'Mochi' },
+            { name: 'Waffles' },
+            { name: 'Biscuit' },
+            { name: 'Penny' },
         ]}
         bubbles={[
-            { system: true, text: 'You added Emily, Marcus, Jason and Leo to the conversation' },
+            { system: true, text: 'You added Mochi, Waffles, Biscuit and Penny to the conversation' },
             { text: 'morning team, what needs me today?' },
-            { from: 'Emily', hue: 278, text: 'just one thing: sign off on the Northwind proposal' },
-            { from: 'Marcus', hue: 200, text: 'it is in your inbox, 40 seats' },
-            { from: 'Leo', hue: 340, text: 'pricing checks out, margins look healthy ✅' },
+            { from: 'Mochi', hue: 278, text: 'just one thing: sign off on the Northwind proposal' },
+            { from: 'Waffles', hue: 200, text: 'it is in your inbox, 40 seats' },
+            { from: 'Penny', hue: 340, text: 'pricing checks out, margins look healthy ✅' },
             { text: 'approved 👍' },
         ]}
     />
@@ -437,8 +437,8 @@ const RoutineMock = () => {
 
 const features = [
     { label: 'its own computer', title: 'your crm gets updated at 2am. you stay asleep, as you should.', mock: <ComputerMock /> },
-    { label: 'just text it', title: 'if you can text your friends, you can run a team.', mock: <TextItMock /> },
-    { label: 'group chat', title: 'put every agent in one gc. the most productive group chat you will ever be in.', mock: <TeamMock /> },
+    { label: 'just text it', title: 'set the rules once. after that it\'s literally just texting.', mock: <TextItMock /> },
+    { label: 'group chat', title: 'build a few, throw them in one gc. lowkey the most productive group chat you\'ll ever be in.', mock: <TeamMock /> },
     { label: 'show it once', title: 'do the job once while it watches. it has every monday after that.', mock: <RoutineMock /> },
 ]
 
@@ -448,8 +448,8 @@ export default function Features() {
             id="features"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="a whole team, no hiring required"
-                description="every agent gets its own computer, logs into your apps and does the actual work. you text it like you would text anyone."
+                title="build the squad, run the squad"
+                description="every agent gets its own computer and logs into your apps. how it thinks, talks and works? your call."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">

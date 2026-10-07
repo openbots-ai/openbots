@@ -4,28 +4,28 @@ import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 export const useCases = [
     {
-        agent: 'Marcus',
+        agent: 'Waffles',
         hue: 200,
         role: 'Sales Outbound',
         title: 'sales outbound',
         body: 'researches accounts overnight. drafts in your voice are ready before your coffee is.',
     },
     {
-        agent: 'Kai',
+        agent: 'Pebble',
         hue: 160,
         role: 'Demo Prep',
         title: 'demo prep',
         body: 'clicks through the demo an hour before the call, fixes whatever broke and texts you "we are good".',
     },
     {
-        agent: 'Emily',
+        agent: 'Mochi',
         hue: 278,
         role: 'Chief of Staff',
         title: 'pipeline ops',
         body: 'chases every deal that ghosted you. the monday scoreboard lands before standup.',
     },
     {
-        agent: 'Nora',
+        agent: 'Honey',
         hue: 350,
         role: 'Customer Support',
         title: 'account follow-ups',
@@ -40,7 +40,7 @@ export default function UseCases() {
             className="px-6 py-28 md:py-40">
             <SectionHeading
                 title="start with the stuff you keep ignoring"
-                description="give one job to one agent. add another once it earns it."
+                description="one agent, one job. add more whenever you feel like it."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

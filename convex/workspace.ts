@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { handleKind } from './lib/handles'
+import { isValidChoice } from './lib/models'
 import { workspaceSettings } from './schema'
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -23,13 +24,29 @@ export const update = mutation({
         if (args.replyDelaySec !== undefined && (args.replyDelaySec < 0 || args.replyDelaySec > 60)) throw new Error('Reply delay must be between 0 and 60 seconds')
         if (args.defaultAgentId && !(await ctx.db.get(args.defaultAgentId))) throw new Error('That agent no longer exists')
 
-        // Every settings key is written explicitly, so one the client left out (undefined) is cleared
-        const settings = Object.fromEntries(Object.keys(workspaceSettings).map((k) => [k, args[k as keyof typeof workspaceSettings]]))
+        // Every settings key is written explicitly, so one the client left out (undefined) is cleared.
+        // Model choices are the exception: the Models page saves those through setModel.
+        const settings = Object.fromEntries(
+            Object.keys(workspaceSettings)
+                .filter((k) => k !== 'models')
+                .map((k) => [k, args[k as keyof typeof workspaceSettings]]),
+        )
         const fields = { ...settings, name, ownerName, ownerEmail, newContactTag: args.newContactTag?.trim().toLowerCase() || undefined }
 
         const ws = await ctx.db.query('workspace').first()
         if (ws) await ctx.db.patch(ws._id, fields)
         else await ctx.db.insert('workspace', fields)
+    },
+})
+
+// Sets the workspace-wide model for one slot (Models page)
+export const setModel = mutation({
+    args: { slot: v.string(), model: v.string() },
+    handler: async (ctx, { slot, model }) => {
+        if (!isValidChoice(slot, model)) throw new Error(`${model} can't be used for ${slot}`)
+        const ws = await ctx.db.query('workspace').first()
+        if (!ws) throw new Error('Workspace not set up yet')
+        await ctx.db.patch('workspace', ws._id, { models: { ...ws.models, [slot]: model } })
     },
 })
 

@@ -15,7 +15,7 @@ import {
     UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { callBackground } from '@/lib/avatars'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
@@ -25,11 +25,11 @@ type Contact = { name: string; role: string; hue: number; preview: string; time:
 
 const ME = 'me'
 
-const EMILY = 0
+const MOCHI = 0
 
 const contacts: Contact[] = [
     {
-        name: 'Emily',
+        name: 'Mochi',
         role: 'Chief of Staff',
         hue: 278,
         preview: 'morning! your weekly brief is ready ☕️',
@@ -41,12 +41,12 @@ const contacts: Contact[] = [
             { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
         ],
     },
-    { name: 'Jason', role: 'Growth Marketer', hue: 25, preview: 'variant B is winning checkout by 12% 👀', time: '8:05 AM' },
-    { name: 'Marcus', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
-    { name: 'Nora', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
-    { name: 'Leo', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
-    { name: 'Ava', role: 'Talent Scout', hue: 45, preview: 'Shortlist of 6 candidates is ready.', time: 'Monday' },
-    { name: 'Sam', role: 'Data Analyst', hue: 230, preview: 'Q3 cohort report is in your inbox.', time: 'Sunday' },
+    { name: 'Biscuit', role: 'Growth Marketer', hue: 25, preview: 'variant B is winning checkout by 12% 👀', time: '8:05 AM' },
+    { name: 'Waffles', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
+    { name: 'Honey', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
+    { name: 'Penny', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
+    { name: 'Pip', role: 'Talent Scout', hue: 45, preview: 'Shortlist of 6 candidates is ready.', time: 'Monday' },
+    { name: 'Sprout', role: 'Data Analyst', hue: 230, preview: 'Q3 cohort report is in your inbox.', time: 'Sunday' },
 ]
 
 type CallPhase = 'incoming' | 'answering'
@@ -58,33 +58,23 @@ type Step =
 // Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
 const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
 
-// One entry per scroll beat: open Emily, then Emily calls in and the swipe to answer ends it.
+// One entry per beat: open Mochi, then Mochi calls in and the swipe to answer ends it.
 const steps: Step[] = [
     { view: 'list', read: [] },
-    { view: 'list', read: [], press: EMILY },
-    ...chatSteps(EMILY),
-    { view: 'call', chat: EMILY, phase: 'incoming' },
-    { view: 'call', chat: EMILY, phase: 'answering' },
+    { view: 'list', read: [], press: MOCHI },
+    ...chatSteps(MOCHI),
+    { view: 'call', chat: MOCHI, phase: 'incoming' },
+    { view: 'call', chat: MOCHI, phase: 'answering' },
 ]
 
-const VH_PER_STEP = 130
-// The incoming call rings briefly, then scrolling drags the answer slider across the rest of its beat
+// The incoming call rings briefly, then the answer slider swipes across
 const RING = steps.findIndex((s) => s.view === 'call')
-const SLIDE_FROM = 0.2
-const SLIDE_TO = 0.9
 // What is on screen for a list of items whose last one is still arriving until the beat settles
 const arrival = (items: Message[], shown: number, settled: boolean) => {
     const arriving = !settled && shown > 0 ? items[shown - 1] : undefined
     return { count: arriving ? shown - 1 : shown, pending: arriving }
 }
 
-// Within each beat, the first part of the scroll shows the reply being typed and the rest shows it landed
-const TYPING_SPLIT = 0.45
-// How far (in steps) you must scroll back past a beat before it is undone, so tiny jitters never replay an animation
-const BACKTRACK = 0.12
-
-// Scroll position (in steps) at which a beat begins
-const beatStart = (beat: number) => (beat >> 1) + (beat & 1 ? TYPING_SPLIT : 0)
 const ease = [0.22, 1, 0.36, 1] as const
 
 // Critically damped springs: they settle quickly with no wobble, which is how iOS moves
@@ -614,12 +604,22 @@ function Screen({ step, settled, slide }: { step: Step; settled: boolean; slide:
 const PHONE_HEIGHT = 690
 const fitScale = () => Math.min(1.6, (window.innerHeight - 64 - 32) / PHONE_HEIGHT, (window.innerWidth - 32) / 336)
 
+// Autoplay timing (ms): the typing half of a beat, the settled half, and how long the answered call holds before looping
+const TYPING_MS = 600
+const SETTLED_MS = 1100
+const SWIPE_MS = 800
+const HOLD_MS = 2500
+// A row tap only flashes its highlight before the chat opens, like a real iMessage tap
+const TAP_MS = 150
+const isTap = (step: Step) => step.view === 'list' && step.press !== undefined
+const LAST_BEAT = steps.length * 2 - 1
+
 export function PhoneDemo() {
     const ref = useRef<HTMLDivElement>(null)
-    // Beat = step index * 2, plus 1 once the step's typing part has been scrolled past
+    // Beat = step index * 2, plus 1 once the step's typing part is over
     const [beat, setBeat] = useState(1)
-    const beatRef = useRef(1)
     const [fit, setFit] = useState(fitScale)
+    const inView = useInView(ref, { amount: 0.4 })
 
     useEffect(() => {
         const onResize = () => setFit(fitScale())
@@ -627,22 +627,29 @@ export function PhoneDemo() {
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
-    // Grow the phone as it scrolls up to the pin point just under the 64px header
-    const { scrollYProgress: approach } = useScroll({ target: ref, offset: ['start end', 'start 64px'] })
-    const scale = useSpring(useTransform(approach, [0, 1], [0.8, 1]), { stiffness: 140, damping: 30 })
+    const slide = useMotionValue(0)
 
-    // While pinned, scroll progress walks through the story one beat at a time
-    const { scrollYProgress: story } = useScroll({ target: ref, offset: ['start 64px', 'end end'] })
-    useMotionValueEvent(story, 'change', (v) => {
-        const at = Math.min(steps.length - 0.001, Math.max(0, v * steps.length))
-        const next = Math.floor(at) * 2 + (at % 1 >= TYPING_SPLIT ? 1 : 0)
-        // Moving forward applies immediately; moving back only once clearly past the current beat's start
-        if (next < beatRef.current && at > beatStart(beatRef.current) - BACKTRACK) return
-        beatRef.current = next
-        setBeat(next)
-    })
-
-    const slide = useTransform(story, (v) => Math.min(1, Math.max(0, (v * steps.length - RING - SLIDE_FROM) / (SLIDE_TO - SLIDE_FROM))))
+    // Step through the beats on a timer while the phone is on screen, then start over
+    useEffect(() => {
+        if (!inView) return
+        const ringing = beat === RING * 2 + 1
+        if (ringing) {
+            const swipe = animate(slide, 1, { delay: 0.4, duration: SWIPE_MS / 1000, ease: 'easeInOut' })
+            const id = setTimeout(() => setBeat(beat + 1), 400 + SWIPE_MS + 150)
+            return () => {
+                swipe.stop()
+                clearTimeout(id)
+            }
+        }
+        const id = setTimeout(
+            () => {
+                if (beat === LAST_BEAT) slide.set(0)
+                setBeat(beat === LAST_BEAT ? 1 : beat + 1)
+            },
+            beat === LAST_BEAT ? HOLD_MS : isTap(steps[beat >> 1]) ? (beat & 1 ? TAP_MS : 0) : beat & 1 ? SETTLED_MS : TYPING_MS,
+        )
+        return () => clearTimeout(id)
+    }, [inView, beat, slide])
 
     const step = steps[beat >> 1]
     const onCall = step.view === 'call' && step.phase === 'answering'
@@ -651,60 +658,57 @@ export function PhoneDemo() {
         <div
             ref={ref}
             aria-hidden
-            className="relative"
-            style={{ height: `calc(${steps.length * VH_PER_STEP}vh + 100svh - 4rem)` }}>
-            <div className="sticky top-16 flex h-[calc(100svh-4rem)] items-center justify-center">
-                <div style={{ transform: `scale(${fit})` }}>
-                    <motion.div
-                        style={{ scale }}
-                        initial={{ y: 80, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.35, duration: 0.9, ease }}
-                        className="relative aspect-[1350/2760] w-[336px]">
-                        {/* Soft shadow behind the device body */}
-                        <div
-                            className="absolute shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3),0_15px_30px_-15px_rgba(0,0,0,0.2)]"
-                            style={{ left: '1.85%', top: '0.8%', right: '1.8%', bottom: '0.8%', borderRadius: '18.2% / 8.7%' }}
+            className="relative flex items-center justify-center"
+            style={{ height: PHONE_HEIGHT * fit }}>
+            <div style={{ transform: `scale(${fit})` }}>
+                <motion.div
+                    initial={{ y: 80, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.35, duration: 0.9, ease }}
+                    className="relative aspect-[1350/2760] w-[336px]">
+                    {/* Soft shadow behind the device body */}
+                    <div
+                        className="absolute shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3),0_15px_30px_-15px_rgba(0,0,0,0.2)]"
+                        style={{ left: '1.85%', top: '0.8%', right: '1.8%', bottom: '0.8%', borderRadius: '18.2% / 8.7%' }}
+                    />
+                    {/* Screen sits in the transparent cut-out of the device image */}
+                    <div
+                        className="absolute isolate overflow-hidden bg-white"
+                        style={{
+                            left: '5.333%',
+                            top: '2.5%',
+                            width: '89.333%',
+                            height: '95%',
+                            borderRadius: '15.75% / 7.25%',
+                            // overflow + radius alone can fail to clip children mid-transform, so clip the shape explicitly
+                            clipPath: 'inset(0 round 15.75% / 7.25%)',
+                        }}>
+                        <Screen
+                            step={step}
+                            settled={(beat & 1) === 1}
+                            slide={slide}
                         />
-                        {/* Screen sits in the transparent cut-out of the device image */}
-                        <div
-                            className="absolute isolate overflow-hidden bg-white"
-                            style={{
-                                left: '5.333%',
-                                top: '2.5%',
-                                width: '89.333%',
-                                height: '95%',
-                                borderRadius: '15.75% / 7.25%',
-                                // overflow + radius alone can fail to clip children mid-transform, so clip the shape explicitly
-                                clipPath: 'inset(0 round 15.75% / 7.25%)',
-                            }}>
-                            <Screen
-                                step={step}
-                                settled={(beat & 1) === 1}
-                                slide={slide}
+                    </div>
+                    <img
+                        src="/device/iphone-frame.png"
+                        alt=""
+                        draggable={false}
+                        className="pointer-events-none absolute inset-0 size-full select-none"
+                    />
+                    {/* Orange mic-in-use dot in the Dynamic Island while the call is live */}
+                    <AnimatePresence>
+                        {onCall && (
+                            <motion.span
+                                className="absolute size-[1.5%] -translate-1/2 rounded-full bg-[#FF9F0A]"
+                                style={{ left: '53.3%', top: '6%', aspectRatio: 1 }}
+                                initial={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0 }}
+                                transition={{ delay: 0.8, duration: 0.25 }}
                             />
-                        </div>
-                        <img
-                            src="/device/iphone-frame.png"
-                            alt=""
-                            draggable={false}
-                            className="pointer-events-none absolute inset-0 size-full select-none"
-                        />
-                        {/* Orange mic-in-use dot in the Dynamic Island while the call is live */}
-                        <AnimatePresence>
-                            {onCall && (
-                                <motion.span
-                                    className="absolute size-[1.5%] -translate-1/2 rounded-full bg-[#FF9F0A]"
-                                    style={{ left: '53.3%', top: '6%', aspectRatio: 1 }}
-                                    initial={{ opacity: 0, scale: 0 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0 }}
-                                    transition={{ delay: 0.8, duration: 0.25 }}
-                                />
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                </div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
             </div>
         </div>
     )

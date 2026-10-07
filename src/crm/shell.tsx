@@ -10,10 +10,11 @@ import { Sidebar } from './sidebar'
 import { useView } from './use-view'
 import { AgentDetail } from './views/agent-detail'
 import { AgentsView } from './views/agents'
-import { AnalyticsView } from './views/analytics'
 import { ContactsView } from './views/contacts'
 import { ConversationsView } from './views/conversations'
+import { AnalyticsView } from './views/analytics'
 import { KnowledgeView } from './views/knowledge'
+import { ModelsView } from './views/models'
 import { NumbersView } from './views/numbers'
 import { SettingsView } from './views/settings'
 
@@ -70,6 +71,8 @@ function ViewSwitch({ view, id }: { view: View; id?: string }) {
             return <ConversationsView key="live" id={id} live />
         case 'contacts':
             return <ContactsView />
+        case 'models':
+            return <ModelsView />
         case 'analytics':
             return <AnalyticsView />
         case 'settings':

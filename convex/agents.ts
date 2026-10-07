@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { deleteConversation } from './lib/cascade'
+import { isValidChoice } from './lib/models'
 import { agentFields } from './schema'
 
 export const list = query({
@@ -28,11 +29,12 @@ export const create = mutation({
 
 export const update = mutation({
     args: { id: v.id('agents'), ...agentFields },
-    handler: async (ctx, { id, name, role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength }) => {
+    handler: async (ctx, { id, name, role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, models }) => {
         if (!name.trim()) throw new Error('Give your agent a name')
         if (temperature !== undefined && (temperature < 0 || temperature > 1)) throw new Error('Creativity must be between 0 and 1')
+        for (const [slot, choice] of Object.entries(models ?? {})) if (!isValidChoice(slot, choice)) throw new Error(`${choice} can't be used for ${slot}`)
         // Explicit keys: an omitted optional (avatar, folder) arrives as undefined, which clears it
-        await ctx.db.patch(id, { name: name.trim(), role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, updatedAt: Date.now() })
+        await ctx.db.patch(id, { name: name.trim(), role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, models, updatedAt: Date.now() })
     },
 })
 

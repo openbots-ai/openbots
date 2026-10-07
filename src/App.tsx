@@ -5,8 +5,6 @@ import { MotionConfig } from 'motion/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
 import Features from '@/components/landing/features'
-import Control from '@/components/landing/control'
-import CreateAgentDemo from '@/components/landing/create-agent-demo'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
@@ -16,15 +14,18 @@ import { isCrmPath } from '@/crm/lib/route'
 
 // Loaded only on /crm so the landing bundle never ships Convex or the dashboard
 const CrmApp = lazy(() => import('@/crm/crm-app'))
+// The CRM demo pulls in the chart library, so it loads on its own instead of with the first paint
+const CreateAgentDemo = lazy(() => import('@/components/landing/create-agent-demo'))
 
 const Landing = () => (
     <>
         <Header />
         <HeroSection />
         <main className="mx-auto max-w-6xl overflow-hidden">
+            <Suspense fallback={<div id="create-agent" className="min-h-[60rem]" />}>
+                <CreateAgentDemo />
+            </Suspense>
             <Features />
-            <Control />
-            <CreateAgentDemo />
             <CallToAction />
         </main>
         <Footer />

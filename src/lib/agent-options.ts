@@ -1,17 +1,12 @@
 // Model, voice and language choices for an agent, shared by the CRM editor and the landing demo
+import { BRAIN_MODELS, type Provider } from '@convex/lib/models'
 
-export type Provider = 'openai' | 'anthropic' | 'google'
+export type { Provider }
+
 export type ReplyLength = 'short' | 'medium' | 'long'
 
-// Prices are US$ per million tokens (input, output). PLACEHOLDERS for usage estimates: check each
-// provider's current pricing before showing these to customers or billing on them.
-export const MODELS: { id: string; label: string; provider: Provider; price: { input: number; output: number } }[] = [
-    { id: 'gpt-5.1', label: 'GPT 5.1', provider: 'openai', price: { input: 1.25, output: 10 } },
-    { id: 'gpt-5.1-mini', label: 'GPT 5.1 mini', provider: 'openai', price: { input: 0.25, output: 2 } },
-    { id: 'claude-sonnet-5.5', label: 'Claude Sonnet 5.5', provider: 'anthropic', price: { input: 3, output: 15 } },
-    { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5', provider: 'anthropic', price: { input: 1, output: 5 } },
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google', price: { input: 0.3, output: 2.5 } },
-]
+// The Brain slot's models double as the model picker in the agent's config bar
+export const MODELS = BRAIN_MODELS
 
 // Voices are used for voice notes; pitch and rate shape the browser's speech preview
 export const VOICES: { id: string; name: string; accent: string; hue: number; pitch: number; rate: number }[] = [
@@ -48,12 +43,3 @@ export const DEFAULT_CONFIG = { model: 'gpt-5.1', voice: 'susan', language: 'en-
 export const modelOf = (id?: string) => MODELS.find((m) => m.id === id) ?? MODELS[0]
 export const voiceOf = (id?: string) => VOICES.find((v) => v.id === id) ?? VOICES[0]
 export const languageOf = (id?: string) => LANGUAGES.find((l) => l.id === id) ?? LANGUAGES[0]
-
-// Estimated spend for a token count on a model
-export const costOf = (model: string | undefined, input: number, output: number) => {
-    const { price } = modelOf(model)
-    return (input * price.input + output * price.output) / 1_000_000
-}
-
-// Monthly allowances on the Personal plan, shown as usage meters. Placeholders until pricing is set.
-export const PLAN_LIMITS = { messages: 2_000, tokens: 1_000_000, agents: 10 }
