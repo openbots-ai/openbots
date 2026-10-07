@@ -9,6 +9,7 @@ import Control from '@/components/landing/control'
 import CreateAgentDemo from '@/components/landing/create-agent-demo'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
+import Pricing from '@/components/landing/pricing'
 import { ComingSoon } from '@/pages/coming-soon'
 import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
@@ -25,6 +26,7 @@ const Landing = () => (
             <Features />
             <Control />
             <CreateAgentDemo />
+            <Pricing />
             <CallToAction />
         </main>
         <Footer />

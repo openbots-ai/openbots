@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/rea
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Reveal } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
-import { useCases } from '@/components/landing/use-cases'
+import { useCases } from '@/lib/assistant-examples'
 import { AgentConfigBar, MenuPicture, ProviderMark } from '@/components/agent-config-bar'
 import { DEFAULT_CONFIG, costOf, modelOf } from '@/lib/agent-options'
 import { cn } from '@/lib/utils'
@@ -14,8 +14,8 @@ type Status = 'draft' | 'live'
 // What each tab's agent gets set up with in the editor
 const settings: Record<string, { type: string; prompt: string; number: string; model: string; voice: string; language: string }> = {
     Marcus: {
-        type: 'Business',
-        prompt: 'Researches every new account overnight and drafts outreach in my voice. Nothing sends until I approve it.',
+        type: 'Personal',
+        prompt: 'Help me keep up with everyday tasks. Keep replies short and friendly. Ask before sending messages or making purchases.',
         number: '+1 (415) 555-0142',
         model: 'gpt-5.1',
         voice: 'omar',
@@ -23,7 +23,7 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
     },
     Kai: {
         type: 'Work',
-        prompt: 'Clicks through the demo an hour before every call, fixes whatever broke and texts me "we are good" when it is ready.',
+        prompt: 'Compare the options I send you. Give me a short recommendation with sources and tradeoffs. Ask about my budget first.',
         number: '+1 (415) 555-0178',
         model: 'gemini-2.5-flash',
         voice: 'theo',
@@ -31,15 +31,15 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
     },
     Emily: {
         type: 'Work',
-        prompt: 'Chases every deal that went quiet and sends the Monday pipeline scoreboard before standup.',
+        prompt: 'Help me plan a realistic week. Leave room between meetings and keep evenings free. Ask before changing my calendar.',
         number: '+1 (415) 555-0193',
         model: 'claude-sonnet-5.5',
         voice: 'nia',
         language: 'en-US',
     },
     Nora: {
-        type: 'Business',
-        prompt: 'Answers customers kindly and quickly, files the tickets and sends updates. Anything about billing comes to me.',
+        type: 'Personal',
+        prompt: 'Help me write in my own voice: warm, direct, no corporate language. Show me the draft before sending anything.',
         number: '+1 (415) 555-0127',
         model: 'claude-haiku-4.5',
         voice: 'mei',
@@ -667,8 +667,8 @@ export default function CreateAgentDemo() {
             id="create-agent"
             className="px-3 py-28 md:px-6 md:py-40">
             <SectionHeading
-                title="set up an agent in a minute"
-                description="name it, describe the job, assign a number. that's it."
+                title="give it a name. make it your kind of helpful."
+                description="preview the builder: personality, model, voice, and the things you want help with. these are examples, not live assistants."
             />
 
             <Reveal className="mt-12 flex justify-center">
