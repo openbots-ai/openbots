@@ -11,7 +11,7 @@ export default function UseCases() {
             className="px-6 py-28 md:py-40">
             <SectionHeading
                 title="start with the stuff you keep ignoring"
-                description="give one job to one agent. add another once it earns it."
+                description="build one for one job, customize it till it’s exactly your vibe, then build the next."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

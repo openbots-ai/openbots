@@ -149,7 +149,7 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                         placeholder={`Reply as ${agent.name}`}
                         className="max-h-32 min-h-9 flex-1 resize-none rounded-2xl px-3.5 py-2 text-[14px] md:text-[14px]"
                     />
-                    <Button size="icon" aria-label="Send" disabled={!text.trim()} onClick={submit} className="bg-[#0a84ff] text-white hover:bg-[#0a84ff]/90 disabled:bg-neutral-200 disabled:opacity-100">
+                    <Button size="icon" aria-label="Send" disabled={!text.trim()} onClick={submit} className="disabled:bg-neutral-200 disabled:opacity-100">
                         <ArrowUp />
                     </Button>
                 </div>

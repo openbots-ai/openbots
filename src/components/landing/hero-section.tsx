@@ -19,7 +19,7 @@ export default function HeroSection() {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        We’re building a place to create a personal AI assistant you can text in iMessage. Choose <span data-cursor-target="phrase" className="whitespace-nowrap">how it talks</span>, what it remembers, and the apps it can use.
+                        Build it piece by piece. Pick the model behind <span data-cursor-target="phrase" className="whitespace-nowrap">every single part</span>, set its personality, voice and rules, and decide what it remembers. Then just text it in iMessage.
                     </p>
                 </StaggerItem>
                 <StaggerItem>
@@ -38,7 +38,6 @@ export default function HeroSection() {
             <div
                 id="product"
                 className="mt-16 px-4 md:mt-20">
-                <p className="type-caption text-muted-foreground mb-6 text-center">A look at what we’re building · scripted product demo</p>
                 <PhoneDemo />
             </div>
         </section>

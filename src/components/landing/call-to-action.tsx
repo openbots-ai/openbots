@@ -10,9 +10,9 @@ export default function CallToAction() {
                     <p className="type-label mb-4 text-white/65">Early access · coming soon</p>
                     <h2 className="type-title text-balance">what would you want yours to help with?</h2>
                     <p className="type-body-lg mt-5 max-w-md text-white/75">
-                        We’re starting with personal assistants for everyday life. We’re still building, and signups aren’t open yet. Take a look at how you’ll make yours.
+                        signups aren’t open yet. peek at the builder and plan yours: the model, the voice, the vibe, all of it.
                     </p>
-                    <a href="/dashboard" className="type-body mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-indigo-950 transition-colors hover:bg-white/90">
+                    <a href="/builder" className="type-body mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-indigo-950 transition-colors hover:bg-white/90">
                         Explore the builder <ArrowUpRight className="size-4" />
                     </a>
                 </div>
