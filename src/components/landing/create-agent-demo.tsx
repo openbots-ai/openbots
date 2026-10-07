@@ -1,27 +1,31 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Contact, MessageCircle, MessagesSquare, Plus, Radio, Search, Settings, Tag, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Contact, Cpu, MessageCircle, MessagesSquare, Plus, Radio, Search, Settings, Tag, X } from 'lucide-react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Reveal } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { useCases } from '@/components/landing/use-cases'
 import { AgentConfigBar, MenuPicture, ProviderMark } from '@/components/agent-config-bar'
-import { DEFAULT_CONFIG, costOf, modelOf } from '@/lib/agent-options'
+import { UsageGauge } from '@/components/usage-gauge'
+import { Progress } from '@/components/ui/progress'
+import { DEFAULT_CONFIG } from '@/lib/agent-options'
+import { SLOT_ICONS } from '@/components/slot-icons'
+import { SLOTS, resolveModels, slotOf, type SlotId } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 
 type Status = 'draft' | 'live'
 
 // What each tab's agent gets set up with in the editor
 const settings: Record<string, { type: string; prompt: string; number: string; model: string; voice: string; language: string }> = {
-    Marcus: {
+    Waffles: {
         type: 'Business',
         prompt: 'Researches every new account overnight and drafts outreach in my voice. Nothing sends until I approve it.',
         number: '+1 (415) 555-0142',
-        model: 'gpt-5.1',
+        model: 'grok-4',
         voice: 'omar',
         language: 'en-US',
     },
-    Kai: {
+    Pebble: {
         type: 'Work',
         prompt: 'Clicks through the demo an hour before every call, fixes whatever broke and texts me "we are good" when it is ready.',
         number: '+1 (415) 555-0178',
@@ -29,7 +33,7 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
         voice: 'theo',
         language: 'en-GB',
     },
-    Emily: {
+    Mochi: {
         type: 'Work',
         prompt: 'Chases every deal that went quiet and sends the Monday pipeline scoreboard before standup.',
         number: '+1 (415) 555-0193',
@@ -37,7 +41,7 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
         voice: 'nia',
         language: 'en-US',
     },
-    Nora: {
+    Honey: {
         type: 'Business',
         prompt: 'Answers customers kindly and quickly, files the tickets and sends updates. Anything about billing comes to me.',
         number: '+1 (415) 555-0127',
@@ -49,38 +53,66 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
 
 // Agents already in the workspace, listed before the new one is created
 const existing: { name: string; role: string; number: string; status: Status | 'paused'; edited: string }[] = [
-    { name: 'Ava', role: 'Personal assistant', number: '+1 (415) 555-0110', status: 'live', edited: '2h ago' },
-    { name: 'Jason', role: 'Copywriter', number: '+1 (415) 555-0164', status: 'live', edited: 'Yesterday' },
-    { name: 'Leo', role: 'Finance & invoices', number: '+1 (415) 555-0151', status: 'paused', edited: 'Monday' },
-    { name: 'Sam', role: 'Fitness coach', number: '', status: 'draft', edited: 'Sep 28' },
+    { name: 'Pip', role: 'Personal assistant', number: '+1 (415) 555-0110', status: 'live', edited: '2h ago' },
+    { name: 'Biscuit', role: 'Copywriter', number: '+1 (415) 555-0164', status: 'live', edited: 'Yesterday' },
+    { name: 'Penny', role: 'Finance & invoices', number: '+1 (415) 555-0151', status: 'paused', edited: 'Monday' },
+    { name: 'Sprout', role: 'Fitness coach', number: '', status: 'draft', edited: 'Sep 28' },
 ]
 
-const AVATARS = ['ava', 'emily', 'jason', 'kai', 'leo', 'marcus', 'nora', 'sam']
+const AVATARS = ['pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout']
 
 // The flow as timed beats: press Create, fill the dialog, pick model, voice and language, fill the editor, attach a
-// number and go live, then open Analytics to see the usage
-const timeline = (agent: string, role: string) => {
+// number and go live, then open Models to see its mix and Analytics to see what each model did
+// Three short flows through the same agent, one per tab
+type FlowId = 'build' | 'models' | 'analytics'
+
+const FLOWS: { id: FlowId; title: string; icon: typeof Bot; hue: number }[] = [
+    { id: 'build', title: 'build an agent', icon: Bot, hue: 205 },
+    { id: 'models', title: 'mix the models', icon: Cpu, hue: 262 },
+    { id: 'analytics', title: 'track the work', icon: ChartLine, hue: 160 },
+]
+
+// The agent every flow follows
+const AGENT = useCases[0]
+
+// Each flow as timed beats. Beats from earlier flows that a flow starts after count as already done
+// (see DONE), so "mix the models" opens on the finished editor and "track the work" on the agent list.
+const timeline = (flow: FlowId, agent: string, role: string) => {
     const s = settings[agent]
-    const beats: [string, number][] = [
-        ['list', 1300],
-        ['pressCreate', 350],
-        ['name', 250 + agent.length * 90],
-        ['role', 200 + role.length * 55],
-        ['pressSubmit', 450],
-        ['editor', 700],
-        ['model', 1700],
-        ['voice', 2300],
-        ['language', 1600],
-        ['type', s.type.length * 80],
-        ['avatar', 700],
-        ['prompt', s.prompt.length * 22],
-        ['status', 800],
-        ['number', 1500],
-        ['save', 700],
-        ['toAnalytics', 700],
-        ['analytics', 4200],
-        ['hold', 1400],
-    ]
+    const beats: [string, number][] =
+        flow === 'build'
+            ? [
+                  ['list', 1300],
+                  ['pressCreate', 350],
+                  ['name', 250 + agent.length * 90],
+                  ['role', 200 + role.length * 55],
+                  ['pressSubmit', 450],
+                  ['editor', 700],
+                  ['type', s.type.length * 80],
+                  ['avatar', 700],
+                  ['prompt', s.prompt.length * 22],
+                  ['status', 800],
+                  ['number', 1500],
+                  ['save', 700],
+                  ['hold', 2200],
+              ]
+            : flow === 'models'
+              ? [
+                    ['intro', 900],
+                    ['model', 1700],
+                    ['voice', 2300],
+                    ['language', 1600],
+                    ['save', 700],
+                    ['toModels', 600],
+                    ['models', 3800],
+                    ['hold', 1600],
+                ]
+              : [
+                    ['intro', 1100],
+                    ['toAnalytics', 600],
+                    ['analytics', 4200],
+                    ['hold', 2200],
+                ]
     let at = 0
     const starts: Record<string, [number, number]> = {}
     for (const [key, dur] of beats) {
@@ -88,6 +120,12 @@ const timeline = (agent: string, role: string) => {
         at += dur
     }
     return { starts, total: at }
+}
+
+const DONE: Record<FlowId, Set<string>> = {
+    build: new Set(),
+    models: new Set(['list', 'pressCreate', 'name', 'role', 'pressSubmit', 'editor', 'type', 'avatar', 'prompt', 'status', 'number']),
+    analytics: new Set(),
 }
 
 // Within the model and language beats: the menu is open between these points and the pointer reaches the pick at HOVER.
@@ -159,7 +197,7 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
 )
 
 const nav: { label: string; items: [string, typeof Bot][] }[] = [
-    { label: 'Build', items: [['Agents', Bot], ['Knowledge', BookOpen], ['iMessage Numbers', MessageCircle]] },
+    { label: 'Build', items: [['Agents', Bot], ['Models', Cpu], ['Knowledge', BookOpen], ['iMessage Numbers', MessageCircle]] },
     { label: 'Data', items: [['Conversations', MessagesSquare], ['Contacts', Contact], ['Analytics', ChartLine], ['Live', Radio]] },
     { label: 'System', items: [['Settings', Settings]] },
 ]
@@ -318,6 +356,8 @@ type EditorState = {
     language: string
     playing: boolean
     configFocus?: 'model' | 'voice' | 'language'
+    // Whether the other model slots show this agent's mix (set in the models flow) or the workspace defaults
+    mixed: boolean
     menu?: { control: 'model' | 'voice' | 'language'; hovered: string }
 }
 
@@ -343,7 +383,17 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
                 <Btn primary pressed={e.pressSave} className={cn(e.saved && 'opacity-50')}>{e.saved ? 'Saved' : 'Save changes'}</Btn>
             </Toolbar>
             <div className="shrink-0 border-b border-neutral-200/70 px-4 py-2.5">
-                <AgentConfigBar interactive={false} menu={e.menu} model={e.model} voice={e.voice} language={e.language} playing={e.playing} highlight={e.configFocus} />
+                <AgentConfigBar
+                    interactive={false}
+                    menu={e.menu}
+                    model={e.model}
+                    voice={e.voice}
+                    language={e.language}
+                    playing={e.playing}
+                    highlight={e.configFocus}
+                    // The other parts: defaults while building, this agent's mix once the models flow has set it
+                    slots={SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({ slot, value: (e.mixed && MIXES[e.agent]?.[slot.id]) || slot.default }))}
+                />
             </div>
             <div className={cn('grid min-h-0 flex-1 gap-4 p-4', !compact && 'grid-cols-[minmax(0,1fr)_260px]')}>
                 <div className="space-y-4 rounded-lg border border-neutral-200 p-4">
@@ -409,134 +459,146 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
     )
 }
 
-// What the Analytics page shows at the end of the demo: a month of usage across the workspace.
-// Costs come from the same placeholder per-model rates the CRM uses.
-const USAGE = [
-    { label: 'Messages', used: 1240, limit: 2000, unit: 'msgs' },
-    { label: 'AI tokens', used: 312_400, limit: 1_000_000, unit: 'tokens' },
-    { label: 'Agents', used: 7, limit: 10, unit: 'agents' },
-]
-const MODEL_USE = [
-    { id: 'claude-sonnet-5.5', input: 118_200, output: 16_900 },
-    { id: 'gpt-5.1', input: 86_400, output: 12_100 },
-    { id: 'gemini-2.5-flash', input: 41_300, output: 9_800 },
-    { id: 'claude-haiku-4.5', input: 23_000, output: 4_700 },
-].map((m) => ({ ...m, model: modelOf(m.id), cost: costOf(m.id, m.input, m.output) }))
-const SPEND = MODEL_USE.reduce((s, m) => s + m.cost, 0)
-// Eight weeks of activity: quieter weekends, busier lately
-const ACTIVITY = Array.from({ length: 56 }, (_, i) => {
-    const weekend = i % 7 === 0 || i % 7 === 6
-    return Math.min(4, (weekend ? 0 : 1) + ((i * 7 + 3) % 5 === 0 ? 2 : (i * 13) % 3) + (i > 42 ? 1 : 0))
-})
-const HEAT = ['bg-neutral-100', 'bg-primary/20', 'bg-primary/40', 'bg-primary/65', 'bg-primary']
+// Each demo agent's model mix: the slots it runs on something other than the workspace default
+const MIXES: Record<string, Partial<Record<SlotId, string>>> = {
+    Waffles: { brain: 'grok-4', voice: 'cartesia-sonic' },
+    Pebble: { brain: 'gemini-2.5-flash', computer: 'gemini-2.5-computer-use', listening: 'whisper' },
+    Mochi: { brain: 'claude-sonnet-5.5', calls: 'gemini-live' },
+    Honey: { brain: 'claude-haiku-4.5', voice: 'openai-tts' },
+}
 
+// Models page: the nine part cards pick up this agent's mix one at a time
+function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact: boolean }) {
+    const mix = resolveModels(undefined, MIXES[agent])
+    const step = SLOTS.length + 1
+    return (
+        <div className="flex h-full flex-col">
+            <Toolbar title="Models">
+                <span className="text-[12px] font-normal text-neutral-500">{agent}’s mix · the best model for each job</span>
+            </Toolbar>
+            <div className={cn('grid gap-2.5 p-4', compact ? 'grid-cols-2' : 'grid-cols-3')}>
+                {SLOTS.map((slot, i) => {
+                    const Icon = SLOT_ICONS[slot.id]
+                    const at = ((i + 1) / step) * 0.85
+                    const assigned = t >= at
+                    const assigning = t >= at - 0.85 / step && !assigned
+                    const r = mix[slot.id]
+                    return (
+                        <span
+                            key={slot.id}
+                            className={cn('flex flex-col gap-2 rounded-lg p-3 ring-1 transition-shadow duration-300', assigning ? 'ring-2 ring-neutral-900/25' : 'ring-black/6', r.overridden && assigned && 'bg-primary/4')}>
+                            <span className="flex items-center gap-2">
+                                <span className="grid size-7 shrink-0 place-items-center rounded-md bg-neutral-100 text-neutral-700">
+                                    <Icon className="size-3.5" />
+                                </span>
+                                <span className="text-[13px] font-semibold">{slot.label}</span>
+                                {slot.isNew && <span className="rounded-full bg-neutral-100 px-1.5 text-[9px] font-medium text-neutral-600">New</span>}
+                            </span>
+                            {!compact && <span className="line-clamp-1 text-[11px] text-neutral-500">{slot.blurb}</span>}
+                            <span className="flex h-7 items-center gap-2 rounded-md border border-neutral-200 bg-white px-2 text-[12px]">
+                                <AnimatePresence mode="wait" initial={false}>
+                                    {assigned ? (
+                                        <motion.span key="on" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex min-w-0 items-center gap-2">
+                                            <ProviderMark provider={r.option.provider} className="size-3.5" />
+                                            <span className="truncate">{r.option.label}</span>
+                                        </motion.span>
+                                    ) : (
+                                        <motion.span key="off" exit={{ opacity: 0 }} className="h-2 w-20 rounded bg-neutral-100" />
+                                    )}
+                                </AnimatePresence>
+                                <ChevronDown className="ml-auto size-3.5 shrink-0 text-neutral-400" />
+                            </span>
+                        </span>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+// Analytics page: what each model did across the workspace this month (sample numbers)
+const DID: { slot: SlotId; total: number; split: [string, number][] }[] = [
+    { slot: 'brain', total: 4_820, split: [['claude-sonnet-5.5', 38], ['grok-4', 27], ['gemini-2.5-flash', 21], ['claude-haiku-4.5', 14]] },
+    { slot: 'computer', total: 12_400, split: [['gpt-5.1-computer-use', 58], ['claude-sonnet-5.5-computer-use', 27], ['gemini-2.5-computer-use', 15]] },
+    { slot: 'voice', total: 312, split: [['elevenlabs', 61], ['cartesia-sonic', 24], ['openai-tts', 15]] },
+    { slot: 'calls', total: 186, split: [['gpt-realtime', 72], ['gemini-live', 28]] },
+    { slot: 'decisions', total: 38_900, split: [['jev', 91], ['claude-haiku-4.5', 9]] },
+    { slot: 'router', total: 5_310, split: [['jev-router', 100]] },
+]
+const TILES: [SlotId, string, number][] = [
+    ['brain', 'Replies written', 4_820],
+    ['computer', 'Actions in your apps', 12_400],
+    ['decisions', 'Decisions made', 38_900],
+    ['calls', 'Minutes on calls', 186],
+]
 const fmt = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
-const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
 function AnalyticsScreen({ t, compact }: { t: number; compact: boolean }) {
-    // Meters fill and numbers count up over the first half of the beat, easing out
+    // Numbers count up and bars fill over the first half of the beat, easing out
     const fill = 1 - (1 - Math.min(1, t / 0.5)) ** 3
-    const count = (n: number) => n * fill
-    const tokensIn = MODEL_USE.reduce((s, m) => s + m.input, 0)
-    const tokensOut = MODEL_USE.reduce((s, m) => s + m.output, 0)
-    const tiles: [string, string, string][] = [
-        ['Est. spend', usd(count(SPEND)), 'Last 30 days, all agents'],
-        ['AI tokens', fmt(count(tokensIn + tokensOut)), `${fmt(tokensIn)} in · ${fmt(tokensOut)} out`],
-        ['Agent replies', fmt(Math.round(count(486))), '58 conversations'],
-        ['Agents live', '6 / 7', '214 contacts'],
+    const meters: [string, number, string][] = [
+        ['Today', 0.38, 'Resets at midnight'],
+        ['This week · all models', 0.61, 'Resets Mon, Oct 13'],
     ]
-    const SEGMENTS = 30
-
     return (
         <div className="flex h-full flex-col">
             <Toolbar title="Analytics">
-                <span className="text-[12px] font-normal text-neutral-500">Last 30 days · estimates</span>
+                <span className="text-[12px] font-normal text-neutral-500">What your team did, and which models did it</span>
             </Toolbar>
             <div className="space-y-3 p-4">
                 <div className={cn('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-4')}>
-                    {tiles.map(([label, value, sub]) => (
-                        <span key={label} className="flex flex-col gap-0.5 rounded-lg p-3 ring-1 ring-black/6">
-                            <span className="text-[11px] text-neutral-500">{label}</span>
-                            <span className="text-[20px] font-semibold tracking-tight tabular-nums">{value}</span>
-                            <span className="text-[10px] text-neutral-500">{sub}</span>
-                        </span>
-                    ))}
+                    {TILES.map(([slot, label, n]) => {
+                        const Icon = SLOT_ICONS[slot]
+                        return (
+                            <span key={slot} className="flex flex-col gap-0.5 rounded-lg p-3 ring-1 ring-black/6">
+                                <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                                    <Icon className="size-3" />
+                                    {label}
+                                </span>
+                                <span className="text-[20px] font-semibold tracking-tight tabular-nums">{fmt(Math.round(n * fill))}</span>
+                            </span>
+                        )
+                    })}
                 </div>
+
+                <span className="grid grid-cols-2 gap-3 rounded-lg py-1 ring-1 ring-black/6">
+                    {meters.map(([label, share, note]) => (
+                        <UsageGauge key={label} label={label} used={share * fill} limit={1} note={note} animate={false} />
+                    ))}
+                </span>
 
                 <span className="block rounded-lg ring-1 ring-black/6">
                     <span className="flex justify-between border-b border-neutral-200/70 px-3 py-2 text-[12px]">
-                        <span className="font-medium">Usage</span>
-                        <span className="text-[11px] text-neutral-500">Personal plan</span>
+                        <span className="font-medium">What each model did</span>
+                        <span className="text-[11px] text-neutral-500">Last 30 days</span>
                     </span>
-                    <span className={cn('grid gap-4 p-3', compact ? 'grid-cols-1' : 'grid-cols-3')}>
-                        {USAGE.map((u) => {
-                            const share = (u.used / u.limit) * fill
+                    <span className="block divide-y divide-neutral-100 px-3">
+                        {DID.slice(0, compact ? 4 : DID.length).map(({ slot, total, split }) => {
+                            const Icon = SLOT_ICONS[slot]
+                            const s = slotOf(slot)!
                             return (
-                                <span key={u.label} className="space-y-1.5">
-                                    <span className="flex justify-between text-[12px]">
-                                        <span className="font-medium">{u.label}</span>
-                                        <span className="font-mono text-[11px] text-neutral-500 tabular-nums">
-                                            {fmt(Math.round(count(u.used)))} / {fmt(u.limit)} {u.unit}
-                                        </span>
+                                <span key={slot} className={cn('grid items-center gap-3 py-2', compact ? 'grid-cols-[132px_1fr]' : 'grid-cols-[150px_1fr]')}>
+                                    <span className="flex items-center gap-2">
+                                        <Icon className="size-3.5 text-neutral-500" />
+                                        <span className="text-[12px] font-medium whitespace-nowrap">{s.label}</span>
+                                        <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{fmt(Math.round(total * fill))}</span>
                                     </span>
-                                    <span className="flex gap-[3px]">
-                                        {Array.from({ length: SEGMENTS }, (_, i) => (
-                                            <span key={i} className={cn('h-2.5 flex-1 rounded-[2px] transition-colors', i < Math.round(share * SEGMENTS) ? 'bg-primary' : 'bg-neutral-200/80')} />
-                                        ))}
-                                    </span>
-                                    <span className="flex justify-between font-mono text-[10px] text-neutral-500">
-                                        <span>{u.label === 'Agents' ? 'Upgrade for more' : 'Resets Nov 1'}</span>
-                                        <span className="tabular-nums">{Math.round(share * 100)}% used</span>
+                                    <span className="flex gap-3">
+                                        {split.slice(0, compact ? 2 : 3).map(([id, pct]) => {
+                                            const o = s.options.find((x) => x.id === id)!
+                                            return (
+                                                <span key={id} className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]">
+                                                    <ProviderMark provider={o.provider} className="size-3" />
+                                                    <span className="truncate">{o.label}</span>
+                                                    <Progress value={Math.round(pct * fill)} className="min-w-6 flex-1" />
+                                                    <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{Math.round(pct * fill)}%</span>
+                                                </span>
+                                            )
+                                        })}
                                     </span>
                                 </span>
                             )
                         })}
-                    </span>
-                </span>
-
-                <span className={cn('grid gap-3', compact ? 'grid-cols-1' : 'grid-cols-[1.25fr_1fr]')}>
-                    <span className="block rounded-lg ring-1 ring-black/6">
-                        <span className="block border-b border-neutral-200/70 px-3 py-2 text-[12px] font-medium">Tokens by model</span>
-                        <span className="block px-3 py-1.5">
-                            {MODEL_USE.map((m) => (
-                                <span key={m.id} className="grid grid-cols-[1fr_52px_52px_56px] items-center border-b border-neutral-100 py-1.5 text-[12px] last:border-0">
-                                    <span className="flex items-center gap-2">
-                                        <ProviderMark provider={m.model.provider} className="size-3.5" />
-                                        {m.model.label}
-                                    </span>
-                                    <span className="text-right font-mono text-[11px] text-neutral-500 tabular-nums">{fmt(count(m.input))}</span>
-                                    <span className="text-right font-mono text-[11px] text-neutral-500 tabular-nums">{fmt(count(m.output))}</span>
-                                    <span className="text-right font-mono text-[11px] tabular-nums">{usd(count(m.cost))}</span>
-                                </span>
-                            ))}
-                        </span>
-                    </span>
-                    <span className={cn('rounded-lg ring-1 ring-black/6', compact ? 'hidden' : 'block')}>
-                        <span className="flex justify-between border-b border-neutral-200/70 px-3 py-2 text-[12px]">
-                            <span className="font-medium">Activity</span>
-                            <span className="text-[11px] text-neutral-500">Last 8 weeks</span>
-                        </span>
-                        <span className="flex items-start gap-4 p-3">
-                            <span className="grid grid-flow-col grid-rows-7 gap-[3px]">
-                                {ACTIVITY.map((level, i) => (
-                                    // Cells sweep in left to right as the page settles
-                                    <span key={i} className={cn('size-2.5 rounded-[2px] transition-colors duration-300', i < fill * ACTIVITY.length ? HEAT[level] : HEAT[0])} />
-                                ))}
-                            </span>
-                            <span className="grid flex-1 gap-1.5 font-mono text-[10px]">
-                                {[
-                                    ['Busiest day', 'Oct 2'],
-                                    ['Streak', '12 days'],
-                                    ['Top agent', 'Marcus'],
-                                    ['Top model', 'Sonnet 5.5'],
-                                ].map(([k, v]) => (
-                                    <span key={k} className="flex justify-between gap-2">
-                                        <span className="text-neutral-500">{k}</span>
-                                        <span>{v}</span>
-                                    </span>
-                                ))}
-                            </span>
-                        </span>
                     </span>
                 </span>
             </div>
@@ -546,13 +608,14 @@ function AnalyticsScreen({ t, compact }: { t: number; compact: boolean }) {
 
 // The mock is laid out at a fixed size and scaled to fit, so it reads as the real app at any width.
 // Narrow screens get the CRM's own small-screen layout (no sidebars) so the text stays legible.
-const design = (compact: boolean) => (compact ? { w: 560, h: 660 } : { w: 1080, h: 696 })
+const design = (compact: boolean) => (compact ? { w: 560, h: 860 } : { w: 1080, h: 790 })
 const COMPACT_BELOW = 640
 
-function CrmMock({ agent, role, elapsed, compact }: { agent: string; role: string; elapsed: number; compact: boolean }) {
-    const { starts } = timeline(agent, role)
-    // 0 before a beat starts, 1 once it has finished
+function CrmMock({ flow, agent, role, elapsed, compact }: { flow: FlowId; agent: string; role: string; elapsed: number; compact: boolean }) {
+    const { starts } = timeline(flow, agent, role)
+    // 0 before a beat starts, 1 once it has finished; beats outside this flow are done or not by DONE
     const p = (key: string) => {
+        if (!starts[key]) return DONE[flow].has(key) ? 1 : 0
         const [at, dur] = starts[key]
         return Math.min(1, Math.max(0, (elapsed - at) / dur))
     }
@@ -561,17 +624,22 @@ function CrmMock({ agent, role, elapsed, compact }: { agent: string; role: strin
     const s = settings[agent]
 
     const inEditor = p('editor') > 0
+    const inModels = p('models') > 0
     const inAnalytics = p('analytics') > 0
     const dialogOpen = p('pressCreate') >= 1 && !inEditor
 
     return (
         <div className="relative flex size-full overflow-hidden bg-[#f5f5f7] text-neutral-900">
-            {!compact && <Sidebar active={inAnalytics ? 'Analytics' : 'Agents'} pressed={active('toAnalytics') && p('toAnalytics') > 0.5 ? 'Analytics' : undefined} />}
+            {!compact && <Sidebar active={inAnalytics ? 'Analytics' : inModels ? 'Models' : 'Agents'} pressed={active('toModels') && p('toModels') > 0.5 ? 'Models' : active('toAnalytics') && p('toAnalytics') > 0.5 ? 'Analytics' : undefined} />}
             <div className={cn('relative min-w-0 flex-1 overflow-hidden bg-white', !compact && 'rounded-l-xl border-l border-neutral-200/70')}>
                 <AnimatePresence initial={false} mode="popLayout">
                     {inAnalytics ? (
                         <motion.div key="analytics" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
                             <AnalyticsScreen t={p('analytics')} compact={compact} />
+                        </motion.div>
+                    ) : inModels ? (
+                        <motion.div key="models" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
+                            <ModelsScreen t={p('models')} agent={agent} compact={compact} />
                         </motion.div>
                     ) : inEditor ? (
                         <motion.div key="editor" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
@@ -588,7 +656,8 @@ function CrmMock({ agent, role, elapsed, compact }: { agent: string; role: strin
                                     number: p('number') >= MENU_CLOSE,
                                     numberMenu: p('number') >= MENU_OPEN && p('number') < MENU_CLOSE ? (p('number') >= MENU_HOVER ? s.number : NONE) : undefined,
                                     pressSave: active('save') && p('save') < 0.4,
-                                    saved: p('save') >= 0.4,
+                                    // The models flow opens on an already-saved agent, so it reads "Saved" until the first change
+                                    saved: p('save') >= 0.4 || (flow === 'models' && p('model') === 0),
                                     // Each control's menu opens, the pointer moves to the agent's pick, then it closes on the new value.
                                     // The voice then plays a short preview.
                                     model: p('model') >= MENU_CLOSE ? s.model : DEFAULT_CONFIG.model,
@@ -596,6 +665,7 @@ function CrmMock({ agent, role, elapsed, compact }: { agent: string; role: strin
                                     language: p('language') >= MENU_CLOSE ? s.language : DEFAULT_CONFIG.language,
                                     playing: p('voice') >= VOICE_MENU_CLOSE + 0.05 && p('voice') < 1,
                                     menu: menuAt(p, s),
+                                    mixed: flow !== 'build',
                                     configFocus: active('model') ? 'model' : active('voice') ? 'voice' : active('language') ? 'language' : undefined,
                                     focus: active('type') ? 'type' : active('prompt') ? 'prompt' : active('status') ? 'status' : active('number') ? 'number' : undefined,
                                 }}
@@ -630,8 +700,8 @@ export default function CreateAgentDemo() {
     const frame = useRef<HTMLDivElement>(null)
     const inView = useInView(frame, { amount: 0.4 })
     const reduced = useReducedMotion()
-    const current = useCases[index]
-    const { total } = timeline(current.agent, current.role)
+    const current = FLOWS[index]
+    const { total } = timeline(current.id, AGENT.agent, AGENT.role)
     const compact = width > 0 && width < COMPACT_BELOW
     const size = design(compact)
     const scale = width / size.w
@@ -644,7 +714,7 @@ export default function CreateAgentDemo() {
         return () => ro.disconnect()
     }, [])
 
-    // Play the current agent's setup while on screen, then move on to the next tab
+    // Play the current flow while on screen, then move on to the next tab
     useEffect(() => {
         if (reduced || !inView) return
         let last = performance.now()
@@ -653,8 +723,7 @@ export default function CreateAgentDemo() {
             const dt = now - last
             last = now
             setClock(({ index, elapsed }) => {
-                const u = useCases[index]
-                return elapsed + dt < timeline(u.agent, u.role).total ? { index, elapsed: elapsed + dt } : { index: (index + 1) % useCases.length, elapsed: 0 }
+                return elapsed + dt < timeline(FLOWS[index].id, AGENT.agent, AGENT.role).total ? { index, elapsed: elapsed + dt } : { index: (index + 1) % FLOWS.length, elapsed: 0 }
             })
         }, 40)
         return () => window.clearInterval(id)
@@ -667,26 +736,26 @@ export default function CreateAgentDemo() {
             id="create-agent"
             className="px-3 py-28 md:px-6 md:py-40">
             <SectionHeading
-                title="hire one in under a minute"
-                description="name it, tell it the job, give it a number. that's the whole setup."
+                title="build it your way, no notes"
+                description="start with a name and a job. then swap models, voices and rules till it's exactly your vibe."
             />
 
             <Reveal className="mt-12 flex justify-center">
                 <div
                     role="tablist"
-                    aria-label="Agents"
+                    aria-label="Flows"
                     className="flex max-w-full gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.18)] ring-1 ring-black/6 [scrollbar-width:none] dark:bg-white/5 dark:ring-white/10">
-                    {useCases.map((u, i) => {
+                    {FLOWS.map((f, i) => {
                         const selected = i === index
                         return (
                             <button
-                                key={u.agent}
+                                key={f.id}
                                 role="tab"
                                 aria-selected={selected}
                                 aria-controls="create-agent-panel"
                                 onClick={() => select(i)}
                                 className={cn(
-                                    'relative flex shrink-0 cursor-pointer items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-[14px] transition-colors',
+                                    'relative flex shrink-0 cursor-pointer items-center gap-2 rounded-full py-1.5 pr-4 pl-1.5 text-[14px] transition-colors',
                                     selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                                 )}>
                                 {selected && (
@@ -694,7 +763,7 @@ export default function CreateAgentDemo() {
                                         layoutId="create-agent-tab"
                                         transition={{ type: 'spring', stiffness: 420, damping: 36 }}
                                         className="absolute inset-0 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10">
-                                        {/* Fills as the agent's setup plays, like a story progress bar */}
+                                        {/* Fills as the flow plays, like a story progress bar */}
                                         {!reduced && (
                                             <span
                                                 className="absolute inset-y-0 left-0 bg-black/4 dark:bg-white/6"
@@ -703,11 +772,10 @@ export default function CreateAgentDemo() {
                                         )}
                                     </motion.span>
                                 )}
-                                <AgentAvatar
-                                    name={u.agent}
-                                    className="relative size-6"
-                                />
-                                <span className="relative font-medium">{u.title}</span>
+                                <span className="relative grid size-6 place-items-center rounded-full bg-white shadow-xs ring-1 ring-black/8 dark:bg-white/10">
+                                    <f.icon className="size-3.5" />
+                                </span>
+                                <span className="relative font-medium">{f.title}</span>
                             </button>
                         )
                     })}
@@ -715,11 +783,11 @@ export default function CreateAgentDemo() {
             </Reveal>
 
             <Reveal className="mt-8">
-                {/* Desktop "wallpaper" tinted by the agent's hue, with the CRM window floating on it */}
+                {/* Desktop "wallpaper" tinted per flow, with the CRM window floating on it */}
                 <div
                     id="create-agent-panel"
                     role="tabpanel"
-                    aria-label={`Setting up ${current.agent}, the ${current.role.toLowerCase()} agent, in the CRM`}
+                    aria-label={`The CRM: ${current.title}`}
                     className="relative overflow-hidden rounded-2xl p-3 shadow-[0_40px_80px_-32px_rgba(0,0,0,0.35)] ring-1 ring-black/8 transition-[background] duration-700 sm:p-8 md:p-14 dark:ring-white/10"
                     style={{
                         background: `radial-gradient(120% 90% at 20% 0%, hsl(${current.hue} 80% 78%), transparent 60%), radial-gradient(100% 80% at 100% 100%, hsl(${(current.hue + 40) % 360} 70% 62%), transparent 65%), hsl(${current.hue} 35% 22%)`,
@@ -744,9 +812,10 @@ export default function CreateAgentDemo() {
                                 className="absolute top-0 left-0 origin-top-left"
                                 style={{ width: size.w, height: size.h, transform: `scale(${scale})` }}>
                                 <CrmMock
-                                    key={current.agent}
-                                    agent={current.agent}
-                                    role={current.role}
+                                    key={current.id}
+                                    flow={current.id}
+                                    agent={AGENT.agent}
+                                    role={AGENT.role}
                                     elapsed={reduced ? total : elapsed}
                                     compact={compact}
                                 />

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Aperture, Asterisk, Check, Pause, Play, Settings2 } from 'lucide-react'
+import { Check, CircleDashed, Pause, Play, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -7,22 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SLOT_ICONS } from '@/components/slot-icons'
+import { INHERIT, type ModelOption, type Slot } from '@convex/lib/models'
 import { DEFAULT_CONFIG, LANGUAGES, MODELS, REPLY_LENGTHS, VOICES, languageOf, modelOf, voiceOf, type Provider, type ReplyLength } from '@/lib/agent-options'
 
+// Real provider logos, sourced online (LobeHub's open AI-logo set, Simple Icons, and the providers' own sites)
+const LOGOS: Record<Exclude<Provider, 'none'>, string> = {
+    openai: '/logos/openai.svg',
+    anthropic: '/logos/claude.svg',
+    google: '/logos/gemini.svg',
+    xai: '/logos/grok.svg',
+    elevenlabs: '/logos/elevenlabs.svg',
+    deepgram: '/logos/deepgram.svg',
+    cartesia: '/logos/cartesia.svg',
+    typesafe: '/logos/typesafe.png',
+}
+
 export function ProviderMark({ provider, className }: { provider: Provider; className?: string }) {
-    if (provider === 'openai') return <Aperture className={cn('size-4 text-neutral-900', className)} />
-    if (provider === 'anthropic') return <Asterisk className={cn('size-4 text-[#D97757]', className)} strokeWidth={3} />
-    return (
-        <svg viewBox="0 0 24 24" className={cn('size-4', className)} aria-hidden>
-            <defs>
-                <linearGradient id="gemini-mark" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#4285F4" />
-                    <stop offset="1" stopColor="#9B72CB" />
-                </linearGradient>
-            </defs>
-            <path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z" fill="url(#gemini-mark)" />
-        </svg>
-    )
+    // "Off" and "Same as Brain" have no provider
+    if (provider === 'none') return <CircleDashed className={cn('size-4 shrink-0 text-neutral-400', className)} />
+    return <img src={LOGOS[provider]} alt="" className={cn('size-4 shrink-0 rounded-[3px] object-contain', className)} />
 }
 
 export function VoiceAvatar({ voice, className }: { voice: string; className?: string }) {
@@ -90,7 +94,54 @@ type Props = {
     onTemperatureChange?: (value: number) => void
     onReplyLengthChange?: (value: ReplyLength) => void
     onTogglePlay?: () => void
+    // The other model slots (computer use, voice notes, …), each shown as its own picker after the language
+    slots?: SlotPick[]
     className?: string
+}
+
+export type SlotPick = {
+    slot: Slot
+    // A model id, or INHERIT to follow the workspace
+    value: string
+    // What the workspace would use; when set, "Workspace default" is offered first
+    inherited?: ModelOption
+    onChange?: (id: string) => void
+    // Look-only bar: draws a focus ring while the demo sets this slot
+    highlight?: boolean
+}
+
+// One model slot as a compact pill: the slot's icon, then the chosen model's logo and name
+function SlotPill({ slot, value, inherited, onChange = noop, highlight }: SlotPick) {
+    const Icon = SLOT_ICONS[slot.id]
+    const following = value === INHERIT && inherited
+    const current = following ? inherited : slot.options.find((o) => o.id === value)
+    return (
+        <Tooltip>
+            <Select value={value} onValueChange={(id) => id && onChange(id)}>
+                <TooltipTrigger render={<SelectTrigger aria-label={slot.label} className={cn(pill, 'gap-1.5 pr-2 pl-2.5', ring(!!highlight))} />}>
+                    <Icon className="size-3.5 text-neutral-500" />
+                    {current && <ProviderMark provider={current.provider} className="size-3.5" />}
+                    <span className={cn(following && 'text-neutral-500')}>{current?.label ?? 'Not set'}</span>
+                </TooltipTrigger>
+                <SelectContent alignItemWithTrigger={false} align="start" className="min-w-72">
+                    {inherited && (
+                        <SelectItem value={INHERIT}>
+                            <span className="text-muted-foreground">Workspace default ({inherited.label})</span>
+                        </SelectItem>
+                    )}
+                    {slot.options.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                            <ProviderMark provider={o.provider} />
+                            {o.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <TooltipContent side="bottom" className="max-w-60">
+                <span className="font-medium">{slot.label}</span> · {slot.blurb}
+            </TooltipContent>
+        </Tooltip>
+    )
 }
 
 const noop = () => {}
@@ -112,6 +163,7 @@ export function AgentConfigBar({
     onTemperatureChange = noop,
     onReplyLengthChange = noop,
     onTogglePlay,
+    slots,
     className,
 }: Props) {
     const m = modelOf(model)
@@ -231,6 +283,8 @@ export function AgentConfigBar({
                     </SelectContent>
                 </Select>
             </div>
+
+            {slots?.map((pick) => <SlotPill key={pick.slot.id} {...pick} />)}
         </div>
     )
 }

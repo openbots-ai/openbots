@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, Cpu, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import type { Doc } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -15,6 +15,7 @@ const GROUPS: { label?: string; items: { view: View; label: string; icon: Lucide
         label: 'Build',
         items: [
             { view: 'agents', label: 'Agents', icon: Bot },
+            { view: 'models', label: 'Models', icon: Cpu },
             { view: 'knowledge', label: 'Knowledge', icon: BookOpen },
             { view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle },
         ],

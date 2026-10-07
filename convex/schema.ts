@@ -18,10 +18,14 @@ export const agentFields = {
     language: v.optional(v.string()),
     temperature: v.optional(v.number()),
     replyLength: v.optional(v.union(v.literal('short'), v.literal('medium'), v.literal('long'))),
+    // Per-slot model overrides (slot id → model id); missing slots use the workspace's choice
+    models: v.optional(v.record(v.string(), v.string())),
 }
 
 // Optional so workspaces created before these settings existed stay valid; the UI fills in defaults
 export const workspaceSettings = {
+    // Workspace-wide model per slot (slot id → model id); see convex/lib/models.ts
+    models: v.optional(v.record(v.string(), v.string())),
     ownerEmail: v.optional(v.string()),
     timezone: v.optional(v.string()),
     defaultAgentId: v.optional(v.id('agents')),
@@ -65,6 +69,14 @@ export default defineSchema({
         body: v.string(),
         at: v.number(),
     }).index('by_conversation', ['conversationId', 'at']),
+    // Work done per agent, model slot and day; feeds Analytics. One row per (agent, slot, model, day).
+    usage: defineTable({
+        agentId: v.id('agents'),
+        slot: v.string(),
+        model: v.string(),
+        day: v.string(),
+        count: v.number(),
+    }).index('by_day', ['day']),
     knowledge: defineTable({
         title: v.string(),
         body: v.string(),

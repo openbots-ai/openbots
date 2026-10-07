@@ -1,8 +1,11 @@
 import type { Id } from './_generated/dataModel'
-import { mutation } from './_generated/server'
+import { internalMutation, mutation } from './_generated/server'
+import { v } from 'convex/values'
 import { handleKind } from './lib/handles'
 import { HOUR, MIN, SCRIPTS, SEED_AGENTS, SEED_CONFIG, SEED_CONTACTS, SEED_KNOWLEDGE, SEED_NUMBERS, SEED_WORKSPACE, mulberry32 } from './lib/seedData'
 import { DAY } from './lib/stats'
+import { insertSampleUsage } from './lib/seedUsage'
+import { dayKey } from './lib/usage'
 
 // Fills an empty deployment with the mascot team and two weeks of sample activity.
 // The workspace row doubles as the "already seeded" marker, so deleting every agent never reseeds.
@@ -57,5 +60,41 @@ export const run = mutation({
             const conversationId = await ctx.db.insert('conversations', { contactId, agentId, lastMessage: msgs[msgs.length - 1].body, lastAt: times[msgs.length - 1] })
             for (const [k, m] of msgs.entries()) await ctx.db.insert('messages', { conversationId, from: m.from, body: m.body, at: times[k] })
         }
+
+        const agents = await ctx.db.query('agents').take(100)
+        await insertSampleUsage(ctx, agents, await ctx.db.query('workspace').first(), dayKey(now), rand)
+    },
+})
+
+// One-off for deployments seeded before model slots existed: gives the sample agents their model mix and
+// writes sample usage. Internal, so only the CLI can run it: npx convex run seed:backfillModels '{"today":"2026-10-07"}'
+export const backfillModels = internalMutation({
+    args: { today: v.string() },
+    handler: async (ctx, { today }) => {
+        if (await ctx.db.query('usage').first()) return 'usage already present, nothing to do'
+        const agents = await ctx.db.query('agents').take(100)
+        for (const agent of agents) {
+            const mix = SEED_CONFIG[agent.name]?.models
+            if (mix && !agent.models) await ctx.db.patch('agents', agent._id, { models: mix, model: undefined })
+        }
+        await insertSampleUsage(ctx, await ctx.db.query('agents').take(100), await ctx.db.query('workspace').first(), today, mulberry32(11))
+        return `backfilled ${agents.length} agents`
+    },
+})
+
+// One-off for deployments seeded with the old mascot names: npx convex run seed:renameMascots
+export const renameMascots = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const renames: Record<string, string> = { Ava: 'Pip', Emily: 'Mochi', Jason: 'Biscuit', Kai: 'Pebble', Leo: 'Penny', Marcus: 'Waffles', Nora: 'Honey', Sam: 'Sprout' }
+        let count = 0
+        for (const agent of await ctx.db.query('agents').take(100)) {
+            const name = renames[agent.name]
+            if (!name) continue
+            const seed = SEED_AGENTS.find((a) => a.name === name)
+            await ctx.db.patch('agents', agent._id, { name, avatar: `/avatars/${name.toLowerCase()}.webp`, greeting: seed?.greeting ?? agent.greeting })
+            count++
+        }
+        return `renamed ${count} agents`
     },
 })

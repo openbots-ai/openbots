@@ -20,9 +20,9 @@ export default function CallToAction() {
                 className="relative overflow-hidden rounded-2xl bg-indigo-950 px-8 py-20 text-white md:px-14 md:py-24">
                 <ShaderBackground className="absolute inset-0" />
                 <div className="relative max-w-xl">
-                    <h2 className="type-title text-balance">Join our early access</h2>
+                    <h2 className="type-title text-balance">Get in early</h2>
                     <p className="type-body-lg mt-5 max-w-md text-white/75">
-                        We are letting a small group of teams in first. Leave your number and we will text you the moment your agents are ready.
+                        we're letting a small group build first. drop your number and we'll text you when it's your turn.
                     </p>
 
                     {/* iMessage-style compose bar: your number "sends" as a blue bubble and OpenBots replies */}
@@ -48,7 +48,7 @@ export default function CallToAction() {
                                         transition={{ type: 'spring', stiffness: 420, damping: 30, delay: 0.9 }}
                                         style={{ originX: 0, originY: 1 }}
                                         className="max-w-[85%] self-start rounded-[18px] bg-white/15 px-3.5 py-2 text-[15px] backdrop-blur">
-                                        you're on the list 🎉 we'll text you here the moment your agents are ready
+                                        you're so in 🎉 we'll text you right here when it's your turn to build
                                     </motion.p>
                                 </motion.div>
                             )}
