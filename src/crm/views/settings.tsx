@@ -218,7 +218,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
             </Section>
 
             <Section id="data" title="Data" description="Your workspace data belongs to you.">
-                <Row label="Export everything" description="Agents, contacts, conversations, messages, knowledge and broadcasts as JSON.">
+                <Row label="Export everything" description="Agents, contacts, conversations, messages and knowledge as JSON.">
                     <ExportButton />
                 </Row>
             </Section>

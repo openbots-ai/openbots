@@ -57,8 +57,5 @@ export const run = mutation({
             const conversationId = await ctx.db.insert('conversations', { contactId, agentId, lastMessage: msgs[msgs.length - 1].body, lastAt: times[msgs.length - 1] })
             for (const [k, m] of msgs.entries()) await ctx.db.insert('messages', { conversationId, from: m.from, body: m.body, at: times[k] })
         }
-
-        await ctx.db.insert('broadcasts', { title: 'October check-in', body: 'quick one: anything we can help with before the month closes?', agentId: agentIds.get('Marcus')!, tag: 'client', scheduledFor: now + DAY, status: 'scheduled' })
-        await ctx.db.insert('broadcasts', { title: 'Intro offer', body: 'hey! we have two onboarding slots left this week, want one?', agentId: agentIds.get('Marcus')!, tag: 'lead', scheduledFor: now - 5 * DAY, status: 'sent' })
     },
 })

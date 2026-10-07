@@ -65,12 +65,4 @@ export default defineSchema({
         agentId: v.optional(v.id('agents')),
         updatedAt: v.number(),
     }),
-    broadcasts: defineTable({
-        title: v.string(),
-        body: v.string(),
-        agentId: v.id('agents'),
-        tag: v.string(),
-        scheduledFor: v.number(),
-        status: v.union(v.literal('scheduled'), v.literal('sent')),
-    }),
 })

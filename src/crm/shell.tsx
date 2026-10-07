@@ -9,7 +9,6 @@ import { useView } from './use-view'
 import { AgentDetail } from './views/agent-detail'
 import { AgentsView } from './views/agents'
 import { AnalyticsView } from './views/analytics'
-import { BroadcastsView } from './views/broadcasts'
 import { ContactsView } from './views/contacts'
 import { ConversationsView } from './views/conversations'
 import { KnowledgeView } from './views/knowledge'
@@ -65,8 +64,6 @@ function ViewSwitch({ view, id }: { view: View; id?: string }) {
             return <KnowledgeView />
         case 'numbers':
             return <NumbersView />
-        case 'broadcasts':
-            return <BroadcastsView />
         case 'conversations':
             return <ConversationsView key="all" id={id} />
         case 'live':
