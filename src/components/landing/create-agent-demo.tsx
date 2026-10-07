@@ -667,8 +667,8 @@ export default function CreateAgentDemo() {
             id="create-agent"
             className="px-3 py-28 md:px-6 md:py-40">
             <SectionHeading
-                title="hire one in under a minute"
-                description="name it, tell it the job, give it a number. that's the whole setup."
+                title="set up an agent in a minute"
+                description="name it, describe the job, assign a number. that's it."
             />
 
             <Reveal className="mt-12 flex justify-center">

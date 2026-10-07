@@ -41,7 +41,7 @@ export const Header = () => {
                     nativeButton={false}
                     render={
                         <a href={sectionHref('early-access')}>
-                            Join early access <ArrowRight data-icon="inline-end" />
+                            Get early access <ArrowRight data-icon="inline-end" />
                         </a>
                     }
                 />

@@ -20,9 +20,9 @@ export default function CallToAction() {
                 className="relative overflow-hidden rounded-2xl bg-indigo-950 px-8 py-20 text-white md:px-14 md:py-24">
                 <ShaderBackground className="absolute inset-0" />
                 <div className="relative max-w-xl">
-                    <h2 className="type-title text-balance">Join our early access</h2>
+                    <h2 className="type-title text-balance">Get early access</h2>
                     <p className="type-body-lg mt-5 max-w-md text-white/75">
-                        We are letting a small group of teams in first. Leave your number and we will text you the moment your agents are ready.
+                        We are onboarding a small group of teams first. Leave your number and we will text you when your spot opens.
                     </p>
 
                     {/* iMessage-style compose bar: your number "sends" as a blue bubble and OpenBots replies */}
@@ -48,7 +48,7 @@ export default function CallToAction() {
                                         transition={{ type: 'spring', stiffness: 420, damping: 30, delay: 0.9 }}
                                         style={{ originX: 0, originY: 1 }}
                                         className="max-w-[85%] self-start rounded-[18px] bg-white/15 px-3.5 py-2 text-[15px] backdrop-blur">
-                                        you're on the list 🎉 we'll text you here the moment your agents are ready
+                                        you're on the list. we'll text you here when your spot opens.
                                     </motion.p>
                                 </motion.div>
                             )}
@@ -73,12 +73,12 @@ export default function CallToAction() {
                                     autoComplete="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="Text us your number"
+                                    placeholder="Your phone number"
                                     className="h-9 min-w-0 flex-1 bg-transparent text-[15px] text-white placeholder:text-white/50 focus:outline-none"
                                 />
                                 <button
                                     type="submit"
-                                    aria-label="Join early access"
+                                    aria-label="Get early access"
                                     disabled={!phone.trim()}
                                     className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0A84FF] transition-[background-color,transform] hover:scale-105 disabled:cursor-default disabled:bg-white/20 disabled:hover:scale-100">
                                     <ArrowUp

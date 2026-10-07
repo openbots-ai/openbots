@@ -3,10 +3,10 @@ import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 const points = [
-    { icon: ShieldCheck, title: 'nothing sends without your yes', body: 'emails, payments, anything a customer sees. it all waits for one tap.' },
-    { icon: KeyRound, title: 'they only get the apps you give them', body: 'marcus gets the crm. leo gets the invoices. nobody gets your whole life.' },
-    { icon: ListChecks, title: 'receipts for everything', body: 'every click, edit and send gets logged with a timestamp.' },
-    { icon: PauseCircle, title: 'text "pause" and it stops', body: 'it stops mid-task. pulling its access is one tap.' },
+    { icon: ShieldCheck, title: 'nothing goes out without your approval', body: 'emails, payments and anything a customer sees wait for your tap.' },
+    { icon: KeyRound, title: 'access is per app, per agent', body: 'marcus gets the crm. leo gets invoices. neither gets anything else.' },
+    { icon: ListChecks, title: 'every action is logged', body: 'each click, edit and send is recorded with a timestamp.' },
+    { icon: PauseCircle, title: 'text "pause" to stop it', body: 'it stops mid-task. revoking access takes one tap.' },
 ]
 
 const activity = [
@@ -62,9 +62,9 @@ export default function Control() {
             <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
                 <div>
                     <Reveal>
-                        <h2 className="type-title text-balance">you still have the final say</h2>
+                        <h2 className="type-title text-balance">you approve what goes out</h2>
                         <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                            they do the busywork. anything that leaves the building waits for your 👍
+                            agents do the work. anything external waits for your approval.
                         </p>
                     </Reveal>
 

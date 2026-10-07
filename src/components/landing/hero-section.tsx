@@ -13,13 +13,13 @@ export default function HeroSection() {
                 className="px-6 pt-24 text-center md:pt-32">
                 <StaggerItem>
                     <h1 className="type-display mx-auto max-w-4xl text-balance">
-                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">A team of AI agents,</span>{' '}
-                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">right in your iMessage</span>
+                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">AI agents that do the work.</span>{' '}
+                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">You text them in iMessage.</span>
                     </h1>
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        Text an OpenBots agent <span data-cursor-target="phrase" className="whitespace-nowrap">the way you would text a coworker</span>. It signs in to the tools you already use, finishes the job end to end, and only texts back when it needs your call.
+                        Text an agent a task <span data-cursor-target="phrase" className="whitespace-nowrap">like you would a coworker</span>. It logs in to your tools, does the work, and asks before anything goes out.
                     </p>
                 </StaggerItem>
                 <StaggerItem>
@@ -29,7 +29,7 @@ export default function HeroSection() {
                         className="type-body mt-10 h-13 px-8"
                         nativeButton={false}
                         render={
-                            <a href="#early-access">Join early access</a>
+                            <a href="#early-access">Get early access</a>
                         }
                     />
                 </StaggerItem>
