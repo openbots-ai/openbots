@@ -27,3 +27,18 @@ and `/contact` resolve on direct load.
 | `/privacy`, `/terms` | Legal pages |
 | `/contact` | Contact form |
 | `/pricing`, `/changelog`, `/docs`, `/careers`, `/security` | Coming soon |
+| `/crm` | Operator dashboard (unlisted, noindex; see below) |
+
+## CRM (`/crm`)
+
+An unlisted dashboard for building and managing agents. Only the exact path `/crm` loads it,
+nothing links to it, and it is served with `noindex`. Views switch via `?view=` so the path
+never changes. Data lives in [Convex](https://convex.dev) (`convex/`).
+
+```sh
+npx convex dev          # first run logs in, creates the deployment and writes .env.local
+npx convex deploy       # push functions to production
+```
+
+Set `VITE_CONVEX_URL` (production deployment URL) in Vercel. An empty deployment seeds itself
+with the mascot team and sample data on first visit.
