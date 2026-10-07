@@ -36,7 +36,6 @@ export const Header = () => {
                 </ul>
 
                 <Button
-                    variant="ghost"
                     size="sm"
                     className="ml-auto hidden md:inline-flex"
                     nativeButton={false}

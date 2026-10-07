@@ -10,7 +10,7 @@ const principles = [
 export default function Pricing() {
     return (
         <section id="pricing" className="scroll-mt-24 px-6 py-24 md:py-32">
-            <SectionHeading title="your assistant. your budget." description="pay as you go is the plan. clear costs and spending controls are part of it." />
+            <SectionHeading title="your assistant. your budget." description="customize the spend too: choose your models, set a hard cap and see where every bit went." />
             <Stagger className="mt-12 grid gap-5 md:grid-cols-3">
                 {principles.map(({ title, body }) => (
                     <StaggerItem key={title}>

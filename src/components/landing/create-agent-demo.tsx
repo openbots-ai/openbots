@@ -66,14 +66,20 @@ const AVATARS = ['pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey
 // Three short flows through the same agent, one per tab
 type FlowId = 'build' | 'models' | 'analytics'
 
+// The agent every flow follows
+const AGENT = useCases.find((u) => u.agent === 'Mochi')!
+
 const FLOWS: { id: FlowId; title: string; icon: typeof Bot; hue: number }[] = [
-    { id: 'build', title: 'build an agent', icon: Bot, hue: 205 },
-    { id: 'models', title: 'mix the models', icon: Cpu, hue: 262 },
-    { id: 'analytics', title: 'track the work', icon: ChartLine, hue: 160 },
+    { id: 'build', title: `build ${AGENT.agent.toLowerCase()}`, icon: Bot, hue: 205 },
+    { id: 'models', title: 'pick the models', icon: Cpu, hue: 262 },
+    { id: 'analytics', title: 'track costs', icon: ChartLine, hue: 160 },
 ]
 
-// The agent every flow follows
-const AGENT = useCases[0]
+// Stretches every beat so each step has time to land
+const PACE = 1.35
+
+// The model slots after the brain, filled one by one in the models flow
+const OTHER_SLOTS = SLOTS.filter((slot) => slot.id !== 'brain')
 
 // Each flow as timed beats. Beats from earlier flows that a flow starts after count as already done
 // (see DONE), so "mix the models" opens on the finished editor and "track the work" on the agent list.
@@ -91,8 +97,6 @@ const timeline = (flow: FlowId, agent: string, role: string) => {
                   ['type', s.type.length * 80],
                   ['avatar', 700],
                   ['prompt', s.prompt.length * 22],
-                  ['status', 800],
-                  ['number', 1500],
                   ['save', 700],
                   ['hold', 2200],
               ]
@@ -102,29 +106,30 @@ const timeline = (flow: FlowId, agent: string, role: string) => {
                     ['model', 1700],
                     ['voice', 2300],
                     ['language', 1600],
+                    ['slots', OTHER_SLOTS.length * 650],
                     ['save', 700],
                     ['toModels', 600],
-                    ['models', 3800],
-                    ['hold', 1600],
+                    ['models', 2800],
+                    ['hold', 1200],
                 ]
               : [
                     ['intro', 1100],
                     ['toAnalytics', 600],
-                    ['analytics', 4200],
+                    ['analytics', 5000],
                     ['hold', 2200],
                 ]
     let at = 0
     const starts: Record<string, [number, number]> = {}
     for (const [key, dur] of beats) {
-        starts[key] = [at, dur]
-        at += dur
+        starts[key] = [at, dur * PACE]
+        at += dur * PACE
     }
     return { starts, total: at }
 }
 
 const DONE: Record<FlowId, Set<string>> = {
     build: new Set(),
-    models: new Set(['list', 'pressCreate', 'name', 'role', 'pressSubmit', 'editor', 'type', 'avatar', 'prompt', 'status', 'number']),
+    models: new Set(['list', 'pressCreate', 'name', 'role', 'pressSubmit', 'editor', 'type', 'avatar', 'prompt']),
     analytics: new Set(),
 }
 
@@ -164,9 +169,9 @@ const Btn = ({ primary, pressed, children, className }: { primary?: boolean; pre
     <span
         className={cn(
             'inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-[transform,background-color] duration-150 [&_svg]:size-4',
-            primary ? 'bg-neutral-900 text-white' : 'border border-neutral-200 bg-white text-neutral-800',
+            primary ? 'bg-primary text-primary-foreground' : 'border border-neutral-200 bg-white text-neutral-800',
             pressed && 'scale-95',
-            pressed && (primary ? 'bg-neutral-700' : 'bg-neutral-100'),
+            pressed && (primary ? 'bg-primary/85' : 'bg-neutral-100'),
             className,
         )}>
         {children}
@@ -356,8 +361,9 @@ type EditorState = {
     language: string
     playing: boolean
     configFocus?: 'model' | 'voice' | 'language'
-    // Whether the other model slots show this agent's mix (set in the models flow) or the workspace defaults
-    mixed: boolean
+    // How many of the other model slots have been picked so far; the next one is drawn focused
+    filled: number
+    filling: boolean
     menu?: { control: 'model' | 'voice' | 'language'; hovered: string }
 }
 
@@ -391,8 +397,8 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
                     language={e.language}
                     playing={e.playing}
                     highlight={e.configFocus}
-                    // The other parts: defaults while building, this agent's mix once the models flow has set it
-                    slots={SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({ slot, value: (e.mixed && MIXES[e.agent]?.[slot.id]) || slot.default }))}
+                    // The other parts start empty and take this agent's mix one at a time in the models flow
+                    slots={OTHER_SLOTS.map((slot, i) => ({ slot, value: i < e.filled ? MIXES[e.agent]?.[slot.id] || slot.default : '', highlight: i === e.filled && e.filling }))}
                 />
             </div>
             <div className={cn('grid min-h-0 flex-1 gap-4 p-4', !compact && 'grid-cols-[minmax(0,1fr)_260px]')}>
@@ -516,38 +522,40 @@ function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact
     )
 }
 
-// Analytics page: what each model did across the workspace this month (sample numbers)
-const DID: { slot: SlotId; total: number; split: [string, number][] }[] = [
-    { slot: 'brain', total: 4_820, split: [['claude-sonnet-5.5', 38], ['grok-4', 27], ['gemini-2.5-flash', 21], ['claude-haiku-4.5', 14]] },
-    { slot: 'computer', total: 12_400, split: [['gpt-5.1-computer-use', 58], ['claude-sonnet-5.5-computer-use', 27], ['gemini-2.5-computer-use', 15]] },
-    { slot: 'voice', total: 312, split: [['elevenlabs', 61], ['cartesia-sonic', 24], ['openai-tts', 15]] },
-    { slot: 'calls', total: 186, split: [['gpt-realtime', 72], ['gemini-live', 28]] },
-    { slot: 'decisions', total: 38_900, split: [['jev', 91], ['claude-haiku-4.5', 9]] },
-    { slot: 'router', total: 5_310, split: [['jev-router', 100]] },
+// Analytics page: what this agent cost this month, split by part and by model (sample numbers that follow its mix)
+const COSTS: { slot: SlotId; split: [string, number][] }[] = [
+    { slot: 'brain', split: [['claude-sonnet-5.5', 3.1], ['claude-haiku-4.5', 0.32]] },
+    { slot: 'computer', split: [['gpt-5.1-computer-use', 5.18]] },
+    { slot: 'calls', split: [['gemini-live', 1.94]] },
+    { slot: 'voice', split: [['elevenlabs', 0.86]] },
+    { slot: 'decisions', split: [['jev', 0.21]] },
+    { slot: 'router', split: [['jev-router', 0.09]] },
 ]
-const TILES: [SlotId, string, number][] = [
-    ['brain', 'Replies written', 4_820],
-    ['computer', 'Actions in your apps', 12_400],
-    ['decisions', 'Decisions made', 38_900],
-    ['calls', 'Minutes on calls', 186],
+const costOf = (slot: SlotId) => COSTS.find((c) => c.slot === slot)!.split.reduce((sum, [, d]) => sum + d, 0)
+const MONTH = COSTS.reduce((sum, c) => sum + costOf(c.slot), 0)
+const TILES: [SlotId, string][] = [
+    ['brain', 'Replies'],
+    ['computer', 'Browser actions'],
+    ['calls', 'Calls'],
+    ['voice', 'Voice notes'],
 ]
-const fmt = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+const usd = (n: number) => `$${n.toFixed(2)}`
 
-function AnalyticsScreen({ t, compact }: { t: number; compact: boolean }) {
+function AnalyticsScreen({ t, agent, compact }: { t: number; agent: string; compact: boolean }) {
     // Numbers count up and bars fill over the first half of the beat, easing out
     const fill = 1 - (1 - Math.min(1, t / 0.5)) ** 3
-    const meters: [string, number, string][] = [
-        ['Today', 0.38, 'Resets at midnight'],
-        ['This week · all models', 0.61, 'Resets Mon, Oct 13'],
+    const meters: [string, number, number, string][] = [
+        ['This month', MONTH, 25, `${usd(MONTH * fill)} of your $25 cap`],
+        ['Today', 0.62, 2, `${usd(0.62 * fill)} of your $2 daily cap`],
     ]
     return (
         <div className="flex h-full flex-col">
             <Toolbar title="Analytics">
-                <span className="text-[12px] font-normal text-neutral-500">What your team did, and which models did it</span>
+                <span className="text-[12px] font-normal text-neutral-500">What {agent} cost this month, part by part</span>
             </Toolbar>
             <div className="space-y-3 p-4">
                 <div className={cn('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-4')}>
-                    {TILES.map(([slot, label, n]) => {
+                    {TILES.map(([slot, label]) => {
                         const Icon = SLOT_ICONS[slot]
                         return (
                             <span key={slot} className="flex flex-col gap-0.5 rounded-lg p-3 ring-1 ring-black/6">
@@ -555,43 +563,44 @@ function AnalyticsScreen({ t, compact }: { t: number; compact: boolean }) {
                                     <Icon className="size-3" />
                                     {label}
                                 </span>
-                                <span className="text-[20px] font-semibold tracking-tight tabular-nums">{fmt(Math.round(n * fill))}</span>
+                                <span className="text-[20px] font-semibold tracking-tight tabular-nums">{usd(costOf(slot) * fill)}</span>
                             </span>
                         )
                     })}
                 </div>
 
                 <span className="grid grid-cols-2 gap-3 rounded-lg py-1 ring-1 ring-black/6">
-                    {meters.map(([label, share, note]) => (
-                        <UsageGauge key={label} label={label} used={share * fill} limit={1} note={note} animate={false} />
+                    {meters.map(([label, spent, cap, note]) => (
+                        <UsageGauge key={label} label={label} used={spent * fill} limit={cap} note={note} animate={false} />
                     ))}
                 </span>
 
                 <span className="block rounded-lg ring-1 ring-black/6">
                     <span className="flex justify-between border-b border-neutral-200/70 px-3 py-2 text-[12px]">
-                        <span className="font-medium">What each model did</span>
-                        <span className="text-[11px] text-neutral-500">Last 30 days</span>
+                        <span className="font-medium">Cost by model</span>
+                        <span className="text-[11px] text-neutral-500">This month</span>
                     </span>
                     <span className="block divide-y divide-neutral-100 px-3">
-                        {DID.slice(0, compact ? 4 : DID.length).map(({ slot, total, split }) => {
+                        {COSTS.slice(0, compact ? 4 : COSTS.length).map(({ slot, split }) => {
                             const Icon = SLOT_ICONS[slot]
                             const s = slotOf(slot)!
+                            const total = costOf(slot)
                             return (
                                 <span key={slot} className={cn('grid items-center gap-3 py-2', compact ? 'grid-cols-[132px_1fr]' : 'grid-cols-[150px_1fr]')}>
                                     <span className="flex items-center gap-2">
                                         <Icon className="size-3.5 text-neutral-500" />
                                         <span className="text-[12px] font-medium whitespace-nowrap">{s.label}</span>
-                                        <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{fmt(Math.round(total * fill))}</span>
+                                        <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{usd(total * fill)}</span>
                                     </span>
                                     <span className="flex gap-3">
-                                        {split.slice(0, compact ? 2 : 3).map(([id, pct]) => {
+                                        {split.map(([id, dollars]) => {
                                             const o = s.options.find((x) => x.id === id)!
                                             return (
                                                 <span key={id} className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]">
                                                     <ProviderMark provider={o.provider} className="size-3" />
                                                     <span className="truncate">{o.label}</span>
-                                                    <Progress value={Math.round(pct * fill)} className="min-w-6 flex-1" />
-                                                    <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{Math.round(pct * fill)}%</span>
+                                                    <Progress value={Math.round((dollars / total) * 100 * fill)} className="min-w-6 flex-1" />
+                                                    <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{usd(dollars * fill)}</span>
                                                 </span>
                                             )
                                         })}
@@ -635,11 +644,12 @@ function CrmMock({ flow, agent, role, elapsed, compact }: { flow: FlowId; agent:
                 <AnimatePresence initial={false} mode="popLayout">
                     {inAnalytics ? (
                         <motion.div key="analytics" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
-                            <AnalyticsScreen t={p('analytics')} compact={compact} />
+                            <AnalyticsScreen t={p('analytics')} agent={agent} compact={compact} />
                         </motion.div>
                     ) : inModels ? (
                         <motion.div key="models" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
-                            <ModelsScreen t={p('models')} agent={agent} compact={compact} />
+                            {/* Every pick was made in the editor, so the page opens on the finished mix */}
+                            <ModelsScreen t={1} agent={agent} compact={compact} />
                         </motion.div>
                     ) : inEditor ? (
                         <motion.div key="editor" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
@@ -660,12 +670,13 @@ function CrmMock({ flow, agent, role, elapsed, compact }: { flow: FlowId; agent:
                                     saved: p('save') >= 0.4 || (flow === 'models' && p('model') === 0),
                                     // Each control's menu opens, the pointer moves to the agent's pick, then it closes on the new value.
                                     // The voice then plays a short preview.
-                                    model: p('model') >= MENU_CLOSE ? s.model : DEFAULT_CONFIG.model,
-                                    voice: p('voice') >= VOICE_MENU_CLOSE ? s.voice : DEFAULT_CONFIG.voice,
-                                    language: p('language') >= MENU_CLOSE ? s.language : DEFAULT_CONFIG.language,
+                                    model: p('model') >= MENU_CLOSE ? s.model : '',
+                                    voice: p('voice') >= VOICE_MENU_CLOSE ? s.voice : '',
+                                    language: p('language') >= MENU_CLOSE ? s.language : '',
                                     playing: p('voice') >= VOICE_MENU_CLOSE + 0.05 && p('voice') < 1,
                                     menu: menuAt(p, s),
-                                    mixed: flow !== 'build',
+                                    filled: Math.floor(p('slots') * OTHER_SLOTS.length),
+                                    filling: active('slots'),
                                     configFocus: active('model') ? 'model' : active('voice') ? 'voice' : active('language') ? 'language' : undefined,
                                     focus: active('type') ? 'type' : active('prompt') ? 'prompt' : active('status') ? 'status' : active('number') ? 'number' : undefined,
                                 }}
@@ -737,7 +748,7 @@ export default function CreateAgentDemo() {
             className="px-3 py-28 md:px-6 md:py-40">
             <SectionHeading
                 title="give it a name. make it your kind of helpful."
-                description="preview the builder: personality, model, voice, and the things you want help with. these are examples, not live assistants."
+                description="pick the model, voice, personality and rules for every part. no code, no one-size-fits-all. (these are examples, not live assistants yet.)"
             />
 
             <Reveal className="mt-12 flex justify-center">

@@ -32,7 +32,7 @@ export function KnowledgeView() {
             </Toolbar>
             <Scroll>
                 {shown?.length === 0 ? (
-                    <EmptyState icon={BookOpen} title={q ? 'No matching documents' : 'No knowledge yet'} body="Rules, prices and routines your agents should know." />
+                    <EmptyState icon={BookOpen} title={q ? 'No matching documents' : 'No knowledge yet'} body="Rules, prices and preferences your agents should know." />
                 ) : (
                     <Table head={['Title', 'Agent', 'Updated']}>
                         {!shown ? (

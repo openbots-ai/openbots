@@ -1,28 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { ArrowRight, Check, ChevronLeft, LoaderCircle, Lock, MousePointer2, Repeat } from 'lucide-react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
+import { ArrowRight, BookmarkCheck, Check, ChevronLeft, Lock, MousePointer2, Play, type LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion, useInView } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
-
-// macOS-style window chrome the feature mockups sit in
-const Window = ({ title, dark, className, children }: { title: string; dark?: boolean; className?: string; children: ReactNode }) => (
-    <div
-        className={cn(
-            'w-full overflow-hidden rounded-xl text-left text-[11px] shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1',
-            dark ? 'bg-[#1c1d21] text-neutral-200 ring-white/10' : 'bg-white text-neutral-800 ring-black/8',
-            className
-        )}>
-        <div className={cn('flex items-center gap-1.5 border-b px-3 py-2.5', dark ? 'border-white/8' : 'border-black/6')}>
-            <span className="size-2.5 rounded-full bg-[#FF5F57]" />
-            <span className="size-2.5 rounded-full bg-[#FEBC2E]" />
-            <span className="size-2.5 rounded-full bg-[#28C840]" />
-            <span className={cn('ml-2 font-medium', dark ? 'text-neutral-400' : 'text-neutral-500')}>{title}</span>
-        </div>
-        {children}
-    </div>
-)
+import { ProviderMark } from '@/components/agent-config-bar'
+import { SLOT_ICONS } from '@/components/slot-icons'
+import { slotOf, type Provider, type SlotId } from '@convex/lib/models'
 
 type Bubble = { from?: string; hue?: number; text: string; system?: boolean }
 
@@ -343,98 +328,107 @@ const TeamMock = () => (
     />
 )
 
-const routineSteps = ['Check today’s calendar', 'Find gaps for your to-dos', 'Flag anything that overlaps', 'Text you a short plan']
+// A voice note from the assistant, with a waveform that plays while the card is on screen
+const bars = [5, 9, 14, 8, 16, 11, 6, 13, 18, 10, 7, 12, 15, 9, 5, 11, 14, 8, 6, 10]
 
-const RoutineMock = () => {
+const VoiceMock = () => (
+    <div className="w-full max-w-sm overflow-hidden rounded-[1.6rem] bg-white text-left text-[12px] leading-snug text-black shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8">
+        <div className="relative flex flex-col items-center border-b border-black/5 pb-2.5 pt-3">
+            <ChevronLeft className="absolute left-3 top-4 size-4 text-[#0A84FF]" />
+            <AgentAvatar
+                name="Pip"
+                className="size-8 ring-2 ring-white"
+            />
+            <span className="mt-1 text-[11px] font-semibold">Pip · Your assistant</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-3 py-3">
+            <p className="imsg imsg-me imsg-tail relative max-w-[80%] self-end rounded-[16px] bg-[#0A84FF] px-3 py-1.5 text-white">too long to read rn, just tell me</p>
+            <div className="imsg imsg-them imsg-tail relative flex w-fit items-center gap-2 self-start rounded-[16px] bg-[#E9E9EB] px-3 py-2">
+                <Play
+                    className="size-3.5 text-[#0A84FF]"
+                    fill="currentColor"
+                />
+                <span className="flex h-5 items-center gap-[2px]">
+                    {bars.map((h, i) => (
+                        <motion.span
+                            key={i}
+                            className="w-[2px] rounded-full bg-neutral-500"
+                            style={{ height: h }}
+                            animate={{ scaleY: [1, 0.45, 1] }}
+                            transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.06 }}
+                        />
+                    ))}
+                </span>
+                <span className="text-[10px] text-neutral-500">0:14</span>
+            </div>
+            <p className="w-full py-1 text-center text-[10px] text-neutral-400">Voice, accent and speed set in your builder</p>
+        </div>
+    </div>
+)
+
+type PickerOption = { label: string; provider?: Provider }
+
+// A floating settings menu that cycles through its options, so each card shows the part you get to choose
+const Picker = ({ icon: Icon, label, options }: { icon: LucideIcon; label: string; options: PickerOption[] }) => {
     const ref = useRef<HTMLDivElement>(null)
-    // 0 idle, 1-4 running that step, 5 finished
-    const step = useLoopedSteps(ref, [1200, 1100, 1100, 1100, 1100], 2800)
-    const finished = step > routineSteps.length
+    const step = useLoopedSteps(ref, options.map(() => 1600), 1600)
+    const selected = step % options.length
 
     return (
         <div
             ref={ref}
-            className="w-full">
-            <Window title="Routines">
-                <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-[13px] font-semibold">Your morning rundown</p>
-                            <p className="mt-0.5 text-neutral-500">A routine you choose to turn on</p>
-                        </div>
-                        <span className="flex h-5 w-9 items-center rounded-full bg-[#34C759] p-0.5">
-                            <span className="ml-auto size-4 rounded-full bg-white shadow" />
-                        </span>
-                    </div>
-                    <ol className="mt-3 space-y-1.5">
-                        {routineSteps.map((label, i) => {
-                            const running = step === i + 1
-                            const done = step > i + 1
-                            return (
-                                <li
-                                    key={label}
-                                    className={cn(
-                                        'flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors duration-300',
-                                        running ? 'bg-sky-50 ring-1 ring-sky-200' : 'bg-neutral-50'
-                                    )}>
-                                    <span className="relative flex size-4 items-center justify-center">
-                                        {done ? (
-                                            <motion.span
-                                                initial={{ scale: 0.4 }}
-                                                animate={{ scale: 1 }}
-                                                className="flex size-4 items-center justify-center rounded-full bg-emerald-500">
-                                                <Check
-                                                    className="size-2.5 text-white"
-                                                    strokeWidth={3}
-                                                />
-                                            </motion.span>
-                                        ) : running ? (
-                                            <LoaderCircle className="size-4 animate-spin text-sky-500" />
-                                        ) : (
-                                            <span className="flex size-4 items-center justify-center rounded-full bg-neutral-200 text-[9px] font-semibold text-neutral-600">{i + 1}</span>
-                                        )}
-                                    </span>
-                                    <span className={cn('transition-colors', done && 'text-neutral-400')}>{label}</span>
-                                </li>
-                            )
-                        })}
-                    </ol>
-                    <AnimatePresence
-                        mode="wait"
-                        initial={false}>
-                        <motion.p
-                            key={finished ? 'done' : step > 0 ? 'running' : 'idle'}
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2 }}
-                            className={cn('mt-3 flex items-center gap-1.5', finished ? 'font-medium text-emerald-600' : 'text-neutral-500')}>
-                            {finished ? (
-                                <>
-                                    <Check className="size-3" /> Done. Your plan is in iMessage
-                                </>
-                            ) : step > 0 ? (
-                                <>
-                                    <LoaderCircle className="size-3 animate-spin" /> Running now, Monday 8:00 AM
-                                </>
-                            ) : (
-                                <>
-                                    <Repeat className="size-3" /> Runs every Monday at 8:00 AM
-                                </>
-                            )}
-                        </motion.p>
-                    </AnimatePresence>
+            className="absolute -bottom-14 -right-2 z-20 w-48 rounded-xl bg-white p-1.5 text-left text-[11px] text-neutral-800 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.3)] ring-1 ring-black/8 md:-right-12">
+            <p className="flex items-center gap-1.5 px-2 pb-1.5 pt-1 text-[10px] font-medium text-neutral-500">
+                <Icon className="size-3" /> {label}
+            </p>
+            {options.map((o, i) => (
+                <div
+                    key={o.label}
+                    className="relative flex items-center gap-2 rounded-lg px-2 py-1.5">
+                    {i === selected && (
+                        <motion.span
+                            layoutId={`picker-${label}`}
+                            className="absolute inset-0 rounded-lg bg-neutral-100"
+                            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                        />
+                    )}
+                    {o.provider && (
+                        <ProviderMark
+                            provider={o.provider}
+                            className="relative size-3.5"
+                        />
+                    )}
+                    <span className="relative flex-1 truncate font-medium">{o.label}</span>
+                    {i === selected && <Check className="relative size-3 text-neutral-900" />}
                 </div>
-            </Window>
+            ))}
         </div>
     )
 }
 
+// A picker filled from a model slot, so the landing page offers the same models as the real editor
+const SlotPicker = ({ slot, label }: { slot: SlotId; label?: string }) => {
+    const s = slotOf(slot)!
+    return (
+        <Picker
+            icon={SLOT_ICONS[slot]}
+            label={label ?? s.label}
+            // Four at most, so the menu never buries the mockup it sits on
+            options={s.options.slice(0, 4).map((o) => ({ label: o.label, provider: o.provider }))}
+        />
+    )
+}
+
 const features = [
-    { label: 'computer use', title: 'some tasks need a browser. let it help.', mock: <ComputerMock /> },
-    { label: 'just text it', title: 'for the stuff you keep meaning to do.', mock: <TextItMock /> },
-    { label: 'personal memory', title: 'less explaining yourself. more getting you.', mock: <TeamMock /> },
-    { label: 'your routines', title: 'a little help before the day gets busy.', mock: <RoutineMock /> },
+    { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" label="Browser model" /> },
+    { label: 'just text it', title: 'pick the brain behind every reply.', mock: <TextItMock />, picker: <SlotPicker slot="brain" /> },
+    {
+        label: 'personal memory',
+        title: 'you decide what it remembers.',
+        mock: <TeamMock />,
+        picker: <Picker icon={BookmarkCheck} label="Memory" options={[{ label: 'Remember what I tell it' }, { label: 'Only what I pin' }, { label: 'This chat only' }, { label: 'Off' }]} />,
+    },
+    { label: 'voice notes', title: 'give it a voice. literally.', mock: <VoiceMock />, picker: <SlotPicker slot="voice" /> },
 ]
 
 export default function Features() {
@@ -443,18 +437,21 @@ export default function Features() {
             id="features"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="a little less on your plate."
-                description="the experience we’re building: an assistant that knows your preferences and helps with everyday life. illustrative demos below."
+                title="you pick its powers."
+                description="pick its brain, how it browses, what it remembers and how it sounds. every part is your build. (demos below are illustrative.)"
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
-                {features.map(({ label, title, mock }) => (
+                {features.map(({ label, title, mock, picker }) => (
                     <StaggerItem key={label}>
                         <article className="group flex h-full flex-col overflow-hidden rounded-[2rem] bg-neutral-100/70 ring-1 ring-black/4 transition-shadow duration-300 hover:shadow-xl hover:shadow-black/5 dark:bg-white/5 dark:ring-white/8">
                             <div
                                 aria-hidden
                                 className="flex h-[27rem] items-center justify-center px-8 pt-10 transition-transform duration-500 group-hover:-translate-y-1 md:px-12">
-                                {mock}
+                                <div className="relative w-full max-w-sm">
+                                    {mock}
+                                    {picker}
+                                </div>
                             </div>
                             <div className="bg-background/60 flex-1 px-8 pb-9 pt-7 md:px-10">
                                 <p className="type-label text-muted-foreground">{label}</p>

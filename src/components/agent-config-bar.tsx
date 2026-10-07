@@ -76,6 +76,7 @@ export function MenuPicture({ items, selected, hovered, up }: { items: { id: str
 }
 
 type Props = {
+    // '' means not picked yet: the pill shows a placeholder (the landing demo starts empty)
     model: string
     voice: string
     language: string
@@ -166,8 +167,8 @@ export function AgentConfigBar({
     slots,
     className,
 }: Props) {
-    const m = modelOf(model)
-    const v = voiceOf(voice)
+    const m = model ? modelOf(model) : undefined
+    const v = voice ? voiceOf(voice) : undefined
     const open = (control: Control) => (!interactive && menu?.control === control ? menu.hovered : undefined)
     const modelItems = MODELS.map((o) => ({ id: o.id, label: <><ProviderMark provider={o.provider} />{o.label}</> }))
     const voiceItems = VOICES.map((o) => ({ id: o.id, label: <><VoiceAvatar voice={o.id} />{o.name}<span className="text-muted-foreground">{o.accent}</span></> }))
@@ -177,11 +178,11 @@ export function AgentConfigBar({
         <div inert={!interactive} className={cn('flex flex-wrap items-center gap-2', className)}>
             {/* Model and its tuning share one pill, split by a hairline */}
             <div className={cn('relative inline-flex items-center rounded-lg bg-neutral-100/90', ring(highlight === 'model' || highlight === 'settings'))}>
-                {open('model') && <MenuPicture items={modelItems} selected={m.id} hovered={open('model')!} />}
-                <Select value={m.id} onValueChange={(id) => id && onModelChange(id)}>
-                    <SelectTrigger aria-label="Model" className={cn(pill, 'rounded-r-none bg-transparent')}>
-                        <ProviderMark provider={m.provider} />
-                        {m.label}
+                {open('model') && <MenuPicture items={modelItems} selected={model} hovered={open('model')!} />}
+                <Select value={model} onValueChange={(id) => id && onModelChange(id)}>
+                    <SelectTrigger aria-label="Model" className={cn(pill, 'rounded-r-none bg-transparent', !m && 'text-neutral-500')}>
+                        <ProviderMark provider={m?.provider ?? 'none'} />
+                        {m?.label ?? 'Pick a model'}
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} align="start" className="min-w-52">
                         {modelItems.map((o) => (
@@ -237,11 +238,11 @@ export function AgentConfigBar({
             </div>
 
             <div className={cn('relative inline-flex items-center rounded-lg bg-neutral-100/90 pl-1.5', ring(highlight === 'voice'))}>
-                {open('voice') && <MenuPicture items={voiceItems} selected={v.id} hovered={open('voice')!} />}
+                {open('voice') && <MenuPicture items={voiceItems} selected={voice} hovered={open('voice')!} />}
                 <Button
                     variant="outline"
                     size="icon-xs"
-                    aria-label={playing ? `Stop ${v.name} preview` : `Preview ${v.name}`}
+                    aria-label={playing ? `Stop ${v?.name} preview` : `Preview ${v?.name ?? 'voice'}`}
                     onClick={onTogglePlay}
                     disabled={interactive && !onTogglePlay}
                     className="rounded-md bg-white shadow-xs ring-black/5">
@@ -249,10 +250,10 @@ export function AgentConfigBar({
                 </Button>
                 <span className="ml-2 h-5 w-px bg-neutral-300/80" />
                 <Tooltip>
-                    <Select value={v.id} onValueChange={(id) => id && onVoiceChange(id)}>
-                        <TooltipTrigger render={<SelectTrigger aria-label="Voice" className={cn(pill, 'bg-transparent pl-2')} />}>
-                            <VoiceAvatar voice={v.id} />
-                            {v.name}
+                    <Select value={voice} onValueChange={(id) => id && onVoiceChange(id)}>
+                        <TooltipTrigger render={<SelectTrigger aria-label="Voice" className={cn(pill, 'bg-transparent pl-2', !v && 'text-neutral-500')} />}>
+                            {v ? <VoiceAvatar voice={v.id} /> : <CircleDashed className="size-4 text-neutral-400" />}
+                            {v?.name ?? 'Pick a voice'}
                         </TooltipTrigger>
                         <SelectContent alignItemWithTrigger={false} align="start" className="min-w-48">
                             {voiceItems.map((o) => (
@@ -262,17 +263,15 @@ export function AgentConfigBar({
                             ))}
                         </SelectContent>
                     </Select>
-                    <TooltipContent side="bottom">
-                        {v.name} · {v.accent}
-                    </TooltipContent>
+                    <TooltipContent side="bottom">{v ? `${v.name} · ${v.accent}` : 'No voice yet'}</TooltipContent>
                 </Tooltip>
             </div>
 
             <div className="relative">
                 {open('language') && <MenuPicture items={languageItems} selected={language} hovered={open('language')!} />}
                 <Select value={language} onValueChange={(id) => id && onLanguageChange(id)}>
-                    <SelectTrigger aria-label="Language" className={cn(pill, ring(highlight === 'language'))}>
-                        <LanguageLabel id={language} />
+                    <SelectTrigger aria-label="Language" className={cn(pill, ring(highlight === 'language'), !language && 'text-neutral-500')}>
+                        {language ? <LanguageLabel id={language} /> : 'Pick a language'}
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} align="start" className="min-w-48">
                         {languageItems.map((o) => (

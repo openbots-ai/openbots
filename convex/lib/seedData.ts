@@ -122,5 +122,5 @@ export const SEED_KNOWLEDGE: { title: string; agent: string; body: string }[] = 
     { title: 'Invoice rules', agent: 'Penny', body: 'Net 14 by default.\nNudge at 3 and 9 days late, friendly tone.\nAfter 21 days, hand it to me.' },
     { title: 'Ideal customer profile', agent: 'Waffles', body: 'Owner-led teams of 2 to 30.\nAlready live in iMessage with their customers.\nSkip enterprise procurement.' },
     { title: 'Brand voice', agent: 'Biscuit', body: 'lowercase, short, warm, never corporate.\nOne joke per message, maximum.\nNo exclamation marks in headlines.' },
-    { title: 'My routines', agent: 'Pip', body: 'Gym mon/wed/fri.\nCall mom on sundays.\nNo meetings before 9:30.' },
+    { title: 'My week', agent: 'Pip', body: 'Gym mon/wed/fri.\nCall mom on sundays.\nNo meetings before 9:30.' },
 ]
