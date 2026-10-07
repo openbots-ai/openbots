@@ -35,6 +35,7 @@ const Landing = () => (
 )
 
 const comingSoon: Record<string, string> = {
+    '/builder': 'Builder',
     '/pricing': 'Pricing',
     '/changelog': 'Changelog',
     '/docs': 'Docs',
