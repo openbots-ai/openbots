@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { handleKind } from '@convex/lib/handles'
 import { bucketByDay } from '@convex/lib/stats'
-import { blankAgent, draftFromPrompt } from './draft'
+import { blankAgent } from './draft'
 import { isCrmPath } from './route'
 import { matches, parseTags } from './text'
-import { greetingFor, relativeTime } from './time'
+import { relativeTime } from './time'
 import { parseView, viewHref } from './view'
 
 describe('isCrmPath', () => {
@@ -20,15 +20,15 @@ describe('isCrmPath', () => {
 })
 
 describe('parseView / viewHref', () => {
-    it('falls back to home for missing or unknown views', () => {
-        expect(parseView('')).toEqual({ view: 'home', id: undefined })
-        expect(parseView('?view=admin')).toEqual({ view: 'home', id: undefined })
+    it('falls back to agents for missing or unknown views', () => {
+        expect(parseView('')).toEqual({ view: 'agents', id: undefined })
+        expect(parseView('?view=admin')).toEqual({ view: 'agents', id: undefined })
     })
     it('reads view and id', () => {
         expect(parseView('?view=agents&id=abc')).toEqual({ view: 'agents', id: 'abc' })
     })
     it('round-trips through viewHref and stays on /crm', () => {
-        expect(viewHref('home')).toBe('/crm')
+        expect(viewHref('agents')).toBe('/crm')
         expect(viewHref('contacts')).toBe('/crm?view=contacts')
         const href = viewHref('agents', 'k57 x&y')
         expect(href.startsWith('/crm?')).toBe(true)
@@ -36,23 +36,8 @@ describe('parseView / viewHref', () => {
     })
 })
 
-describe('draftFromPrompt', () => {
-    it('returns null for blank input', () => {
-        expect(draftFromPrompt('   ')).toBeNull()
-    })
-    it('uses a name given with "named"/"called" and infers a role', () => {
-        const d = draftFromPrompt('An agent named iris who books my meetings')!
-        expect(d.name).toBe('Iris')
-        expect(d.role).toBe('Scheduling')
-        expect(d.status).toBe('draft')
-        expect(d.prompt).toBe('An agent named iris who books my meetings')
-    })
-    it('picks a stable name and falls back to Assistant', () => {
-        const a = draftFromPrompt('help me out with stuff')!
-        expect(a.name).toBe(draftFromPrompt('help me out with stuff')!.name)
-        expect(a.role).toBe('Assistant')
-    })
-    it('blankAgent defaults the role', () => {
+describe('blankAgent', () => {
+    it('defaults the role', () => {
         expect(blankAgent('Rex', '').role).toBe('Assistant')
     })
 })
@@ -84,12 +69,6 @@ describe('time helpers', () => {
         expect(relativeTime(now - 5 * 60_000, now)).toBe('5m ago')
         expect(relativeTime(now - 3 * 3_600_000, now)).toBe('3h ago')
         expect(relativeTime(now - 2 * 86_400_000, now)).toBe('2d ago')
-    })
-    it('greets by hour', () => {
-        expect(greetingFor(8)).toBe('Good morning')
-        expect(greetingFor(14)).toBe('Good afternoon')
-        expect(greetingFor(21)).toBe('Good evening')
-        expect(greetingFor(2)).toBe('Good evening')
     })
     it('buckets by UTC day, ignoring out-of-range times', () => {
         const day = 86_400_000
