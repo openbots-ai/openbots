@@ -43,6 +43,8 @@ export const remove = mutation({
         for (const k of await ctx.db.query('knowledge').collect()) if (k.agentId === id) await ctx.db.patch(k._id, { agentId: undefined })
         for (const b of await ctx.db.query('broadcasts').collect()) if (b.agentId === id) await ctx.db.delete(b._id)
         for (const c of await ctx.db.query('conversations').collect()) if (c.agentId === id) await deleteConversation(ctx, c._id)
+        const ws = await ctx.db.query('workspace').first()
+        if (ws?.defaultAgentId === id) await ctx.db.patch(ws._id, { defaultAgentId: undefined })
         await ctx.db.delete(id)
     },
 })

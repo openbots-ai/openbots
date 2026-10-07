@@ -225,3 +225,18 @@ export function Content({ children }: { children: ReactNode }) {
 export function Scroll({ children }: { children: ReactNode }) {
     return <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
 }
+
+export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            onClick={() => onChange(!checked)}
+            className={cn('relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:outline-none', checked ? 'bg-neutral-900' : 'bg-neutral-200')}
+        >
+            <span className={cn('inline-block size-4 rounded-full bg-white shadow-sm transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
+        </button>
+    )
+}

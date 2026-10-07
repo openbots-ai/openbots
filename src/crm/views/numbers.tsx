@@ -14,6 +14,7 @@ export function NumbersView() {
     const agents = useQuery(api.agents.list)
     const assign = useMutation(api.numbers.assign)
     const remove = useMutation(api.numbers.remove)
+    const workspace = useQuery(api.workspace.get)
     const [adding, setAdding] = useState(false)
 
     return (
@@ -55,7 +56,7 @@ export function NumbersView() {
                     </Table>
                 )}
             </Scroll>
-            {adding && <AddNumberDialog agents={agents ?? []} onClose={() => setAdding(false)} />}
+            {adding && <AddNumberDialog agents={agents ?? []} defaultAgentId={workspace?.defaultAgentId} onClose={() => setAdding(false)} />}
         </Content>
     )
 }
@@ -69,11 +70,11 @@ function AgentSelect({ agents, value, onChange }: { agents: Doc<'agents'>[]; val
     )
 }
 
-function AddNumberDialog({ agents, onClose }: { agents: Doc<'agents'>[]; onClose: () => void }) {
+function AddNumberDialog({ agents, defaultAgentId, onClose }: { agents: Doc<'agents'>[]; defaultAgentId?: Id<'agents'>; onClose: () => void }) {
     const run = useRun()
     const create = useMutation(api.numbers.create)
     const [handle, setHandle] = useState('')
-    const [agentId, setAgentId] = useState<Id<'agents'> | undefined>()
+    const [agentId, setAgentId] = useState<Id<'agents'> | undefined>(defaultAgentId)
     const ok = handleKind(handle) !== null
 
     const save = async () => {
