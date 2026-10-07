@@ -10,7 +10,6 @@
 
 import type * as agents from "../agents.js";
 import type * as analytics from "../analytics.js";
-import type * as broadcasts from "../broadcasts.js";
 import type * as contacts from "../contacts.js";
 import type * as conversations from "../conversations.js";
 import type * as knowledge from "../knowledge.js";
@@ -31,7 +30,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
   analytics: typeof analytics;
-  broadcasts: typeof broadcasts;
   contacts: typeof contacts;
   conversations: typeof conversations;
   knowledge: typeof knowledge;

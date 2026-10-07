@@ -1,4 +1,4 @@
-export const VIEWS = ['agents', 'knowledge', 'numbers', 'broadcasts', 'conversations', 'contacts', 'analytics', 'live', 'settings'] as const
+export const VIEWS = ['agents', 'knowledge', 'numbers', 'conversations', 'contacts', 'analytics', 'live', 'settings'] as const
 export type View = (typeof VIEWS)[number]
 
 const isView = (v: string | null): v is View => (VIEWS as readonly (string | null)[]).includes(v)

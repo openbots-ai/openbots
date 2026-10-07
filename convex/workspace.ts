@@ -37,7 +37,7 @@ export const update = mutation({
 export const exportAll = query({
     args: {},
     handler: async (ctx) => {
-        const [workspace, agents, numbers, contacts, conversations, messages, knowledge, broadcasts] = await Promise.all([
+        const [workspace, agents, numbers, contacts, conversations, messages, knowledge] = await Promise.all([
             ctx.db.query('workspace').first(),
             ctx.db.query('agents').collect(),
             ctx.db.query('numbers').collect(),
@@ -45,8 +45,7 @@ export const exportAll = query({
             ctx.db.query('conversations').collect(),
             ctx.db.query('messages').collect(),
             ctx.db.query('knowledge').collect(),
-            ctx.db.query('broadcasts').collect(),
         ])
-        return { workspace, agents, numbers, contacts, conversations, messages, knowledge, broadcasts }
+        return { workspace, agents, numbers, contacts, conversations, messages, knowledge }
     },
 })

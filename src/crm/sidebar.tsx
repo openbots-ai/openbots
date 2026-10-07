@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, Megaphone, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import type { Doc } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { CONTACT_EMAIL } from '@/lib/site'
@@ -7,8 +7,14 @@ import { viewHref, type View } from './lib/view'
 import { useNav } from './nav'
 
 const GROUPS: { label?: string; items: { view: View; label: string; icon: LucideIcon }[] }[] = [
-    { label: 'Build', items: [{ view: 'agents', label: 'Agents', icon: Bot }, { view: 'knowledge', label: 'Knowledge', icon: BookOpen }] },
-    { label: 'Deploy', items: [{ view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle }, { view: 'broadcasts', label: 'Broadcasts', icon: Megaphone }] },
+    {
+        label: 'Build',
+        items: [
+            { view: 'agents', label: 'Agents', icon: Bot },
+            { view: 'knowledge', label: 'Knowledge', icon: BookOpen },
+            { view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle },
+        ],
+    },
     {
         label: 'Data',
         items: [
