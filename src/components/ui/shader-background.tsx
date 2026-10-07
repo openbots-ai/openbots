@@ -288,7 +288,7 @@ const rgb = (hex: string): [number, number, number] => {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
 
-// OpenDots CTA palette: indigo-950 base, blue-900, sky-500 and indigo-500 blobs.
+// OpenBots CTA palette: indigo-950 base, blue-900, sky-500 and indigo-500 blobs.
 const PALETTE = ["#1e1b4b", "#1e3a8a", "#0ea5e9", "#6366f1"]
 
 const UNIFORMS = {

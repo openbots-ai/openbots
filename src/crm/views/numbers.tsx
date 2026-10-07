@@ -4,9 +4,9 @@ import { Mail, MessageCircle, Phone, Plus, Trash2 } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
-import { cn } from '@/lib/utils'
-import { useRun } from '../toast-context'
-import { Btn, Cell, Content, Dialog, EmptyState, Field, inputCls, Row, Scroll, SkeletonRows, Table, Toolbar } from '../ui'
+import { Input } from '@/components/ui/input'
+import { useRun } from '../use-run'
+import { Btn, Cell, Content, Dialog, EmptyState, Field, Row, Scroll, Select, SkeletonRows, Table, Toolbar } from '../ui'
 
 export function NumbersView() {
     const run = useRun()
@@ -43,10 +43,10 @@ export function NumbersView() {
                                         </span>
                                     </Cell>
                                     <Cell>
-                                        <AgentSelect agents={agents ?? []} value={n.agentId} onChange={(agentId) => run(assign({ id: n._id, agentId }))} />
+                                        <AgentSelect agents={agents ?? []} value={n.agentId} onChange={(agentId) => run(assign({ id: n._id, agentId }))} className="max-w-56" />
                                     </Cell>
                                     <Cell className="w-12 text-right">
-                                        <Btn variant="ghost" aria-label={`Remove ${n.handle}`} onClick={() => run(remove({ id: n._id }))}>
+                                        <Btn variant="ghost" size="icon-sm" aria-label={`Remove ${n.handle}`} onClick={() => run(remove({ id: n._id }))}>
                                             <Trash2 />
                                         </Btn>
                                     </Cell>
@@ -61,12 +61,15 @@ export function NumbersView() {
     )
 }
 
-function AgentSelect({ agents, value, onChange }: { agents: Doc<'agents'>[]; value?: Id<'agents'>; onChange: (id?: Id<'agents'>) => void }) {
+function AgentSelect({ agents, value, onChange, className }: { agents: Doc<'agents'>[]; value?: Id<'agents'>; onChange: (id?: Id<'agents'>) => void; className?: string }) {
     return (
-        <select aria-label="Agent" className={cn(inputCls, 'h-8 max-w-56')} value={value ?? ''} onChange={(e) => onChange(e.target.value ? (e.target.value as Id<'agents'>) : undefined)}>
-            <option value="">Unassigned</option>
-            {agents.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
-        </select>
+        <Select
+            aria-label="Agent"
+            className={className}
+            value={value ?? ''}
+            onChange={(v) => onChange(v ? (v as Id<'agents'>) : undefined)}
+            options={[{ value: '', label: 'Unassigned' }, ...agents.map((a) => ({ value: a._id, label: a.name }))]}
+        />
     )
 }
 
@@ -84,8 +87,8 @@ function AddNumberDialog({ agents, defaultAgentId, onClose }: { agents: Doc<'age
 
     return (
         <Dialog title="Add iMessage number" onClose={onClose} footer={<><Btn onClick={onClose}>Cancel</Btn><Btn variant="primary" disabled={!ok} onClick={save}>Add</Btn></>}>
-            <Field label="Phone number or Apple ID email" hint={handle.trim() && !ok ? 'Enter a phone number or an email address.' : undefined}>
-                <input autoFocus className={cn(inputCls, handle.trim() && !ok && 'border-red-300')} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="+1 (415) 555-0100" />
+            <Field label="Phone number or Apple ID email" hint={handle.trim() && !ok ? 'Enter a phone number or an email address.' : undefined} error>
+                <Input autoFocus aria-invalid={!!handle.trim() && !ok} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="+1 (415) 555-0100" />
             </Field>
             <Field label="Agent">
                 <AgentSelect agents={agents} value={agentId} onChange={setAgentId} />

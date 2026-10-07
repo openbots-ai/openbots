@@ -1,13 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { ArrowLeft, BookOpen, MessageCircle } from 'lucide-react'
 import { api } from '@convex/_generated/api'
-import type { Doc } from '@convex/_generated/dataModel'
+import type { Doc, Id } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { AgentConfigBar } from '@/components/agent-config-bar'
+import { DEFAULT_CONFIG, languageOf, voiceOf } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
 import { useNav } from '../nav'
-import { useRun } from '../toast-context'
-import { AgentAvatar, Btn, ConfirmDelete, Content, Field, inputCls, NotFound, Scroll, StatusBadge, Toolbar } from '../ui'
+import { useRun } from '../use-run'
+import { AgentAvatar, Btn, ConfirmDelete, Content, Field, NotFound, Scroll, Select, StatusBadge, Toolbar } from '../ui'
+
+const NO_NUMBER = 'none'
+
+const avatarCls = (selected: boolean) => cn('size-auto rounded-full p-0 ring-2 ring-offset-2 hover:bg-transparent', selected ? 'ring-neutral-900' : 'ring-transparent')
 
 export function AgentDetail({ id }: { id: string }) {
     const go = useNav()
@@ -22,18 +30,62 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const run = useRun()
     const update = useMutation(api.agents.update)
     const remove = useMutation(api.agents.remove)
+    const assign = useMutation(api.numbers.assign)
     const agents = useQuery(api.agents.list)
     const numbers = useQuery(api.numbers.list)
     const knowledge = useQuery(api.knowledge.list)
     const [form, setForm] = useState(() => pickAgentFields(agent))
 
     const set = <K extends keyof AgentFields>(key: K, value: AgentFields[K]) => setForm((f) => ({ ...f, [key]: value }))
-    const dirty = JSON.stringify(form) !== JSON.stringify(pickAgentFields(agent))
+    const fieldsDirty = JSON.stringify(form) !== JSON.stringify(pickAgentFields(agent))
     const folders = [...new Set((agents ?? []).flatMap((a) => (a.folder ? [a.folder] : [])))]
     const myNumbers = numbers?.filter((n) => n.agentId === agent._id) ?? []
+    // The phone number is picked here but only assigned on Save, like every other field.
+    // null means "not touched", so the picker follows the live assignment until you change it.
+    const [numberChoice, setNumberChoice] = useState<string | null>(null)
+    const currentNumber = myNumbers[0]?._id ?? NO_NUMBER
+    const numberId = numberChoice ?? currentNumber
+    const numberDirty = numberChoice !== null && numberChoice !== currentNumber
+    const freeNumbers = numbers?.filter((n) => !n.agentId || n.agentId === agent._id) ?? []
+    const dirty = fieldsDirty || numberDirty
     const myDocs = knowledge?.filter((k) => k.agentId === agent._id) ?? []
 
-    const save = () => run(update({ id: agent._id, ...form, name: form.name.trim(), folder: form.folder?.trim() || undefined }))
+    const [playing, setPlaying] = useState(false)
+    // Never leave a preview talking after the editor closes
+    useEffect(() => () => window.speechSynthesis?.cancel(), [])
+
+    // Says a short hello with the browser's built-in speech, shaped by the chosen voice
+    const preview = () => {
+        if (!('speechSynthesis' in window)) return
+        window.speechSynthesis.cancel()
+        if (playing) return setPlaying(false)
+        const voice = voiceOf(form.voice)
+        const language = languageOf(form.language)
+        const utterance = new SpeechSynthesisUtterance(`hey, it's ${form.name.trim() || 'your agent'}. what can I help with?`)
+        if (language.id !== 'multi') utterance.lang = language.id
+        utterance.pitch = voice.pitch
+        utterance.rate = voice.rate
+        utterance.onend = utterance.onerror = () => setPlaying(false)
+        window.speechSynthesis.speak(utterance)
+        setPlaying(true)
+    }
+    const changeVoice = (id: string) => {
+        window.speechSynthesis?.cancel()
+        setPlaying(false)
+        set('voice', id)
+    }
+
+    const save = async () => {
+        if (fieldsDirty) {
+            const res = await run(update({ id: agent._id, ...form, name: form.name.trim(), folder: form.folder?.trim() || undefined }))
+            if (!res.ok) return
+        }
+        if (numberDirty) {
+            if (currentNumber !== NO_NUMBER) await run(assign({ id: currentNumber as Id<'numbers'>, agentId: undefined }))
+            if (numberChoice !== NO_NUMBER) await run(assign({ id: numberChoice as Id<'numbers'>, agentId: agent._id }))
+            setNumberChoice(null)
+        }
+    }
     const destroy = async () => {
         const res = await run(remove({ id: agent._id }))
         if (res.ok) go('agents')
@@ -44,39 +96,59 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
             <Toolbar
                 title={
                     <>
-                        <button type="button" aria-label="Back to agents" onClick={() => go('agents')} className="grid size-7 cursor-pointer place-items-center rounded-md text-neutral-500 hover:bg-neutral-100">
-                            <ArrowLeft className="size-4" />
-                        </button>
+                        <Btn variant="ghost" size="icon-sm" aria-label="Back to agents" onClick={() => go('agents')} className="text-neutral-500">
+                            <ArrowLeft />
+                        </Btn>
                         <AgentAvatar agent={form} size={24} />
                         <span className="truncate">{agent.name}</span>
                         <StatusBadge status={agent.status} />
                     </>
                 }
             >
-                <ConfirmDelete onConfirm={destroy} />
+                <ConfirmDelete onConfirm={destroy} what={agent.name} />
                 <Btn variant="primary" disabled={!dirty || !form.name.trim()} onClick={save}>
                     {dirty ? 'Save changes' : 'Saved'}
                 </Btn>
             </Toolbar>
+            <div className="border-b border-neutral-200/70 px-4 py-2.5">
+                <AgentConfigBar
+                    model={form.model ?? DEFAULT_CONFIG.model}
+                    voice={form.voice ?? DEFAULT_CONFIG.voice}
+                    language={form.language ?? DEFAULT_CONFIG.language}
+                    temperature={form.temperature}
+                    replyLength={form.replyLength}
+                    playing={playing}
+                    onModelChange={(id) => set('model', id)}
+                    onVoiceChange={changeVoice}
+                    onLanguageChange={(id) => set('language', id)}
+                    onTemperatureChange={(value) => set('temperature', value)}
+                    onReplyLengthChange={(value) => set('replyLength', value)}
+                    onTogglePlay={'speechSynthesis' in window ? preview : undefined}
+                />
+            </div>
             <Scroll>
                 <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                     <div className="space-y-4 rounded-lg border border-neutral-200 p-4">
                         <div className="grid gap-3.5 sm:grid-cols-2">
                             <Field label="Name">
-                                <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+                                <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
                             </Field>
                             <Field label="Role">
-                                <input className={inputCls} value={form.role} onChange={(e) => set('role', e.target.value)} />
+                                <Input value={form.role} onChange={(e) => set('role', e.target.value)} />
                             </Field>
                             <Field label="Status">
-                                <select className={inputCls} value={form.status} onChange={(e) => set('status', e.target.value as AgentStatus)}>
-                                    <option value="draft">Draft</option>
-                                    <option value="live">Live</option>
-                                    <option value="paused">Paused</option>
-                                </select>
+                                <Select<AgentStatus>
+                                    value={form.status}
+                                    onChange={(v) => set('status', v)}
+                                    options={[
+                                        { value: 'draft', label: 'Draft' },
+                                        { value: 'live', label: 'Live' },
+                                        { value: 'paused', label: 'Paused' },
+                                    ]}
+                                />
                             </Field>
-                            <Field label="Folder">
-                                <input className={inputCls} list="agent-folders" value={form.folder ?? ''} onChange={(e) => set('folder', e.target.value || undefined)} placeholder="None" />
+                            <Field label="Type">
+                                <Input list="agent-folders" value={form.folder ?? ''} onChange={(e) => set('folder', e.target.value || undefined)} placeholder="None" />
                                 <datalist id="agent-folders">
                                     {folders.map((f) => (
                                         <option key={f} value={f} />
@@ -87,21 +159,25 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                         <div className="space-y-1.5">
                             <span className="block text-xs font-medium text-neutral-600">Avatar</span>
                             <div className="flex flex-wrap gap-2">
-                                <button type="button" aria-label="No avatar" onClick={() => set('avatar', undefined)} className={cn('cursor-pointer rounded-full ring-2 ring-offset-2', !form.avatar ? 'ring-neutral-900' : 'ring-transparent')}>
+                                <Btn variant="ghost" aria-label="No avatar" aria-pressed={!form.avatar} onClick={() => set('avatar', undefined)} className={avatarCls(!form.avatar)}>
                                     <AgentAvatar agent={{ ...form, avatar: undefined }} size={36} />
-                                </button>
+                                </Btn>
                                 {AVATARS.map((src) => (
-                                    <button key={src} type="button" aria-label={`Use ${src.split('/').pop()?.replace('.webp', '')}`} onClick={() => set('avatar', src)} className={cn('cursor-pointer rounded-full ring-2 ring-offset-2', form.avatar === src ? 'ring-neutral-900' : 'ring-transparent')}>
-                                        <img src={src} alt="" className="size-9 rounded-full bg-neutral-100 object-cover" />
-                                    </button>
+                                    <Btn key={src} variant="ghost" aria-label={`Use ${src.split('/').pop()?.replace('.webp', '')}`} aria-pressed={form.avatar === src} onClick={() => set('avatar', src)} className={avatarCls(form.avatar === src)}>
+                                        <AgentAvatar agent={{ ...form, avatar: src }} size={36} />
+                                    </Btn>
                                 ))}
                             </div>
                         </div>
                         <Field label="Personality & instructions" hint="How it talks, what it handles, and what it should hand back to you.">
-                            <textarea className={cn(inputCls, 'h-auto min-h-40 py-2 leading-relaxed')} value={form.prompt} onChange={(e) => set('prompt', e.target.value)} />
+                            <Textarea className="min-h-40 leading-relaxed" value={form.prompt} onChange={(e) => set('prompt', e.target.value)} />
                         </Field>
-                        <Field label="First message" hint="Sent when someone texts this agent for the first time.">
-                            <input className={inputCls} value={form.greeting} onChange={(e) => set('greeting', e.target.value)} />
+                        <Field label="Phone number" hint={freeNumbers.length ? 'The iMessage number people text to reach this agent.' : 'No free numbers. Add one in iMessage Numbers.'}>
+                            <Select<string>
+                                value={numberId}
+                                onChange={setNumberChoice}
+                                options={[{ value: NO_NUMBER, label: 'None' }, ...freeNumbers.map((n) => ({ value: n._id as string, label: n.handle }))]}
+                            />
                         </Field>
                     </div>
 

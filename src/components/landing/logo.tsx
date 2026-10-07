@@ -88,6 +88,6 @@ export const LogoMark = ({ className }: { className?: string }) => {
 export const Logo = ({ className }: { className?: string }) => (
     <span className={cn('inline-flex items-center gap-2 text-lg font-semibold tracking-tight', className)}>
         <LogoMark />
-        OpenDots
+        OpenBots
     </span>
 )

@@ -28,10 +28,11 @@ export const create = mutation({
 
 export const update = mutation({
     args: { id: v.id('agents'), ...agentFields },
-    handler: async (ctx, { id, name, role, avatar, hue, prompt, greeting, status, folder }) => {
+    handler: async (ctx, { id, name, role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength }) => {
         if (!name.trim()) throw new Error('Give your agent a name')
+        if (temperature !== undefined && (temperature < 0 || temperature > 1)) throw new Error('Creativity must be between 0 and 1')
         // Explicit keys: an omitted optional (avatar, folder) arrives as undefined, which clears it
-        await ctx.db.patch(id, { name: name.trim(), role, avatar, hue, prompt, greeting, status, folder, updatedAt: Date.now() })
+        await ctx.db.patch(id, { name: name.trim(), role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, updatedAt: Date.now() })
     },
 })
 

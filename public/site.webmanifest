@@ -1,6 +1,6 @@
 {
-  "name": "OpenDots",
-  "short_name": "OpenDots",
+  "name": "OpenBots",
+  "short_name": "OpenBots",
   "description": "A team of AI agents, right in your iMessage.",
   "start_url": "/",
   "display": "standalone",

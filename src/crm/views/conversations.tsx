@@ -4,11 +4,15 @@ import { ArrowLeft, ArrowUp, MessagesSquare } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import { DAY } from '@convex/lib/stats'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
 import { matches } from '../lib/text'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
-import { useRun } from '../toast-context'
-import { AgentAvatar, EmptyState, Initials, NotFound, SearchInput } from '../ui'
+import { useRun } from '../use-run'
+import { AgentAvatar, Btn, EmptyState, Initials, NotFound, SearchInput } from '../ui'
 import { useNow } from '../use-now'
 
 // Shared by Conversations (everything) and Live (activity in the last 24h)
@@ -27,10 +31,10 @@ export function ConversationsView({ id, live = false }: { id?: string; live?: bo
                 <div className="flex h-14 items-center justify-between gap-2 border-b border-neutral-200/70 px-4">
                     <h1 className="text-[15px] font-semibold">{live ? 'Live' : 'Conversations'}</h1>
                     {live && (
-                        <span className="flex items-center gap-1.5 text-[11px] text-emerald-700">
+                        <Badge variant="outline" className="gap-1.5 border-emerald-600/15 bg-emerald-50 text-[11px] font-normal text-emerald-700">
                             <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
                             Last 24 hours
-                        </span>
+                        </Badge>
                     )}
                 </div>
                 <div className="p-2">
@@ -38,13 +42,18 @@ export function ConversationsView({ id, live = false }: { id?: string; live?: bo
                 </div>
                 <ul className="flex-1 overflow-y-auto">
                     {shown === undefined ? (
-                        Array.from({ length: 6 }, (_, i) => <li key={i} className="mx-3 my-3 h-9 animate-pulse rounded bg-neutral-100" />)
+                        Array.from({ length: 6 }, (_, i) => <li key={i} className="mx-3 my-3"><Skeleton className="h-9" /></li>)
                     ) : shown.length === 0 ? (
                         <li className="px-4 py-10 text-center text-[13px] text-neutral-400">{q ? 'No matches.' : live ? 'Nothing in the last 24 hours.' : 'No conversations yet.'}</li>
                     ) : (
                         shown.map((c) => (
                             <li key={c._id}>
-                                <button type="button" onClick={() => go(view, c._id)} className={cn('flex w-full cursor-pointer gap-3 px-3 py-2.5 text-left hover:bg-neutral-50', c._id === id && 'bg-neutral-100 hover:bg-neutral-100')}>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => go(view, c._id)}
+                                    aria-current={c._id === id ? 'true' : undefined}
+                                    className={cn('h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left font-normal whitespace-normal active:scale-100', c._id === id && 'bg-neutral-100 hover:bg-neutral-100')}
+                                >
                                     <Initials name={c.contactName} />
                                     <span className="min-w-0 flex-1">
                                         <span className="flex justify-between gap-2">
@@ -55,7 +64,7 @@ export function ConversationsView({ id, live = false }: { id?: string; live?: bo
                                             {c.agentName}: {c.lastMessage}
                                         </span>
                                     </span>
-                                </button>
+                                </Button>
                             </li>
                         ))
                     )}
@@ -99,9 +108,9 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
     return (
         <>
             <div className="flex h-14 items-center gap-3 border-b border-neutral-200/70 px-4">
-                <button type="button" aria-label="Back" onClick={onBack} className="grid size-7 place-items-center rounded-md text-neutral-500 hover:bg-neutral-100 md:hidden">
-                    <ArrowLeft className="size-4" />
-                </button>
+                <Btn variant="ghost" size="icon-sm" aria-label="Back" onClick={onBack} className="text-neutral-500 md:hidden">
+                    <ArrowLeft />
+                </Btn>
                 <Initials name={contact.name} />
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold">{contact.name}</p>
@@ -126,7 +135,7 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
             </div>
             <div className="border-t border-neutral-200/70 p-3">
                 <div className="mx-auto flex max-w-2xl items-end gap-2">
-                    <textarea
+                    <Textarea
                         rows={1}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
@@ -138,11 +147,11 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                         }}
                         aria-label={`Reply as ${agent.name}`}
                         placeholder={`Reply as ${agent.name}`}
-                        className="max-h-32 min-h-9 flex-1 resize-none rounded-2xl border border-neutral-200 px-3.5 py-2 text-[14px] outline-none focus:border-neutral-400"
+                        className="max-h-32 min-h-9 flex-1 resize-none rounded-2xl px-3.5 py-2 text-[14px] md:text-[14px]"
                     />
-                    <button type="button" aria-label="Send" disabled={!text.trim()} onClick={submit} className="grid size-9 cursor-pointer place-items-center rounded-full bg-[#0a84ff] text-white disabled:cursor-not-allowed disabled:bg-neutral-200">
-                        <ArrowUp className="size-4" />
-                    </button>
+                    <Button size="icon" aria-label="Send" disabled={!text.trim()} onClick={submit} className="bg-[#0a84ff] text-white hover:bg-[#0a84ff]/90 disabled:bg-neutral-200 disabled:opacity-100">
+                        <ArrowUp />
+                    </Button>
                 </div>
             </div>
         </>

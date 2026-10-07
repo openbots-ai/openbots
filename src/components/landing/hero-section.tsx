@@ -19,7 +19,7 @@ export default function HeroSection() {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        Text an OpenDots agent <span data-cursor-target="phrase" className="whitespace-nowrap">the way you would text a coworker</span>. It signs in to the tools you already use, finishes the job end to end, and only texts back when it needs your call.
+                        Text an OpenBots agent <span data-cursor-target="phrase" className="whitespace-nowrap">the way you would text a coworker</span>. It signs in to the tools you already use, finishes the job end to end, and only texts back when it needs your call.
                     </p>
                 </StaggerItem>
                 <StaggerItem>

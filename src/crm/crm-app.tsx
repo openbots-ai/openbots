@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { Shell } from './shell'
-import { ToastProvider } from './toast'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const url = import.meta.env.VITE_CONVEX_URL as string | undefined
 const client = url ? new ConvexReactClient(url) : null
@@ -20,22 +22,26 @@ export default function CrmApp() {
     if (!client) {
         return (
             <div className="grid min-h-dvh place-items-center bg-[#f5f5f7] p-6">
-                <div className="max-w-md rounded-xl border border-neutral-200 bg-white p-6 text-[14px] text-neutral-600">
-                    <h1 className="text-base font-semibold text-neutral-900">Connect Convex</h1>
-                    <p className="mt-2">
+                <Card className="max-w-md">
+                    <CardHeader>
+                        <CardTitle>Connect Convex</CardTitle>
+                        <CardDescription>The CRM needs a Convex deployment to talk to.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-[14px] text-neutral-600">
                         <code className="rounded bg-neutral-100 px-1">VITE_CONVEX_URL</code> isn't set. Run <code className="rounded bg-neutral-100 px-1">npx convex dev</code> locally (it writes
                         .env.local), or add the variable in Vercel and redeploy.
-                    </p>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
         )
     }
 
     return (
         <ConvexProvider client={client}>
-            <ToastProvider>
+            <TooltipProvider>
                 <Shell />
-            </ToastProvider>
+                <Toaster position="bottom-right" />
+            </TooltipProvider>
         </ConvexProvider>
     )
 }

@@ -72,7 +72,7 @@ const privacySections: Section[] = [
         title: 'What we collect',
         body: (
             <>
-                <P>We collect only what we need to run OpenDots and improve it:</P>
+                <P>We collect only what we need to run OpenBots and improve it:</P>
                 <List
                     items={[
                         <>
@@ -104,7 +104,7 @@ const privacySections: Section[] = [
                 items={[
                     'To run your agents and complete the tasks you give them.',
                     'To text you about early access, your account and the work your agents are doing.',
-                    'To keep OpenDots secure, prevent abuse and fix problems.',
+                    'To keep OpenBots secure, prevent abuse and fix problems.',
                     'To understand how the product is used so we can improve it.',
                 ]}
             />
@@ -131,10 +131,10 @@ const privacySections: Section[] = [
                 <P>We do not sell your personal information. We share it only with:</P>
                 <List
                     items={[
-                        'Service providers that host, secure and operate OpenDots for us, under contracts that limit how they can use it.',
+                        'Service providers that host, secure and operate OpenBots for us, under contracts that limit how they can use it.',
                         'AI model providers that process prompts and content to power your agents, without the right to train on your data.',
                         'Authorities when the law requires it, or when needed to protect the rights and safety of our users or others.',
-                        'A buyer or successor if OpenDots is involved in a merger or acquisition, with notice to you.',
+                        'A buyer or successor if OpenBots is involved in a merger or acquisition, with notice to you.',
                     ]}
                 />
             </>
@@ -181,7 +181,7 @@ const privacySections: Section[] = [
     {
         id: 'children',
         title: 'Children',
-        body: <P>OpenDots is not intended for anyone under 16, and we do not knowingly collect information from children.</P>,
+        body: <P>OpenBots is not intended for anyone under 16, and we do not knowingly collect information from children.</P>,
     },
     {
         id: 'changes',
@@ -205,7 +205,7 @@ const termsSections: Section[] = [
         title: 'Agreeing to these terms',
         body: (
             <P>
-                By joining early access or using OpenDots, you agree to these terms. If you use OpenDots on behalf of a company, you confirm you have authority to accept them for that
+                By joining early access or using OpenBots, you agree to these terms. If you use OpenBots on behalf of a company, you confirm you have authority to accept them for that
                 company.
             </P>
         ),
@@ -215,7 +215,7 @@ const termsSections: Section[] = [
         title: 'Early access',
         body: (
             <P>
-                OpenDots is in early access. Features may change, break or be removed, and we may limit how many people can use it. OpenDots is free during early access. If we
+                OpenBots is in early access. Features may change, break or be removed, and we may limit how many people can use it. OpenBots is free during early access. If we
                 introduce paid plans, we will tell you before you are charged anything.
             </P>
         ),
@@ -225,7 +225,7 @@ const termsSections: Section[] = [
         title: 'Your account',
         body: (
             <P>
-                You need to be at least 16 and provide accurate information to use OpenDots. You are responsible for activity on your account and for keeping your phone and connected
+                You need to be at least 16 and provide accurate information to use OpenBots. You are responsible for activity on your account and for keeping your phone and connected
                 accounts secure.
             </P>
         ),
@@ -252,7 +252,7 @@ const termsSections: Section[] = [
         title: 'Acceptable use',
         body: (
             <>
-                <P>Do not use OpenDots to:</P>
+                <P>Do not use OpenBots to:</P>
                 <List
                     items={[
                         'Break the law or violate the rights of others.',
@@ -269,7 +269,7 @@ const termsSections: Section[] = [
         title: 'Your content',
         body: (
             <P>
-                You own the content you send to OpenDots and the work your agents produce for you. You give us permission to process that content only as needed to run and improve the
+                You own the content you send to OpenBots and the work your agents produce for you. You give us permission to process that content only as needed to run and improve the
                 service for you, as described in our{' '}
                 <a
                     href="/privacy"
@@ -285,7 +285,7 @@ const termsSections: Section[] = [
         title: 'Third-party services',
         body: (
             <P>
-                OpenDots works with services we do not control, including iMessage and the tools you connect. Their own terms apply to your use of them, and we are not responsible for
+                OpenBots works with services we do not control, including iMessage and the tools you connect. Their own terms apply to your use of them, and we are not responsible for
                 their availability or changes.
             </P>
         ),
@@ -295,7 +295,7 @@ const termsSections: Section[] = [
         title: 'Ending your use',
         body: (
             <P>
-                You can stop using OpenDots and delete your account at any time. We may suspend or end access if you break these terms or if we need to protect the service or other
+                You can stop using OpenBots and delete your account at any time. We may suspend or end access if you break these terms or if we need to protect the service or other
                 users.
             </P>
         ),
@@ -305,7 +305,7 @@ const termsSections: Section[] = [
         title: 'Disclaimers and liability',
         body: (
             <P>
-                OpenDots is provided as is, without warranties of any kind. To the extent the law allows, OpenDots is not liable for indirect or consequential damages, and our total
+                OpenBots is provided as is, without warranties of any kind. To the extent the law allows, OpenBots is not liable for indirect or consequential damages, and our total
                 liability is limited to the amount you paid us in the 12 months before the claim.
             </P>
         ),
@@ -313,7 +313,7 @@ const termsSections: Section[] = [
     {
         id: 'changes',
         title: 'Changes to these terms',
-        body: <P>We may update these terms as OpenDots grows. We will update the date above and give you notice of material changes before they take effect.</P>,
+        body: <P>We may update these terms as OpenBots grows. We will update the date above and give you notice of material changes before they take effect.</P>,
     },
     {
         id: 'contact',
@@ -329,7 +329,7 @@ const termsSections: Section[] = [
 export const PrivacyPage = () => (
     <LegalPage
         title="Privacy Policy"
-        intro="OpenDots puts AI agents in your iMessage. They only work well if you can trust them with your information, so this page explains plainly what we collect, why, and the control you have over it."
+        intro="OpenBots puts AI agents in your iMessage. They only work well if you can trust them with your information, so this page explains plainly what we collect, why, and the control you have over it."
         sections={privacySections}
     />
 )
@@ -337,7 +337,7 @@ export const PrivacyPage = () => (
 export const TermsPage = () => (
     <LegalPage
         title="Terms of Service"
-        intro="These terms cover your use of OpenDots during early access. We have kept them short and in plain language."
+        intro="These terms cover your use of OpenBots during early access. We have kept them short and in plain language."
         sections={termsSections}
     />
 )

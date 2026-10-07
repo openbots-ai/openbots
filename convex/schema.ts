@@ -12,6 +12,12 @@ export const agentFields = {
     greeting: v.string(),
     status: agentStatus,
     folder: v.optional(v.string()),
+    // Model and voice settings; optional so agents made before they existed stay valid (the UI shows defaults)
+    model: v.optional(v.string()),
+    voice: v.optional(v.string()),
+    language: v.optional(v.string()),
+    temperature: v.optional(v.number()),
+    replyLength: v.optional(v.union(v.literal('short'), v.literal('medium'), v.literal('long'))),
 }
 
 // Optional so workspaces created before these settings existed stay valid; the UI fills in defaults

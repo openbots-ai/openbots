@@ -1,6 +1,6 @@
-# OpenDots
+# OpenBots
 
-Landing site for OpenDots: a team of AI agents you text in iMessage.
+Landing site for OpenBots: a team of AI agents you text in iMessage.
 
 Built with Vite, React, Tailwind CSS v4, Motion and Lenis.
 

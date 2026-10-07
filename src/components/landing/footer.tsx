@@ -55,7 +55,7 @@ export default function Footer() {
             </div>
 
             <div className="type-caption text-muted-foreground mt-14 flex flex-col justify-between gap-3 pt-6 sm:flex-row">
-                <span>© {new Date().getFullYear()} OpenDots. All rights reserved.</span>
+                <span>© {new Date().getFullYear()} OpenBots. All rights reserved.</span>
                 <span className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-emerald-500" /> All systems normal
                 </span>

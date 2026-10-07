@@ -1,7 +1,7 @@
 import type { Id } from './_generated/dataModel'
 import { mutation } from './_generated/server'
 import { handleKind } from './lib/handles'
-import { HOUR, MIN, SCRIPTS, SEED_AGENTS, SEED_CONTACTS, SEED_KNOWLEDGE, SEED_NUMBERS, SEED_WORKSPACE, mulberry32 } from './lib/seedData'
+import { HOUR, MIN, SCRIPTS, SEED_AGENTS, SEED_CONFIG, SEED_CONTACTS, SEED_KNOWLEDGE, SEED_NUMBERS, SEED_WORKSPACE, mulberry32 } from './lib/seedData'
 import { DAY } from './lib/stats'
 
 // Fills an empty deployment with the mascot team and two weeks of sample activity.
@@ -17,7 +17,7 @@ export const run = mutation({
         const agentIds = new Map<string, Id<'agents'>>()
         for (const a of SEED_AGENTS) {
             const avatar = `/avatars/${a.name.toLowerCase()}.webp`
-            agentIds.set(a.name, await ctx.db.insert('agents', { ...a, avatar, updatedAt: now - Math.floor(rand() * 10 * DAY) }))
+            agentIds.set(a.name, await ctx.db.insert('agents', { ...a, ...SEED_CONFIG[a.name], avatar, updatedAt: now - Math.floor(rand() * 10 * DAY) }))
         }
 
         for (const n of SEED_NUMBERS) {

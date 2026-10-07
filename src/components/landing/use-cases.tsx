@@ -2,27 +2,31 @@ import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 
-const useCases = [
+export const useCases = [
     {
         agent: 'Marcus',
+        hue: 200,
         role: 'Sales Outbound',
         title: 'sales outbound',
         body: 'researches accounts overnight. drafts in your voice are ready before your coffee is.',
     },
     {
         agent: 'Kai',
+        hue: 160,
         role: 'Demo Prep',
         title: 'demo prep',
         body: 'clicks through the demo an hour before the call, fixes whatever broke and texts you "we are good".',
     },
     {
         agent: 'Emily',
+        hue: 278,
         role: 'Chief of Staff',
         title: 'pipeline ops',
         body: 'chases every deal that ghosted you. the monday scoreboard lands before standup.',
     },
     {
         agent: 'Nora',
+        hue: 350,
         role: 'Customer Support',
         title: 'account follow-ups',
         body: 'sends updates and files the tickets, so no customer feels left on read.',

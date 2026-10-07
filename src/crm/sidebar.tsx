@@ -2,6 +2,10 @@ import type { MouseEvent } from 'react'
 import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import type { Doc } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { CONTACT_EMAIL } from '@/lib/site'
 import { viewHref, type View } from './lib/view'
 import { useNav } from './nav'
@@ -45,14 +49,16 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                 <span className="text-[15px] font-semibold tracking-tight">OpenBots</span>
             </a>
 
-            <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 shadow-xs">
-                <span className="grid size-8 place-items-center rounded-md bg-primary-gradient text-sm font-semibold text-white">{workspace?.name.slice(0, 1).toUpperCase() ?? ''}</span>
+            <Card className="mb-4 flex flex-row items-center gap-2.5 rounded-lg px-2.5 py-2">
+                <Avatar className="rounded-md after:rounded-md">
+                    <AvatarFallback className="rounded-md bg-primary-gradient font-semibold text-white">{workspace?.name.slice(0, 1).toUpperCase() ?? ''}</AvatarFallback>
+                </Avatar>
                 <span className="min-w-0 flex-1">
                     <span className="block text-[10px] text-neutral-400">Workspace</span>
                     <span className="block truncate text-[13px] font-semibold">{workspace?.name ?? '…'}</span>
                 </span>
                 <ChevronsUpDown className="size-3.5 text-neutral-400" />
-            </div>
+            </Card>
 
             <nav className="-mx-1 flex-1 space-y-4 overflow-y-auto px-1">
                 {GROUPS.map((group, i) => (
@@ -61,18 +67,19 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                         <ul className="space-y-0.5">
                             {group.items.map((item) => (
                                 <li key={item.view}>
-                                    <a
-                                        href={viewHref(item.view)}
-                                        onClick={link(item.view)}
-                                        aria-current={item.view === view ? 'page' : undefined}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        nativeButton={false}
+                                        render={<a href={viewHref(item.view)} onClick={link(item.view)} aria-current={item.view === view ? 'page' : undefined} />}
                                         className={cn(
-                                            'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900',
+                                            'w-full justify-start gap-2.5 rounded-md px-2 text-[13px] font-normal text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900 active:scale-100',
                                             item.view === view && 'bg-neutral-200/70 font-medium text-neutral-900',
                                         )}
                                     >
-                                        <item.icon className="size-4" />
+                                        <item.icon />
                                         {item.label}
-                                    </a>
+                                    </Button>
                                 </li>
                             ))}
                         </ul>
@@ -81,24 +88,26 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
             </nav>
 
             <div className="space-y-2 pt-3">
-                <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 text-[13px]">
+                <Card className="flex flex-row items-center gap-2 rounded-lg px-2.5 py-2 text-[13px]">
                     <CreditCard className="size-4 text-neutral-500" />
                     <span className="flex-1">Personal plan</span>
-                    <span className="text-[11px] text-neutral-400">Free</span>
-                </div>
-                <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 text-[13px]">
-                    <span className="grid size-5 place-items-center rounded-full bg-emerald-600 text-[10px] font-semibold text-white">{workspace?.ownerName.slice(0, 1).toUpperCase() ?? ''}</span>
+                    <Badge variant="secondary" className="text-[11px] font-normal text-neutral-500">Free</Badge>
+                </Card>
+                <Card className="flex flex-row items-center gap-2 rounded-lg px-2.5 py-2 text-[13px]">
+                    <Avatar className="size-5">
+                        <AvatarFallback className="bg-emerald-600 text-[10px] font-semibold text-white">{workspace?.ownerName.slice(0, 1).toUpperCase() ?? ''}</AvatarFallback>
+                    </Avatar>
                     <span className="truncate">{workspace?.ownerName ?? '…'}</span>
-                </div>
+                </Card>
                 <div className="flex justify-between px-1 pt-1 text-[12px] text-neutral-500">
-                    <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-1.5 hover:text-neutral-900">
+                    <Button variant="link" size="xs" nativeButton={false} render={<a href={`mailto:${CONTACT_EMAIL}`} />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
                         <CircleHelp className="size-3.5" />
                         Help
-                    </a>
-                    <a href="/changelog" className="flex items-center gap-1.5 hover:text-neutral-900">
+                    </Button>
+                    <Button variant="link" size="xs" nativeButton={false} render={<a href="/changelog" />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
                         <Sparkles className="size-3.5" />
                         Updates
-                    </a>
+                    </Button>
                 </div>
             </div>
         </aside>
