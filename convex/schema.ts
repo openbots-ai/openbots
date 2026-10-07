@@ -14,8 +14,25 @@ export const agentFields = {
     folder: v.optional(v.string()),
 }
 
+// Optional so workspaces created before these settings existed stay valid; the UI fills in defaults
+export const workspaceSettings = {
+    ownerEmail: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+    defaultAgentId: v.optional(v.id('agents')),
+    quietEnabled: v.optional(v.boolean()),
+    quietStart: v.optional(v.string()),
+    quietEnd: v.optional(v.string()),
+    replyDelaySec: v.optional(v.number()),
+    typingIndicator: v.optional(v.boolean()),
+    readReceipts: v.optional(v.boolean()),
+    newContactTag: v.optional(v.string()),
+    notifyNewContact: v.optional(v.boolean()),
+    notifyHandoff: v.optional(v.boolean()),
+    notifyDigest: v.optional(v.boolean()),
+}
+
 export default defineSchema({
-    workspace: defineTable({ name: v.string(), ownerName: v.string() }),
+    workspace: defineTable({ name: v.string(), ownerName: v.string(), ...workspaceSettings }),
     agents: defineTable({ ...agentFields, updatedAt: v.number() }),
     numbers: defineTable({
         handle: v.string(),

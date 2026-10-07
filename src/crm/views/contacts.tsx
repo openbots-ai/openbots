@@ -79,10 +79,12 @@ function ContactDialog({ contact, agents, onClose }: { contact?: Doc<'contacts'>
     const create = useMutation(api.contacts.create)
     const update = useMutation(api.contacts.update)
     const remove = useMutation(api.contacts.remove)
+    // New contacts start from the workspace defaults in Settings; the dialog only opens once the page has loaded
+    const workspace = useQuery(api.workspace.get)
     const [name, setName] = useState(contact?.name ?? '')
     const [handle, setHandle] = useState(contact?.handle ?? '')
-    const [tags, setTags] = useState(contact?.tags.join(', ') ?? '')
-    const [agentId, setAgentId] = useState<string>(contact?.agentId ?? '')
+    const [tags, setTags] = useState(contact ? contact.tags.join(', ') : (workspace?.newContactTag ?? ''))
+    const [agentId, setAgentId] = useState<string>(contact ? (contact.agentId ?? '') : (workspace?.defaultAgentId ?? ''))
     const [notes, setNotes] = useState(contact?.notes ?? '')
 
     const handleOk = handleKind(handle) !== null

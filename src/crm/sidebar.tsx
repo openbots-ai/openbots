@@ -9,8 +9,15 @@ import { useNav } from './nav'
 const GROUPS: { label?: string; items: { view: View; label: string; icon: LucideIcon }[] }[] = [
     { label: 'Build', items: [{ view: 'agents', label: 'Agents', icon: Bot }, { view: 'knowledge', label: 'Knowledge', icon: BookOpen }] },
     { label: 'Deploy', items: [{ view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle }, { view: 'broadcasts', label: 'Broadcasts', icon: Megaphone }] },
-    { label: 'Data', items: [{ view: 'conversations', label: 'Conversations', icon: MessagesSquare }, { view: 'contacts', label: 'Contacts', icon: Contact }] },
-    { label: 'Monitor', items: [{ view: 'analytics', label: 'Analytics', icon: ChartLine }, { view: 'live', label: 'Live', icon: Radio }] },
+    {
+        label: 'Data',
+        items: [
+            { view: 'conversations', label: 'Conversations', icon: MessagesSquare },
+            { view: 'contacts', label: 'Contacts', icon: Contact },
+            { view: 'analytics', label: 'Analytics', icon: ChartLine },
+            { view: 'live', label: 'Live', icon: Radio },
+        ],
+    },
     { label: 'System', items: [{ view: 'settings', label: 'Settings', icon: Settings }] },
 ]
 
