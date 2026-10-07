@@ -28,7 +28,7 @@ function WorkspaceForm({ workspace }: { workspace: Doc<'workspace'> }) {
             <Field label="Workspace name">
                 <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="Your name" hint="Used in the greeting on Home.">
+            <Field label="Your name" hint="Shown in the sidebar.">
                 <input className={inputCls} value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
             </Field>
             <div className="flex justify-end">

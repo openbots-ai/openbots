@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, House, Megaphone, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { BookOpen, Bot, ChartLine, ChevronsUpDown, CircleHelp, Contact, CreditCard, Megaphone, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import type { Doc } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { CONTACT_EMAIL } from '@/lib/site'
@@ -7,7 +7,6 @@ import { viewHref, type View } from './lib/view'
 import { useNav } from './nav'
 
 const GROUPS: { label?: string; items: { view: View; label: string; icon: LucideIcon }[] }[] = [
-    { items: [{ view: 'home', label: 'Home', icon: House }] },
     { label: 'Build', items: [{ view: 'agents', label: 'Agents', icon: Bot }, { view: 'knowledge', label: 'Knowledge', icon: BookOpen }] },
     { label: 'Deploy', items: [{ view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle }, { view: 'broadcasts', label: 'Broadcasts', icon: Megaphone }] },
     { label: 'Data', items: [{ view: 'conversations', label: 'Conversations', icon: MessagesSquare }, { view: 'contacts', label: 'Contacts', icon: Contact }] },
@@ -28,7 +27,7 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
 
     return (
         <aside className="flex h-full w-60 flex-col bg-[#f5f5f7] px-3 py-3">
-            <a href="/crm" onClick={link('home')} className="flex items-center gap-2 px-1.5 pb-3">
+            <a href="/crm" onClick={link('agents')} className="flex items-center gap-2 px-1.5 pb-3">
                 <img src="/favicon.svg" alt="" className="size-5" />
                 <span className="text-[15px] font-semibold tracking-tight">OpenBots</span>
             </a>

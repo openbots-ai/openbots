@@ -12,7 +12,6 @@ import { AnalyticsView } from './views/analytics'
 import { BroadcastsView } from './views/broadcasts'
 import { ContactsView } from './views/contacts'
 import { ConversationsView } from './views/conversations'
-import { HomeView } from './views/home'
 import { KnowledgeView } from './views/knowledge'
 import { NumbersView } from './views/numbers'
 import { SettingsView } from './views/settings'
@@ -60,8 +59,6 @@ export function Shell() {
 
 function ViewSwitch({ view, id }: { view: View; id?: string }) {
     switch (view) {
-        case 'home':
-            return <HomeView />
         case 'agents':
             return id ? <AgentDetail key={id} id={id} /> : <AgentsView />
         case 'knowledge':

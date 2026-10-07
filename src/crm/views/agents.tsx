@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { Bot, Folder, Plus, Sparkles } from 'lucide-react'
+import { Bot, Folder, Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import { blankAgent } from '../lib/draft'
 import { matches } from '../lib/text'
@@ -43,10 +43,6 @@ export function AgentsView() {
             <Content>
                 <Toolbar title={folder ?? 'All Agents'}>
                     <SearchInput value={q} onChange={setQ} />
-                    <Btn onClick={() => go('home')}>
-                        <Sparkles />
-                        Describe one
-                    </Btn>
                     <Btn variant="primary" onClick={() => setCreating(true)}>
                         <Plus />
                         Create an Agent
