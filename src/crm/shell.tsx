@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { Menu } from 'lucide-react'
 import { api } from '@convex/_generated/api'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { View } from './lib/view'
 import { NavContext } from './nav'
 import { Sidebar } from './sidebar'
@@ -32,19 +34,17 @@ export function Shell() {
                 <div className="hidden md:block">
                     <Sidebar view={view} workspace={workspace} />
                 </div>
-                {menuOpen && (
-                    <div className="fixed inset-0 z-40 md:hidden">
-                        <div className="absolute inset-0 bg-neutral-950/25" onClick={() => setMenuOpen(false)} />
-                        <div className="relative h-full w-60 shadow-xl">
-                            <Sidebar view={view} workspace={workspace} onNavigate={() => setMenuOpen(false)} />
-                        </div>
-                    </div>
-                )}
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                    <SheetContent side="left" showCloseButton={false} className="w-60 gap-0 border-0 p-0 md:hidden">
+                        <SheetTitle className="sr-only">Menu</SheetTitle>
+                        <Sidebar view={view} workspace={workspace} onNavigate={() => setMenuOpen(false)} />
+                    </SheetContent>
+                </Sheet>
                 <div className="flex min-w-0 flex-1 flex-col p-2 md:pl-0">
                     <div className="mb-2 flex items-center gap-2 md:hidden">
-                        <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)} className="grid size-9 place-items-center rounded-md hover:bg-neutral-200/60">
+                        <Button variant="ghost" size="icon" aria-label="Open menu" onClick={() => setMenuOpen(true)} className="rounded-md">
                             <Menu className="size-5" />
-                        </button>
+                        </Button>
                         <span className="text-sm font-semibold">OpenBots</span>
                     </div>
                     <main className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-neutral-200/80 bg-white">

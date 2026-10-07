@@ -25,7 +25,7 @@ export default function CallToAction() {
                         We are letting a small group of teams in first. Leave your number and we will text you the moment your agents are ready.
                     </p>
 
-                    {/* iMessage-style compose bar: your number "sends" as a blue bubble and OpenDots replies */}
+                    {/* iMessage-style compose bar: your number "sends" as a blue bubble and OpenBots replies */}
                     <div className="mt-10 max-w-md">
                         <AnimatePresence initial={false}>
                             {sent && (

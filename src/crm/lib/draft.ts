@@ -1,3 +1,5 @@
+import type { ReplyLength } from '@/lib/agent-options'
+
 export type AgentStatus = 'draft' | 'live' | 'paused'
 
 export type AgentFields = {
@@ -9,6 +11,11 @@ export type AgentFields = {
     greeting: string
     status: AgentStatus
     folder?: string
+    model?: string
+    voice?: string
+    language?: string
+    temperature?: number
+    replyLength?: ReplyLength
 }
 
 export const AVATARS = ['ava', 'emily', 'jason', 'kai', 'leo', 'marcus', 'nora', 'sam'].map((n) => `/avatars/${n}.webp`)
@@ -24,4 +31,18 @@ export const blankAgent = (name: string, role: string): AgentFields => ({
     status: 'draft',
 })
 
-export const pickAgentFields = ({ name, role, avatar, hue, prompt, greeting, status, folder }: AgentFields): AgentFields => ({ name, role, avatar, hue, prompt, greeting, status, folder })
+export const pickAgentFields = ({ name, role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength }: AgentFields): AgentFields => ({
+    name,
+    role,
+    avatar,
+    hue,
+    prompt,
+    greeting,
+    status,
+    folder,
+    model,
+    voice,
+    language,
+    temperature,
+    replyLength,
+})

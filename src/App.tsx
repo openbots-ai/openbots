@@ -5,8 +5,8 @@ import { MotionConfig } from 'motion/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
 import Features from '@/components/landing/features'
-import UseCases from '@/components/landing/use-cases'
 import Control from '@/components/landing/control'
+import CreateAgentDemo from '@/components/landing/create-agent-demo'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
@@ -24,7 +24,7 @@ const Landing = () => (
         <main className="mx-auto max-w-6xl overflow-hidden">
             <Features />
             <Control />
-            <UseCases />
+            <CreateAgentDemo />
             <CallToAction />
         </main>
         <Footer />

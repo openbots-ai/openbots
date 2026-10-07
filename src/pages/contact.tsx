@@ -19,7 +19,7 @@ export function ContactPage() {
                 <Reveal>
                     <h1 className="type-title">Get in touch</h1>
                     <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                        Questions about OpenDots, early access or working together? Send us a note and a real person will reply, usually within a day.
+                        Questions about OpenBots, early access or working together? Send us a note and a real person will reply, usually within a day.
                     </p>
 
                     <AnimatePresence

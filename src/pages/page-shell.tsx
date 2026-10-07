@@ -5,7 +5,7 @@ import Footer from '@/components/landing/footer'
 // Shared frame for every page other than the landing page
 export function PageShell({ title, children }: { title: string; children: ReactNode }) {
     useEffect(() => {
-        document.title = `${title} · OpenDots`
+        document.title = `${title} · OpenBots`
     }, [title])
 
     return (

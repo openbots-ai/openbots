@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { handleKind } from '@convex/lib/handles'
-import { bucketByDay } from '@convex/lib/stats'
+import { SYSTEM_TOKENS, bucketByDay, conversationTokens, estimateTokens } from '@convex/lib/stats'
 import { blankAgent } from './draft'
 import { isCrmPath } from './route'
 import { matches, parseTags } from './text'
@@ -78,5 +78,25 @@ describe('time helpers', () => {
             { day: '2026-10-05', count: 1 },
             { day: '2026-10-06', count: 2 },
         ])
+    })
+})
+
+describe('token estimates', () => {
+    it('counts about four characters per token, rounding up', () => {
+        expect(estimateTokens('')).toBe(0)
+        expect(estimateTokens('abcd')).toBe(1)
+        expect(estimateTokens('abcde')).toBe(2)
+    })
+    it('charges each reply for the history before it, and only counts replies since the cutoff', () => {
+        const lines = [
+            { from: 'contact' as const, body: 'a'.repeat(40), at: 1 },
+            { from: 'agent' as const, body: 'b'.repeat(20), at: 2 },
+            { from: 'contact' as const, body: 'c'.repeat(8), at: 3 },
+            { from: 'agent' as const, body: 'd'.repeat(4), at: 4 },
+        ]
+        // First reply reads 10 history tokens, second reads 10 + 5 + 2 = 17
+        expect(conversationTokens(lines, 100)).toEqual({ input: 2 * (SYSTEM_TOKENS + 100) + 10 + 17, output: 5 + 1 })
+        expect(conversationTokens(lines, 100, 3)).toEqual({ input: SYSTEM_TOKENS + 100 + 17, output: 1 })
+        expect(conversationTokens([], 100)).toEqual({ input: 0, output: 0 })
     })
 })

@@ -5,8 +5,13 @@ import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
 import { cn } from '@/lib/utils'
-import { useRun } from '../toast-context'
-import { Btn, Content, inputCls, PaneItem, Scroll, SidePane, Toggle, Toolbar } from '../ui'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useRun } from '../use-run'
+import { Btn, Content, PaneItem, Scroll, Select, SidePane, Toggle, Toolbar } from '../ui'
 
 const SECTIONS: { id: string; label: string; icon: LucideIcon }[] = [
     { id: 'general', label: 'General', icon: Building2 },
@@ -93,7 +98,7 @@ export function SettingsView() {
                         <SettingsForm key={workspace._id} workspace={workspace} />
                     ) : (
                         <div className="mx-auto w-full max-w-3xl space-y-4 p-4">
-                            {SECTIONS.map((s) => <div key={s.id} className="h-40 animate-pulse rounded-lg bg-neutral-100" />)}
+                            {SECTIONS.map((s) => <Skeleton key={s.id} className="h-40 rounded-lg" />)}
                         </div>
                     )}
                 </Scroll>
@@ -134,50 +139,41 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
         <div className="mx-auto w-full max-w-3xl space-y-5 p-4 pb-24">
             <Section id="general" title="General" description="Your workspace and how you appear in it.">
                 <Row label="Workspace name" htmlFor="s-name">
-                    <input id="s-name" className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+                    <Input id="s-name" value={form.name} onChange={(e) => set('name', e.target.value)} />
                 </Row>
                 <Row label="Your name" description="Shown in the sidebar." htmlFor="s-owner">
-                    <input id="s-owner" className={inputCls} value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} />
+                    <Input id="s-owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} />
                 </Row>
                 <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where notifications and digests go.'} error={!emailOk} htmlFor="s-email">
-                    <input id="s-email" type="email" className={cn(inputCls, !emailOk && 'border-red-300')} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />
+                    <Input id="s-email" type="email" aria-invalid={!emailOk} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />
                 </Row>
                 <Row label="Timezone" description="Used for quiet hours and the daily digest." htmlFor="s-tz">
-                    <select id="s-tz" className={inputCls} value={form.timezone} onChange={(e) => set('timezone', e.target.value)}>
-                        {(timezones.includes(form.timezone) ? timezones : [form.timezone, ...timezones]).map((tz) => (
-                            <option key={tz} value={tz}>
-                                {tz.replaceAll('_', ' ')}
-                            </option>
-                        ))}
-                    </select>
+                    <Select
+                        id="s-tz"
+                        value={form.timezone}
+                        onChange={(v) => set('timezone', v)}
+                        options={(timezones.includes(form.timezone) ? timezones : [form.timezone, ...timezones]).map((tz) => ({ value: tz, label: tz.replaceAll('_', ' ') }))}
+                    />
                 </Row>
                 <Row label="Plan">
                     <span className="flex h-9 items-center gap-2 text-[13px] text-neutral-700">
                         Personal
-                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500">Free</span>
+                        <Badge variant="secondary" className="text-[11px] font-normal text-neutral-500">Free</Badge>
                     </span>
                 </Row>
             </Section>
 
             <Section id="messaging" title="Messaging" description="How your agents behave in iMessage.">
                 <Row label="Default agent" description="Pre-selected when you add a contact or a number." htmlFor="s-default-agent">
-                    <select id="s-default-agent" className={inputCls} value={form.defaultAgentId} onChange={(e) => set('defaultAgentId', e.target.value)}>
-                        <option value="">None</option>
-                        {agents?.map((a) => (
-                            <option key={a._id} value={a._id}>
-                                {a.name}
-                            </option>
-                        ))}
-                    </select>
+                    <Select
+                        id="s-default-agent"
+                        value={form.defaultAgentId}
+                        onChange={(v) => set('defaultAgentId', v)}
+                        options={[{ value: '', label: 'None' }, ...(agents ?? []).map((a) => ({ value: a._id, label: a.name }))]}
+                    />
                 </Row>
                 <Row label="Reply delay" description="A short pause before replying feels more human." htmlFor="s-delay">
-                    <select id="s-delay" className={inputCls} value={form.replyDelaySec} onChange={(e) => set('replyDelaySec', Number(e.target.value))}>
-                        {REPLY_DELAYS.map((d) => (
-                            <option key={d.value} value={d.value}>
-                                {d.label}
-                            </option>
-                        ))}
-                    </select>
+                    <Select id="s-delay" value={form.replyDelaySec} onChange={(v) => set('replyDelaySec', v)} options={REPLY_DELAYS} />
                 </Row>
                 <Row label="Typing indicator" description="Show the typing bubble while an agent writes." inline>
                     <Toggle label="Typing indicator" checked={form.typingIndicator} onChange={(v) => set('typingIndicator', v)} />
@@ -191,9 +187,9 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 {form.quietEnabled && (
                     <Row label="Quiet from" description={`In ${form.timezone.replaceAll('_', ' ')}.`}>
                         <span className="flex w-full items-center gap-2">
-                            <input type="time" aria-label="Quiet hours start" className={inputCls} value={form.quietStart} onChange={(e) => set('quietStart', e.target.value)} />
+                            <Input type="time" aria-label="Quiet hours start" value={form.quietStart} onChange={(e) => set('quietStart', e.target.value)} />
                             <span className="text-[13px] text-neutral-400">to</span>
-                            <input type="time" aria-label="Quiet hours end" className={inputCls} value={form.quietEnd} onChange={(e) => set('quietEnd', e.target.value)} />
+                            <Input type="time" aria-label="Quiet hours end" value={form.quietEnd} onChange={(e) => set('quietEnd', e.target.value)} />
                         </span>
                     </Row>
                 )}
@@ -201,7 +197,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
 
             <Section id="contacts" title="Contacts" description="Defaults for people who text your agents.">
                 <Row label="Tag new contacts" description="Added to every new contact, e.g. lead. Leave blank for none." htmlFor="s-tag">
-                    <input id="s-tag" className={inputCls} value={form.newContactTag} onChange={(e) => set('newContactTag', e.target.value)} placeholder="lead" />
+                    <Input id="s-tag" value={form.newContactTag} onChange={(e) => set('newContactTag', e.target.value)} placeholder="lead" />
                 </Row>
             </Section>
 
@@ -224,7 +220,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
             </Section>
 
             {dirty && (
-                <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-lg">
+                <Card className="sticky bottom-4 flex flex-row items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-lg">
                     <span className="text-[13px] text-neutral-600">You have unsaved changes</span>
                     <span className="flex gap-2">
                         <Btn onClick={() => setForm(toForm(workspace))} disabled={saving}>
@@ -234,7 +230,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                             {saving ? 'Saving…' : 'Save changes'}
                         </Btn>
                     </span>
-                </div>
+                </Card>
             )}
         </div>
     )
@@ -268,13 +264,13 @@ function ExportButton() {
 
 function Section({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
     return (
-        <section id={`settings-${id}`} className="scroll-mt-4 rounded-lg border border-neutral-200">
-            <header className="border-b border-neutral-200/70 px-5 py-4">
-                <h2 className="text-[14px] font-semibold text-neutral-900">{title}</h2>
-                <p className="mt-0.5 text-[13px] text-neutral-500">{description}</p>
-            </header>
+        <Card id={`settings-${id}`} className="scroll-mt-4 rounded-lg">
+            <CardHeader className="gap-0.5 border-b border-neutral-200/70 px-5 py-4">
+                <CardTitle className="text-[14px] text-neutral-900">{title}</CardTitle>
+                <CardDescription className="text-[13px] text-neutral-500">{description}</CardDescription>
+            </CardHeader>
             <div className="divide-y divide-neutral-100">{children}</div>
-        </section>
+        </Card>
     )
 }
 
@@ -283,9 +279,9 @@ function Row({ label, description, error, htmlFor, inline, children }: { label: 
     return (
         <div className={cn('grid px-5 py-4', inline ? 'grid-cols-[minmax(0,1fr)_auto] items-center gap-6' : 'gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)] sm:items-center sm:gap-8')}>
             <div>
-                <label htmlFor={htmlFor} className="block text-[13px] font-medium text-neutral-900">
+                <Label htmlFor={htmlFor} className="block text-[13px] text-neutral-900">
                     {label}
-                </label>
+                </Label>
                 {description && <p className={cn('mt-0.5 text-[12px]', error ? 'text-red-600' : 'text-neutral-500')}>{description}</p>}
             </div>
             <div className="flex sm:justify-end">{children}</div>

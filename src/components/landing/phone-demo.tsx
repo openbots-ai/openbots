@@ -25,30 +25,15 @@ type Contact = { name: string; role: string; hue: number; preview: string; time:
 
 const ME = 'me'
 
-const JASON = 0
-const EMILY = 1
+const EMILY = 0
 
 const contacts: Contact[] = [
-    {
-        name: 'Jason',
-        role: 'Growth Marketer',
-        hue: 25,
-        preview: 'variant B is winning checkout by 12% 👀',
-        time: '8:42 AM',
-        messages: [
-            { from: 'them', text: 'variant B is winning checkout by 12% 👀' },
-            { from: 'them', text: 'it hit significance an hour ago' },
-            { from: ME, text: 'ship it to 100%' },
-            { from: 'them', text: "done. I'll watch retention for the week" },
-            { from: ME, text: 'love it 🚀' },
-        ],
-    },
     {
         name: 'Emily',
         role: 'Chief of Staff',
         hue: 278,
         preview: 'morning! your weekly brief is ready ☕️',
-        time: '8:05 AM',
+        time: '8:42 AM',
         messages: [
             { from: 'them', text: 'morning! your weekly brief is ready ☕️' },
             { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
@@ -56,6 +41,7 @@ const contacts: Contact[] = [
             { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
         ],
     },
+    { name: 'Jason', role: 'Growth Marketer', hue: 25, preview: 'variant B is winning checkout by 12% 👀', time: '8:05 AM' },
     { name: 'Marcus', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
     { name: 'Nora', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
     { name: 'Leo', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
@@ -72,14 +58,10 @@ type Step =
 // Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
 const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
 
-// One entry per scroll beat: open Jason, go back, open Emily, then Emily calls in and the swipe to answer ends it.
+// One entry per scroll beat: open Emily, then Emily calls in and the swipe to answer ends it.
 const steps: Step[] = [
     { view: 'list', read: [] },
-    { view: 'list', read: [], press: JASON },
-    ...chatSteps(JASON),
-    { view: 'chat', chat: JASON, shown: contacts[JASON].messages!.length, pressBack: true },
-    { view: 'list', read: [JASON] },
-    { view: 'list', read: [JASON], press: EMILY },
+    { view: 'list', read: [], press: EMILY },
     ...chatSteps(EMILY),
     { view: 'call', chat: EMILY, phase: 'incoming' },
     { view: 'call', chat: EMILY, phase: 'answering' },
@@ -595,7 +577,7 @@ function Screen({ step, settled, slide }: { step: Step; settled: boolean; slide:
                 shown={step.shown}
                 settled={settled || !step.arrives}
                 pressBack={step.pressBack}
-                badge={step.chat === JASON ? 1 : 0}
+                badge={0}
             />
         )
     } else {

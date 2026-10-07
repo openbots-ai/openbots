@@ -4,11 +4,13 @@ import { Plus, Users } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { matches, parseTags } from '../lib/text'
 import { relativeTime } from '../lib/time'
-import { useRun } from '../toast-context'
-import { AgentAvatar, Btn, Cell, ConfirmDelete, Content, Dialog, EmptyState, Field, Initials, inputCls, Row, Scroll, SearchInput, SkeletonRows, Table, Toolbar } from '../ui'
+import { useRun } from '../use-run'
+import { AgentAvatar, Btn, Cell, ConfirmDelete, Content, Dialog, EmptyState, Field, Initials, Row, Scroll, SearchInput, Select, SkeletonRows, Table, Toolbar } from '../ui'
 import { useNow } from '../use-now'
 
 export function ContactsView() {
@@ -51,7 +53,7 @@ export function ContactsView() {
                                         <Cell>{c.handle}</Cell>
                                         <Cell>
                                             <span className="flex flex-wrap gap-1">
-                                                {c.tags.map((t) => <span key={t} className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">{t}</span>)}
+                                                {c.tags.map((t) => <Badge key={t} variant="secondary" className="rounded px-1.5 text-[11px] font-normal">{t}</Badge>)}
                                             </span>
                                         </Cell>
                                         <Cell>
@@ -105,29 +107,26 @@ function ContactDialog({ contact, agents, onClose }: { contact?: Doc<'contacts'>
             onClose={onClose}
             footer={
                 <>
-                    {contact && <span className="mr-auto"><ConfirmDelete onConfirm={destroy} /></span>}
+                    {contact && <span className="mr-auto"><ConfirmDelete onConfirm={destroy} what={contact.name} /></span>}
                     <Btn onClick={onClose}>Cancel</Btn>
                     <Btn variant="primary" disabled={!name.trim() || !handleOk} onClick={save}>Save</Btn>
                 </>
             }
         >
             <Field label="Name">
-                <input autoFocus className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+                <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="Phone or email" hint={handle.trim() && !handleOk ? 'Enter a phone number or an email address.' : undefined}>
-                <input className={cn(inputCls, handle.trim() && !handleOk && 'border-red-300')} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="+1 (415) 555-0100" />
+            <Field label="Phone or email" hint={handle.trim() && !handleOk ? 'Enter a phone number or an email address.' : undefined} error>
+                <Input aria-invalid={!!handle.trim() && !handleOk} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="+1 (415) 555-0100" />
             </Field>
             <Field label="Tags" hint="Comma separated, e.g. client, vip">
-                <input className={inputCls} value={tags} onChange={(e) => setTags(e.target.value)} />
+                <Input value={tags} onChange={(e) => setTags(e.target.value)} />
             </Field>
             <Field label="Agent">
-                <select className={inputCls} value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-                    <option value="">None</option>
-                    {agents.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
-                </select>
+                <Select value={agentId} onChange={setAgentId} options={[{ value: '', label: 'None' }, ...agents.map((a) => ({ value: a._id, label: a.name }))]} />
             </Field>
             <Field label="Notes">
-                <textarea className={cn(inputCls, 'h-auto min-h-20 py-2')} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <Textarea className="min-h-20" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </Field>
         </Dialog>
     )

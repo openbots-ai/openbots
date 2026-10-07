@@ -1,8 +1,27 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
-import { Search, SearchX, X, type LucideIcon } from 'lucide-react'
+import { type ComponentProps, type ReactNode } from 'react'
+import { Search, SearchX, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-export const inputCls = 'h-9 w-full rounded-md border border-neutral-200 bg-white px-2.5 text-[13px] text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-neutral-400'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog as DialogRoot, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select as SelectRoot, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import { Table as TableRoot, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 export function Toolbar({ title, children }: { title: ReactNode; children?: ReactNode }) {
     return (
@@ -15,96 +34,89 @@ export function Toolbar({ title, children }: { title: ReactNode; children?: Reac
 
 export function SearchInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
     return (
-        <label className={cn('relative block', className)}>
-            <span className="sr-only">Search</span>
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-neutral-400" />
-            <input
-                type="search"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="Search..."
-                className={cn(inputCls, 'h-8 pl-8', !className && 'w-44 sm:w-56')}
-            />
-        </label>
+        <div className={cn('relative', className ?? 'w-44 sm:w-56')}>
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" aria-label="Search" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Search..." className="pl-8" />
+        </div>
     )
 }
 
-type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger' }
+type BtnProps = Omit<ComponentProps<typeof Button>, 'variant' | 'size'> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'icon-sm' }
 
-export function Btn({ variant = 'secondary', className, ...props }: BtnProps) {
+// The shared Button is pill-shaped for the landing page; the CRM uses squarer, denser controls
+export function Btn({ variant = 'secondary', size = 'sm', className, ...props }: BtnProps) {
     return (
-        <button
-            type="button"
+        <Button
+            variant={({ primary: 'default', secondary: 'outline', ghost: 'ghost', danger: 'outline' } as const)[variant]}
+            size={size}
+            className={cn('rounded-md', variant === 'danger' && 'text-destructive hover:bg-destructive/10', className)}
             {...props}
-            className={cn(
-                'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-3 text-[13px] font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:size-3.5',
-                {
-                    primary: 'bg-neutral-900 text-white hover:bg-neutral-800',
-                    secondary: 'border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50',
-                    ghost: 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
-                    danger: 'border border-red-200 bg-white text-red-600 hover:bg-red-50',
-                }[variant],
-                className,
-            )}
         />
     )
 }
 
-// Two-step delete so nothing is lost to a stray click (and no window.confirm)
-export function ConfirmDelete({ onConfirm, label = 'Delete' }: { onConfirm: () => void; label?: string }) {
-    const [armed, setArmed] = useState(false)
-    return armed ? (
-        <span className="flex items-center gap-1.5">
-            <Btn variant="ghost" onClick={() => setArmed(false)}>Keep</Btn>
-            <Btn variant="danger" onClick={onConfirm}>Confirm delete</Btn>
-        </span>
-    ) : (
-        <Btn variant="danger" onClick={() => setArmed(true)}>{label}</Btn>
+export function ConfirmDelete({ onConfirm, label = 'Delete', what = 'this' }: { onConfirm: () => void; label?: string; what?: string }) {
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger render={<Btn variant="danger" />}>{label}</AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {what}?</AlertDialogTitle>
+                    <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Keep</AlertDialogCancel>
+                    <AlertDialogAction variant="destructive" onClick={onConfirm}>
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
 
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
     return (
-        <div className="overflow-x-auto px-4 py-3">
-            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[13px]">
-                <thead>
-                    <tr>
+        <div className="px-4 py-3">
+            <TableRoot className="min-w-[640px] text-[13px]">
+                <TableHeader>
+                    <TableRow className="hover:bg-transparent">
                         {head.map((h, i) => (
-                            <th key={i} className={cn('bg-neutral-50 px-3 py-2.5 font-medium text-neutral-500', i === 0 && 'rounded-l-md', i === head.length - 1 && 'rounded-r-md')}>
+                            <TableHead key={i} className="text-muted-foreground">
                                 {h}
-                            </th>
+                            </TableHead>
                         ))}
-                    </tr>
-                </thead>
-                <tbody>{children}</tbody>
-            </table>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>{children}</TableBody>
+            </TableRoot>
         </div>
     )
 }
 
 export function Row({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
     return (
-        <tr onClick={onClick} className={cn('group', onClick && 'cursor-pointer')}>
+        <TableRow onClick={onClick} className={cn(onClick && 'cursor-pointer')}>
             {children}
-        </tr>
+        </TableRow>
     )
 }
 
 export function Cell({ children, className }: { children?: ReactNode; className?: string }) {
-    return <td className={cn('border-b border-neutral-100 px-3 py-3 text-neutral-700 group-hover:bg-neutral-50/80', className)}>{children}</td>
+    return <TableCell className={cn('py-3 text-neutral-700', className)}>{children}</TableCell>
 }
 
 export function SkeletonRows({ cols, rows = 5 }: { cols: number; rows?: number }) {
     return (
         <>
             {Array.from({ length: rows }, (_, r) => (
-                <tr key={r}>
+                <TableRow key={r} className="hover:bg-transparent">
                     {Array.from({ length: cols }, (_, c) => (
-                        <td key={c} className="border-b border-neutral-100 px-3 py-4">
-                            <div className="h-4 animate-pulse rounded bg-neutral-100" />
-                        </td>
+                        <TableCell key={c} className="py-4">
+                            <Skeleton className="h-4" />
+                        </TableCell>
                     ))}
-                </tr>
+                </TableRow>
             ))}
         </>
     )
@@ -132,69 +144,97 @@ export function NotFound({ what, onBack }: { what: string; onBack: () => void })
 }
 
 export function AgentAvatar({ agent, size = 28 }: { agent: { name: string; avatar?: string; hue: number }; size?: number }) {
-    return agent.avatar ? (
-        <img src={agent.avatar} alt="" width={size} height={size} className="shrink-0 rounded-full bg-neutral-100 object-cover" style={{ width: size, height: size }} />
-    ) : (
-        <span
-            className="grid shrink-0 place-items-center rounded-full font-semibold text-white"
-            style={{ width: size, height: size, fontSize: size * 0.42, background: `hsl(${agent.hue} 55% 52%)` }}
-        >
-            {agent.name.slice(0, 1).toUpperCase()}
-        </span>
+    return (
+        <Avatar style={{ width: size, height: size }}>
+            {agent.avatar && <AvatarImage src={agent.avatar} alt="" className="bg-neutral-100" />}
+            <AvatarFallback className="font-semibold text-white" style={{ fontSize: size * 0.42, background: `hsl(${agent.hue} 55% 52%)` }}>
+                {agent.name.slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+        </Avatar>
     )
 }
 
 export function Initials({ name, size = 32 }: { name: string; size?: number }) {
     const initials = name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()
     return (
-        <span className="grid shrink-0 place-items-center rounded-full bg-gradient-to-b from-neutral-300 to-neutral-400 font-semibold text-white" style={{ width: size, height: size, fontSize: size * 0.38 }}>
-            {initials}
-        </span>
+        <Avatar style={{ width: size, height: size }}>
+            <AvatarFallback className="bg-gradient-to-b from-neutral-300 to-neutral-400 font-semibold text-white" style={{ fontSize: size * 0.38 }}>
+                {initials}
+            </AvatarFallback>
+        </Avatar>
     )
 }
 
 const BADGE: Record<string, string> = {
-    live: 'bg-emerald-50 text-emerald-700 ring-emerald-600/15',
-    draft: 'bg-neutral-100 text-neutral-600 ring-neutral-500/15',
-    paused: 'bg-amber-50 text-amber-700 ring-amber-600/15',
-    scheduled: 'bg-sky-50 text-sky-700 ring-sky-600/15',
-    sent: 'bg-neutral-100 text-neutral-600 ring-neutral-500/15',
+    live: 'bg-emerald-50 text-emerald-700 border-emerald-600/15',
+    draft: 'bg-neutral-100 text-neutral-600 border-neutral-500/15',
+    paused: 'bg-amber-50 text-amber-700 border-amber-600/15',
+    scheduled: 'bg-sky-50 text-sky-700 border-sky-600/15',
+    sent: 'bg-neutral-100 text-neutral-600 border-neutral-500/15',
 }
 
 export function StatusBadge({ status }: { status: string }) {
-    return <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ring-1 ring-inset', BADGE[status])}>{status}</span>
-}
-
-export function Dialog({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [onClose])
-
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-neutral-950/25 p-4 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-            <div role="dialog" aria-modal="true" aria-label={title} className="flex max-h-[90dvh] w-full max-w-md flex-col rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-neutral-200/70 px-5 py-3.5">
-                    <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
-                    <button type="button" onClick={onClose} aria-label="Close" className="grid size-7 cursor-pointer place-items-center rounded-md text-neutral-500 hover:bg-neutral-100">
-                        <X className="size-4" />
-                    </button>
-                </div>
-                <div className="space-y-3.5 overflow-y-auto px-5 py-4">{children}</div>
-                {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-neutral-200/70 px-5 py-3">{footer}</div>}
-            </div>
-        </div>
+        <Badge variant="outline" className={cn('text-[11px] capitalize', BADGE[status])}>
+            {status}
+        </Badge>
     )
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Dialog({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
     return (
-        <label className="block space-y-1.5">
-            <span className="block text-xs font-medium text-neutral-600">{label}</span>
+        <DialogRoot open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-md">
+                <DialogHeader className="border-b px-5 py-3.5">
+                    <DialogTitle className="text-sm font-semibold">{title}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3.5 overflow-y-auto px-5 py-4">{children}</div>
+                {footer && <DialogFooter className="m-0 flex-row flex-wrap items-center justify-end px-5 py-3">{footer}</DialogFooter>}
+            </DialogContent>
+        </DialogRoot>
+    )
+}
+
+export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: boolean; children: ReactNode }) {
+    return (
+        <Label className="flex-col items-stretch gap-1.5 font-normal">
+            <span className="text-xs font-medium text-neutral-600">{label}</span>
             {children}
-            {hint && <span className="block text-[11px] text-neutral-400">{hint}</span>}
-        </label>
+            {hint && <span className={cn('text-[11px] leading-snug', error ? 'text-destructive' : 'text-muted-foreground')}>{hint}</span>}
+        </Label>
+    )
+}
+
+type Option<T> = { value: T; label: ReactNode }
+
+export function Select<T extends string | number>({
+    value,
+    onChange,
+    options,
+    className,
+    id,
+    'aria-label': ariaLabel,
+}: {
+    value: T
+    onChange: (value: T) => void
+    options: Option<T>[]
+    className?: string
+    id?: string
+    'aria-label'?: string
+}) {
+    return (
+        <SelectRoot items={options} value={value} onValueChange={(v) => v !== null && onChange(v as T)}>
+            <SelectTrigger id={id} aria-label={ariaLabel} className={cn('w-full', className)}>
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {options.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </SelectRoot>
     )
 }
 
@@ -204,13 +244,14 @@ export function SidePane({ children }: { children: ReactNode }) {
 
 export function PaneItem({ active, onClick, children }: { active?: boolean; onClick: () => void; children: ReactNode }) {
     return (
-        <button
-            type="button"
+        <Button
+            variant="ghost"
+            size="sm"
             onClick={onClick}
-            className={cn('flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-neutral-600 hover:bg-neutral-100 [&_svg]:size-4', active && 'bg-neutral-100 font-medium text-neutral-900')}
+            className={cn('w-full justify-start gap-2 rounded-md px-2.5 text-[13px] font-normal text-neutral-600 active:scale-100 [&_svg]:size-4', active && 'bg-neutral-100 font-medium text-neutral-900')}
         >
             {children}
-        </button>
+        </Button>
     )
 }
 
@@ -227,16 +268,5 @@ export function Scroll({ children }: { children: ReactNode }) {
 }
 
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
-    return (
-        <button
-            type="button"
-            role="switch"
-            aria-checked={checked}
-            aria-label={label}
-            onClick={() => onChange(!checked)}
-            className={cn('relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:outline-none', checked ? 'bg-neutral-900' : 'bg-neutral-200')}
-        >
-            <span className={cn('inline-block size-4 rounded-full bg-white shadow-sm transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
-        </button>
-    )
+    return <Switch aria-label={label} checked={checked} onCheckedChange={onChange} />
 }

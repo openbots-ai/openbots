@@ -3,11 +3,12 @@ import { useMutation, useQuery } from 'convex/react'
 import { BookOpen, FileText, Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { matches } from '../lib/text'
 import { relativeTime } from '../lib/time'
-import { useRun } from '../toast-context'
-import { AgentAvatar, Btn, Cell, ConfirmDelete, Content, Dialog, EmptyState, Field, inputCls, Row, Scroll, SearchInput, SkeletonRows, Table, Toolbar } from '../ui'
+import { useRun } from '../use-run'
+import { AgentAvatar, Btn, Cell, ConfirmDelete, Content, Dialog, EmptyState, Field, Row, Scroll, SearchInput, Select, SkeletonRows, Table, Toolbar } from '../ui'
 import { useNow } from '../use-now'
 
 export function KnowledgeView() {
@@ -87,23 +88,20 @@ function DocDialog({ doc, agents, onClose }: { doc?: Doc<'knowledge'>; agents: D
             onClose={onClose}
             footer={
                 <>
-                    {doc && <span className="mr-auto"><ConfirmDelete onConfirm={destroy} /></span>}
+                    {doc && <span className="mr-auto"><ConfirmDelete onConfirm={destroy} what={doc.title} /></span>}
                     <Btn onClick={onClose}>Cancel</Btn>
                     <Btn variant="primary" disabled={!title.trim()} onClick={save}>Save</Btn>
                 </>
             }
         >
             <Field label="Title">
-                <input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
+                <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
             <Field label="Agent" hint="Shared documents are available to every agent.">
-                <select className={inputCls} value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-                    <option value="">Shared</option>
-                    {agents.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
-                </select>
+                <Select value={agentId} onChange={setAgentId} options={[{ value: '', label: 'Shared' }, ...agents.map((a) => ({ value: a._id, label: a.name }))]} />
             </Field>
             <Field label="Content">
-                <textarea className={cn(inputCls, 'h-auto min-h-48 py-2 leading-relaxed')} value={body} onChange={(e) => setBody(e.target.value)} />
+                <Textarea className="min-h-48 leading-relaxed" value={body} onChange={(e) => setBody(e.target.value)} />
             </Field>
         </Dialog>
     )

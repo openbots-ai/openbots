@@ -26,6 +26,18 @@ export const SEED_AGENTS: { name: string; role: string; hue: number; status: Sta
     { name: 'Sam', role: 'Fitness coach', hue: 120, status: 'draft', folder: 'Personal', prompt: 'Checks in after workouts, adjusts the plan, keeps me honest about sleep.', greeting: "sam here. how did today's session go?" },
 ]
 
+// Varied model and voice settings so the agent editor shows a realistic mix
+export const SEED_CONFIG: Record<string, { model: string; voice: string; language: string; temperature: number; replyLength: 'short' | 'medium' | 'long' }> = {
+    Ava: { model: 'gpt-5.1-mini', voice: 'susan', language: 'en-US', temperature: 0.6, replyLength: 'short' },
+    Emily: { model: 'claude-sonnet-5.5', voice: 'nia', language: 'en-US', temperature: 0.4, replyLength: 'medium' },
+    Jason: { model: 'gpt-5.1', voice: 'theo', language: 'en-GB', temperature: 0.9, replyLength: 'medium' },
+    Kai: { model: 'gemini-2.5-flash', voice: 'grace', language: 'multi', temperature: 0.3, replyLength: 'long' },
+    Leo: { model: 'claude-haiku-4.5', voice: 'omar', language: 'en-US', temperature: 0.2, replyLength: 'short' },
+    Marcus: { model: 'gpt-5.1', voice: 'omar', language: 'en-US', temperature: 0.7, replyLength: 'short' },
+    Nora: { model: 'claude-haiku-4.5', voice: 'mei', language: 'es-ES', temperature: 0.5, replyLength: 'short' },
+    Sam: { model: 'gpt-5.1-mini', voice: 'grace', language: 'en-GB', temperature: 0.8, replyLength: 'short' },
+}
+
 export const SEED_NUMBERS: { handle: string; agent?: string }[] = [
     { handle: '+1 (415) 555-0101', agent: 'Ava' },
     { handle: '+1 (415) 555-0102', agent: 'Emily' },

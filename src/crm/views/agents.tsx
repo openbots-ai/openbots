@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { Bot, Folder, Plus } from 'lucide-react'
+import { Bot, Plus, Tag } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import { blankAgent } from '../lib/draft'
 import { matches } from '../lib/text'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
-import { useRun } from '../toast-context'
-import { AgentAvatar, Btn, Cell, Content, Dialog, EmptyState, Field, inputCls, PaneItem, PaneLabel, Row, Scroll, SearchInput, SidePane, SkeletonRows, StatusBadge, Table, Toolbar } from '../ui'
+import { useRun } from '../use-run'
+import { Input } from '@/components/ui/input'
+import { AgentAvatar, Btn, Cell, Content, Dialog, EmptyState, Field, PaneItem, PaneLabel, Row, Scroll, SearchInput, SidePane, SkeletonRows, StatusBadge, Table, Toolbar } from '../ui'
 import { useNow } from '../use-now'
 
 export function AgentsView() {
@@ -30,15 +31,15 @@ export function AgentsView() {
                     All Agents
                     <span className="ml-auto text-[11px] text-neutral-400">{agents?.length}</span>
                 </PaneItem>
-                <PaneLabel>Folders</PaneLabel>
+                <PaneLabel>Types</PaneLabel>
                 {folders.map((f) => (
                     <PaneItem key={f} active={folder === f} onClick={() => setFolder(f)}>
-                        <Folder />
+                        <Tag />
                         {f}
                         <span className="ml-auto text-[11px] text-neutral-400">{agents?.filter((a) => a.folder === f).length}</span>
                     </PaneItem>
                 ))}
-                {agents && folders.length === 0 && <p className="px-2.5 text-[12px] text-neutral-400">Set a folder on an agent to group it here.</p>}
+                {agents && folders.length === 0 && <p className="px-2.5 text-[12px] text-neutral-400">Set a type on an agent to group it here.</p>}
             </SidePane>
             <Content>
                 <Toolbar title={folder ?? 'All Agents'}>
@@ -53,7 +54,7 @@ export function AgentsView() {
                         <EmptyState
                             icon={Bot}
                             title={q || folder ? 'No matching agents' : 'No agents yet'}
-                            body={q || folder ? 'Try a different search or folder.' : 'Create your first agent, then give it an iMessage number.'}
+                            body={q || folder ? 'Try a different search or type.' : 'Create your first agent, then give it an iMessage number.'}
                             action={!q && !folder && <Btn variant="primary" onClick={() => setCreating(true)}><Plus />Create an Agent</Btn>}
                         />
                     ) : (
@@ -115,10 +116,10 @@ function NewAgentDialog({ onClose }: { onClose: () => void }) {
             }
         >
             <Field label="Name">
-                <input autoFocus className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Iris" />
+                <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Iris" />
             </Field>
             <Field label="Role" hint="What it handles. You can change everything later.">
-                <input className={inputCls} value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Scheduling" />
+                <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Scheduling" />
             </Field>
         </Dialog>
     )
