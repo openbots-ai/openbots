@@ -27,13 +27,13 @@ and `/contact` resolve on direct load.
 | `/privacy`, `/terms` | Legal pages |
 | `/contact` | Contact form |
 | `/pricing`, `/changelog`, `/docs`, `/careers`, `/security` | Coming soon |
-| `/crm` | Operator dashboard (unlisted, noindex; see below) |
+| `/dashboard` | Agent dashboard (noindex; see below) |
 
-## CRM (`/crm`)
+## Dashboard (`/dashboard`)
 
-An unlisted dashboard for building and managing agents. Only the exact path `/crm` loads it,
-nothing links to it, and it is served with `noindex`. Views switch via `?view=` so the path
-never changes. Data lives in [Convex](https://convex.dev) (`convex/`).
+The dashboard for building and managing agents, linked from "Explore the builder" on the landing page.
+Only the exact path `/dashboard` loads it, and it is served with `noindex`. It has no login yet.
+Views switch via `?view=` so the path never changes. Data lives in [Convex](https://convex.dev) (`convex/`).
 
 ```sh
 npx convex dev          # first run logs in, creates the deployment and writes .env.local

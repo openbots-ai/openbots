@@ -4,5 +4,5 @@
     "buildCommand": "npm run build",
     "outputDirectory": "dist",
     "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-    "headers": [{ "source": "/crm", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }]
+    "headers": [{ "source": "/dashboard", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }]
 }

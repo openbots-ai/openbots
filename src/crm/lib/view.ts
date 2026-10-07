@@ -1,9 +1,11 @@
+import { DASHBOARD_PATH } from './route'
+
 export const VIEWS = ['agents', 'knowledge', 'numbers', 'conversations', 'contacts', 'models', 'analytics', 'live', 'settings'] as const
 export type View = (typeof VIEWS)[number]
 
 const isView = (v: string | null): v is View => (VIEWS as readonly (string | null)[]).includes(v)
 
-// Views live in the query string so the path itself never leaves /crm
+// Views live in the query string so the path itself never leaves /dashboard
 export function parseView(search: string): { view: View; id?: string } {
     const params = new URLSearchParams(search)
     const view = params.get('view')
@@ -15,5 +17,5 @@ export function viewHref(view: View, id?: string) {
     if (view !== 'agents') params.set('view', view)
     if (id) params.set('id', id)
     const q = params.toString()
-    return q ? `/crm?${q}` : '/crm'
+    return q ? `${DASHBOARD_PATH}?${q}` : DASHBOARD_PATH
 }
