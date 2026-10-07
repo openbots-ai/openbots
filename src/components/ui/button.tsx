@@ -42,4 +42,5 @@ function Button({ className, variant = 'default', size = 'default', ...props }: 
     )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- shadcn exports the variants alongside the component
 export { Button, buttonVariants }
