@@ -13,7 +13,7 @@ import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
 import { isCrmPath } from '@/crm/lib/route'
 
-// Loaded only on /crm so the landing bundle never ships Convex or the dashboard
+// Loaded only on /dashboard so the landing bundle never ships Convex or the dashboard
 const CrmApp = lazy(() => import('@/crm/crm-app'))
 // The CRM demo pulls in the chart library, so it loads on its own instead of with the first paint
 const CreateAgentDemo = lazy(() => import('@/components/landing/create-agent-demo'))
@@ -35,7 +35,6 @@ const Landing = () => (
 )
 
 const comingSoon: Record<string, string> = {
-    '/builder': 'Builder',
     '/pricing': 'Pricing',
     '/changelog': 'Changelog',
     '/docs': 'Docs',

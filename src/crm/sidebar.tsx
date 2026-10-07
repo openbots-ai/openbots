@@ -45,7 +45,7 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
 
     return (
         <aside className="flex h-full w-60 flex-col bg-[#f5f5f7] px-3 py-3">
-            <a href="/crm" onClick={link('agents')} className="flex items-center gap-2 px-1.5 pb-3">
+            <a href={viewHref('agents')} onClick={link('agents')} className="flex items-center gap-2 px-1.5 pb-3">
                 <img src="/favicon.svg" alt="" className="size-5" />
                 <span className="text-[15px] font-semibold tracking-tight">OpenBots</span>
             </a>

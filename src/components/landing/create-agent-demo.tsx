@@ -799,7 +799,7 @@ export default function CreateAgentDemo() {
                                 <span className="size-2.5 rounded-full bg-[#FEBC2E]" />
                                 <span className="size-2.5 rounded-full bg-[#28C840]" />
                             </div>
-                            <span className="mx-auto truncate rounded-md bg-white px-10 py-0.5 text-[12px] text-neutral-500 ring-1 ring-black/6">opendots.ai/crm</span>
+                            <span className="mx-auto truncate rounded-md bg-white px-10 py-0.5 text-[12px] text-neutral-500 ring-1 ring-black/6">opendots.ai/dashboard</span>
                             <span className="w-[42px]" />
                         </div>
 

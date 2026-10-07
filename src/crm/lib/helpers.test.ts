@@ -8,13 +8,14 @@ import { relativeTime } from './time'
 import { parseView, viewHref } from './view'
 
 describe('isCrmPath', () => {
-    it('matches only /crm with optional trailing slashes', () => {
-        expect(isCrmPath('/crm')).toBe(true)
-        expect(isCrmPath('/crm/')).toBe(true)
-        expect(isCrmPath('/crm//')).toBe(true)
-        expect(isCrmPath('/crm/agents')).toBe(false)
-        expect(isCrmPath('/CRM')).toBe(false)
-        expect(isCrmPath('/crmx')).toBe(false)
+    it('matches only /dashboard with optional trailing slashes', () => {
+        expect(isCrmPath('/dashboard')).toBe(true)
+        expect(isCrmPath('/dashboard/')).toBe(true)
+        expect(isCrmPath('/dashboard//')).toBe(true)
+        expect(isCrmPath('/dashboard/agents')).toBe(false)
+        expect(isCrmPath('/DASHBOARD')).toBe(false)
+        expect(isCrmPath('/dashboardx')).toBe(false)
+        expect(isCrmPath('/crm')).toBe(false)
         expect(isCrmPath('/')).toBe(false)
     })
 })
@@ -27,12 +28,12 @@ describe('parseView / viewHref', () => {
     it('reads view and id', () => {
         expect(parseView('?view=agents&id=abc')).toEqual({ view: 'agents', id: 'abc' })
     })
-    it('round-trips through viewHref and stays on /crm', () => {
-        expect(viewHref('agents')).toBe('/crm')
-        expect(viewHref('contacts')).toBe('/crm?view=contacts')
+    it('round-trips through viewHref and stays on /dashboard', () => {
+        expect(viewHref('agents')).toBe('/dashboard')
+        expect(viewHref('contacts')).toBe('/dashboard?view=contacts')
         const href = viewHref('agents', 'k57 x&y')
-        expect(href.startsWith('/crm?')).toBe(true)
-        expect(parseView(href.slice(4))).toEqual({ view: 'agents', id: 'k57 x&y' })
+        expect(href.startsWith('/dashboard?')).toBe(true)
+        expect(parseView(href.slice('/dashboard'.length))).toEqual({ view: 'agents', id: 'k57 x&y' })
     })
 })
 

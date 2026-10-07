@@ -12,7 +12,7 @@ export default function CallToAction() {
                     <p className="type-body-lg mt-5 max-w-md text-white/75">
                         We’re starting with personal assistants for everyday life. We’re still building, and signups aren’t open yet. Take a look at how you’ll make yours.
                     </p>
-                    <a href="/builder" className="type-body mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-indigo-950 transition-colors hover:bg-white/90">
+                    <a href="/dashboard" className="type-body mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-indigo-950 transition-colors hover:bg-white/90">
                         Explore the builder <ArrowUpRight className="size-4" />
                     </a>
                 </div>

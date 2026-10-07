@@ -29,7 +29,7 @@ export default function HeroSection() {
                         className="type-body mt-10 h-13 px-8"
                         nativeButton={false}
                         render={
-                            <a href="/builder">Explore the builder</a>
+                            <a href="/dashboard">Explore the builder</a>
                         }
                     />
                 </StaggerItem>
