@@ -3,17 +3,17 @@ import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 const points = [
-    { icon: ShieldCheck, title: 'nothing goes out without your approval', body: 'emails, payments and anything a customer sees wait for your tap.' },
-    { icon: KeyRound, title: 'access is per app, per agent', body: 'marcus gets the crm. leo gets invoices. neither gets anything else.' },
-    { icon: ListChecks, title: 'every action is logged', body: 'each click, edit and send is recorded with a timestamp.' },
-    { icon: PauseCircle, title: 'text "pause" to stop it', body: 'it stops mid-task. revoking access takes one tap.' },
+    { icon: ShieldCheck, title: 'you get the final say', body: 'approval controls for sending messages, making purchases, and changing your plans.' },
+    { icon: KeyRound, title: 'your apps. your call.', body: 'choose what you connect, see what it can access, and disconnect when you want.' },
+    { icon: ListChecks, title: 'memory you can actually see', body: 'review what it remembers about you. edit it, delete it, or take a copy with you.' },
+    { icon: PauseCircle, title: 'room to change your mind', body: 'pause your assistant and change its instructions as your needs change.' },
 ]
 
 const activity = [
-    { time: '11:42 PM', text: 'Signed in to Salesforce' },
-    { time: '11:48 PM', text: 'Logged notes on 3 Northwind calls' },
-    { time: '12:05 AM', text: 'Drafted 6 follow-ups' },
-    { time: '8:14 AM', text: 'Sent 6 follow-ups after your approval' },
+    { time: '8:02 AM', text: 'Read the apartment links you shared' },
+    { time: '8:05 AM', text: 'Compared rent and commute times' },
+    { time: '8:08 AM', text: 'Drafted a viewing request' },
+    { time: '8:14 AM', text: 'Sent after your approval' },
 ]
 
 // An approval request in iMessage, followed by the agent's activity log
@@ -29,10 +29,10 @@ const ApprovalMock = () => (
                 <span className="ml-auto text-[11px] text-neutral-400">8:12 AM</span>
             </div>
             <p className="imsg imsg-them imsg-tail relative mt-3 max-w-[90%] rounded-[18px] bg-[#E9E9EB] px-3 py-2">
-                6 follow-ups for the Northwind deal are ready. want me to send them?
+                found a place in your budget, 15 minutes from work. want me to send this viewing request?
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-[13px] font-semibold">
-                <span className="rounded-full bg-[#0A84FF] py-2 text-center text-white">Send all</span>
+                <span className="rounded-full bg-[#0A84FF] py-2 text-center text-white">Send it</span>
                 <span className="rounded-full bg-neutral-100 py-2 text-center text-[#0A84FF]">Let me review</span>
             </div>
         </div>
@@ -62,9 +62,9 @@ export default function Control() {
             <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
                 <div>
                     <Reveal>
-                        <h2 className="type-title text-balance">you approve what goes out</h2>
+                        <h2 className="type-title text-balance">your assistant. your boundaries.</h2>
                         <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                            agents do the work. anything external waits for your approval.
+                            the controls we’re building around your data, your apps, and your decisions.
                         </p>
                     </Reveal>
 

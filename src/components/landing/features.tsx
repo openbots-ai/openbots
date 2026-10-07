@@ -143,9 +143,9 @@ const Thread = ({ title, avatars, bubbles }: { title: string; avatars: { name: s
 }
 
 const dealFields = [
-    { label: 'Stage', before: 'Discovery', after: 'Proposal' },
-    { label: 'Next step', before: 'n/a', after: 'Send pricing Fri' },
-    { label: 'Seats', before: '25', after: '40' },
+    { label: 'Destination', before: 'Undecided', after: 'Montreal' },
+    { label: 'Dates', before: 'n/a', after: 'Oct 16–18' },
+    { label: 'Budget', before: 'Not set', after: '$600 max' },
 ]
 
 type Point = { x: number; y: number }
@@ -237,7 +237,7 @@ const ComputerMock = () => {
                     <span className="size-2.5 rounded-full bg-[#FEBC2E]" />
                     <span className="size-2.5 rounded-full bg-[#28C840]" />
                     <span className="mx-auto flex items-center gap-1 rounded-md bg-white px-3 py-0.5 text-[10px] text-neutral-500 ring-1 ring-black/6">
-                        <Lock className="size-2.5" /> crm.acme.com/deals/northwind
+                        <Lock className="size-2.5" /> My weekend plans
                     </span>
                 </div>
 
@@ -246,8 +246,8 @@ const ComputerMock = () => {
                     className="relative p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[13px] font-semibold">Northwind · Platform expansion</p>
-                            <p className="text-neutral-500">Owner: you · $96,000</p>
+                            <p className="text-[13px] font-semibold">A weekend away</p>
+                            <p className="text-neutral-500">Your shortlist · nothing booked yet</p>
                         </div>
                         <span
                             ref={saveRef}
@@ -316,39 +316,34 @@ const ComputerMock = () => {
 
 const TextItMock = () => (
     <Thread
-        title="Leo · Expense Manager"
+        title="Leo · Your assistant"
         avatars={[{ name: 'Leo' }]}
         bubbles={[
-            { text: 'can you deal with the invoices in my inbox?' },
-            { from: 'Leo', hue: 340, text: 'on it. found 9, paid 8 ✅' },
-            { from: 'Leo', hue: 340, text: 'the AWS one needs a PO number before I can pay it' },
-            { text: 'PO-4471' },
-            { from: 'Leo', hue: 340, text: 'done. all 9 paid and filed 👌' },
+            { text: 'can you help me plan dinners this week?' },
+            { from: 'Leo', hue: 340, text: 'yep. still vegetarian, and under 30 minutes?' },
+            { text: 'exactly. use what’s in this fridge photo too' },
+            { from: 'Leo', hue: 340, text: 'five dinners, one shopping list. starting with those mushrooms 🍄' },
         ]}
     />
 )
 
 const TeamMock = () => (
     <Thread
-        title="You + 4 agents"
+        title="Emily · Your assistant"
         avatars={[
             { name: 'Emily' },
-            { name: 'Marcus' },
-            { name: 'Jason' },
-            { name: 'Leo' },
         ]}
         bubbles={[
-            { system: true, text: 'You added Emily, Marcus, Jason and Leo to the conversation' },
-            { text: 'morning team, what needs me today?' },
-            { from: 'Emily', hue: 278, text: 'just one thing: sign off on the Northwind proposal' },
-            { from: 'Marcus', hue: 200, text: 'it is in your inbox, 40 seats' },
-            { from: 'Leo', hue: 340, text: 'pricing checks out, margins look healthy ✅' },
-            { text: 'approved 👍' },
+            { text: 'keep your replies short. and no meetings before 10 please' },
+            { from: 'Emily', hue: 278, text: 'got it. short replies, slower mornings.' },
+            { system: true, text: 'Saved to memory · editable in your dashboard' },
+            { text: 'actually, forget the meeting preference' },
+            { from: 'Emily', hue: 278, text: 'forgotten. short replies are staying 👍' },
         ]}
     />
 )
 
-const routineSteps = ['Pull every deal that moved this week', 'Flag anything stalled for 14+ days', 'Update next steps in the CRM', 'Text you the scoreboard']
+const routineSteps = ['Check today’s calendar', 'Find gaps for your to-dos', 'Flag anything that overlaps', 'Text you a short plan']
 
 const RoutineMock = () => {
     const ref = useRef<HTMLDivElement>(null)
@@ -364,8 +359,8 @@ const RoutineMock = () => {
                 <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="text-[13px] font-semibold">Monday pipeline review</p>
-                            <p className="mt-0.5 text-neutral-500">Learned from 1 walkthrough with you</p>
+                            <p className="text-[13px] font-semibold">Your morning rundown</p>
+                            <p className="mt-0.5 text-neutral-500">A routine you choose to turn on</p>
                         </div>
                         <span className="flex h-5 w-9 items-center rounded-full bg-[#34C759] p-0.5">
                             <span className="ml-auto size-4 rounded-full bg-white shadow" />
@@ -416,7 +411,7 @@ const RoutineMock = () => {
                             className={cn('mt-3 flex items-center gap-1.5', finished ? 'font-medium text-emerald-600' : 'text-neutral-500')}>
                             {finished ? (
                                 <>
-                                    <Check className="size-3" /> Done. Scoreboard sent to your iMessage
+                                    <Check className="size-3" /> Done. Your plan is in iMessage
                                 </>
                             ) : step > 0 ? (
                                 <>
@@ -436,10 +431,10 @@ const RoutineMock = () => {
 }
 
 const features = [
-    { label: 'its own computer', title: 'it updates your crm overnight.', mock: <ComputerMock /> },
-    { label: 'just text it', title: 'give it a task by text. it texts back when it is done.', mock: <TextItMock /> },
-    { label: 'group chat', title: 'run every agent from one group chat.', mock: <TeamMock /> },
-    { label: 'show it once', title: 'show it a task once. it repeats it on schedule.', mock: <RoutineMock /> },
+    { label: 'computer use', title: 'some tasks need a browser. let it help.', mock: <ComputerMock /> },
+    { label: 'just text it', title: 'for the stuff you keep meaning to do.', mock: <TextItMock /> },
+    { label: 'personal memory', title: 'less explaining yourself. more getting you.', mock: <TeamMock /> },
+    { label: 'your routines', title: 'a little help before the day gets busy.', mock: <RoutineMock /> },
 ]
 
 export default function Features() {
@@ -448,8 +443,8 @@ export default function Features() {
             id="features"
             className="px-6 py-28 md:py-40">
             <SectionHeading
-                title="agents that use your apps for you"
-                description="each agent has its own computer. it logs in to your apps and does the work. you give it tasks over text."
+                title="a little less on your plate."
+                description="the experience we’re building: an assistant that knows your preferences and helps with everyday life. illustrative demos below."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
