@@ -30,23 +30,23 @@ const MOCHI = 0
 const contacts: Contact[] = [
     {
         name: 'Mochi',
-        role: 'Chief of Staff',
+        role: 'Your personal assistant',
         hue: 278,
-        preview: 'morning! your weekly brief is ready ☕️',
+        preview: 'found three places for your weekend away ☀️',
         time: '8:42 AM',
         messages: [
-            { from: 'them', text: 'morning! your weekly brief is ready ☕️' },
-            { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
-            { from: ME, text: 'what are the alerts?' },
-            { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
+            { from: ME, text: 'help me pick somewhere for the weekend? quiet, good food, under $600' },
+            { from: 'them', text: 'three ideas for you. all within a two-hour train ride, no car needed ☀️' },
+            { from: ME, text: 'perfect. can we talk through them?' },
+            { from: 'them', text: 'of course. calling you now 📞' },
         ],
     },
-    { name: 'Biscuit', role: 'Growth Marketer', hue: 25, preview: 'variant B is winning checkout by 12% 👀', time: '8:05 AM' },
-    { name: 'Waffles', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
-    { name: 'Honey', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
-    { name: 'Penny', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
-    { name: 'Pip', role: 'Talent Scout', hue: 45, preview: 'Shortlist of 6 candidates is ready.', time: 'Monday' },
-    { name: 'Sprout', role: 'Data Analyst', hue: 230, preview: 'Q3 cohort report is in your inbox.', time: 'Sunday' },
+    { name: 'Biscuit', role: 'Friend', hue: 25, preview: 'coffee on saturday?', time: '8:05 AM' },
+    { name: 'Waffles', role: 'Friend', hue: 200, preview: 'sent you the photos 📸', time: 'Yesterday' },
+    { name: 'Honey', role: 'Friend', hue: 160, preview: 'that place looks so good', time: 'Yesterday' },
+    { name: 'Penny', role: 'Friend', hue: 340, preview: 'see you there!', time: 'Tuesday' },
+    { name: 'Pip', role: 'Friend', hue: 45, preview: 'you have to try this recipe', time: 'Monday' },
+    { name: 'Sprout', role: 'Friend', hue: 230, preview: 'made it home 👍', time: 'Sunday' },
 ]
 
 type CallPhase = 'incoming' | 'answering'

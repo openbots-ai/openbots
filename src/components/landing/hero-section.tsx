@@ -13,13 +13,13 @@ export default function HeroSection() {
                 className="px-6 pt-24 text-center md:pt-32">
                 <StaggerItem>
                     <h1 className="type-display mx-auto max-w-4xl text-balance">
-                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your agents,</span>{' '}
-                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">your rules</span>
+                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your own personal AI assistant.</span>{' '}
+                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">Made your way.</span>
                     </h1>
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        Pick the model behind <span data-cursor-target="phrase" className="whitespace-nowrap">every single part</span>, give it a whole personality and show it a task once. Then just text it. It asks before anything goes out, so no rogue moves.
+                        We’re building a place to create a personal AI assistant you can text in iMessage. Choose <span data-cursor-target="phrase" className="whitespace-nowrap">how it talks</span>, what it remembers, and the apps it can use.
                     </p>
                 </StaggerItem>
                 <StaggerItem>
@@ -29,7 +29,7 @@ export default function HeroSection() {
                         className="type-body mt-10 h-13 px-8"
                         nativeButton={false}
                         render={
-                            <a href="#early-access">Join early access</a>
+                            <a href="#create-agent">Explore the builder</a>
                         }
                     />
                 </StaggerItem>
@@ -38,6 +38,7 @@ export default function HeroSection() {
             <div
                 id="product"
                 className="mt-16 px-4 md:mt-20">
+                <p className="type-caption text-muted-foreground mb-6 text-center">A look at what we’re building · scripted product demo</p>
                 <PhoneDemo />
             </div>
         </section>
