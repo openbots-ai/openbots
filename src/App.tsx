@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { ReactLenis } from 'lenis/react'
 import 'lenis/dist/lenis.css'
 import { MotionConfig } from 'motion/react'
@@ -11,6 +12,10 @@ import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
 import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
+import { isCrmPath } from '@/crm/lib/route'
+
+// Loaded only on /crm so the landing bundle never ships Convex or the dashboard
+const CrmApp = lazy(() => import('@/crm/crm-app'))
 
 const Landing = () => (
     <>
@@ -49,6 +54,14 @@ function Page() {
 }
 
 export default function App() {
+    if (isCrmPath(window.location.pathname)) {
+        return (
+            <Suspense fallback={null}>
+                <CrmApp />
+            </Suspense>
+        )
+    }
+
     return (
         <MotionConfig reducedMotion="user">
             <ReactLenis
