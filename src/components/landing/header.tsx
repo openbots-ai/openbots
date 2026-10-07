@@ -7,7 +7,8 @@ import { sectionHref } from '@/lib/site'
 const menuItems = [
     { name: 'Product', href: sectionHref('product') },
     { name: 'Features', href: sectionHref('features') },
-    { name: 'Use cases', href: sectionHref('create-agent') },
+    { name: 'Make it yours', href: sectionHref('create-agent') },
+    { name: 'Pricing', href: sectionHref('pricing') },
 ]
 
 export const Header = () => {
@@ -41,7 +42,7 @@ export const Header = () => {
                     nativeButton={false}
                     render={
                         <a href={sectionHref('early-access')}>
-                            Join early access <ArrowRight data-icon="inline-end" />
+                            Coming soon <ArrowRight data-icon="inline-end" />
                         </a>
                     }
                 />
