@@ -406,21 +406,20 @@ const Picker = ({ icon: Icon, label, options }: { icon: LucideIcon; label: strin
     )
 }
 
-// A picker filled from a model slot, so the landing page offers the same models as the real editor
-const SlotPicker = ({ slot, label }: { slot: SlotId; label?: string }) => {
+// A picker filled from a model slot: same name and the same full list of models as the dashboard's Models page
+const SlotPicker = ({ slot }: { slot: SlotId }) => {
     const s = slotOf(slot)!
     return (
         <Picker
             icon={SLOT_ICONS[slot]}
-            label={label ?? s.label}
-            // Four at most, so the menu never buries the mockup it sits on
-            options={s.options.slice(0, 4).map((o) => ({ label: o.label, provider: o.provider }))}
+            label={s.label}
+            options={s.options.map((o) => ({ label: o.label, provider: o.provider }))}
         />
     )
 }
 
 const features = [
-    { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" label="Browser model" /> },
+    { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
     { label: 'just text it', title: 'pick the brain behind every reply.', mock: <TextItMock />, picker: <SlotPicker slot="brain" /> },
     {
         label: 'personal memory',
