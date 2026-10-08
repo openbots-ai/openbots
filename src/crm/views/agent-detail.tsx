@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { ArrowLeft, BookOpen, MessageCircle } from 'lucide-react'
+import { ArrowLeft, BookOpen, FlaskConical, MessageCircle } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ import { INHERIT } from '@convex/lib/models'
 import { DEFAULT_CONFIG, languageOf, voiceOf } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
 import { useNav } from '../nav'
+import { TestTextDialog } from '../test-text'
 import { useRun } from '../use-run'
 import { AgentAvatar, Btn, ConfirmDelete, Content, Field, NotFound, Scroll, Select, StatusBadge, Toolbar } from '../ui'
 
@@ -63,6 +64,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const dirty = fieldsDirty || numberDirty
     const myDocs = knowledge?.filter((k) => k.agentId === agent._id) ?? []
 
+    const [testing, setTesting] = useState(false)
     const [playing, setPlaying] = useState(false)
     // Never leave a preview talking after the editor closes
     useEffect(() => () => window.speechSynthesis?.cancel(), [])
@@ -118,6 +120,10 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                     </>
                 }
             >
+                <Btn onClick={() => setTesting(true)} disabled={!myNumbers.length} title={myNumbers.length ? undefined : 'Give the agent a number first'}>
+                    <FlaskConical />
+                    Test a text
+                </Btn>
                 <ConfirmDelete onConfirm={destroy} what={agent.name} />
                 <Btn variant="primary" disabled={!dirty || !form.name.trim()} onClick={save}>
                     {dirty ? 'Save changes' : 'Saved'}
@@ -150,7 +156,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                             <Field label="Role">
                                 <Input value={form.role} onChange={(e) => set('role', e.target.value)} />
                             </Field>
-                            <Field label="Status">
+                            <Field label="Status" hint="Only live agents reply on their own. Draft and paused agents leave texts for you.">
                                 <Select<AgentStatus>
                                     value={form.status}
                                     onChange={(v) => set('status', v)}
@@ -217,6 +223,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                     </div>
                 </div>
             </Scroll>
+            {testing && <TestTextDialog agentId={agent._id} onClose={() => setTesting(false)} />}
         </Content>
     )
 }

@@ -27,3 +27,6 @@ dist-ssr
 .vercel
 .claude
 .agents
+
+# Local Convex backend state (npx convex dev --local)
+.convex

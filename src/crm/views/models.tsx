@@ -79,6 +79,12 @@ export function ModelsView() {
                                             <p className="flex items-center gap-2 text-[14px] font-semibold">
                                                 {slot.label}
                                                 {slot.isNew && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">New</Badge>}
+                                                {!slot.runs && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger render={<Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-normal text-neutral-500" />}>Not live yet</TooltipTrigger>
+                                                        <TooltipContent>Your choice is saved, but agents don't use this part yet. Today they write replies with Brain, and Backup takes over if it fails.</TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                             </p>
                                             <p className="mt-0.5 text-[12px] leading-snug text-neutral-500">{slot.blurb}</p>
                                         </div>
