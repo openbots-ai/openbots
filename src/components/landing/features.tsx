@@ -457,7 +457,7 @@ export default function Features() {
                                 <p className="type-label text-muted-foreground">{label}</p>
                                 <h3 className="type-heading mt-2 text-balance">{title}</h3>
                                 <a
-                                    href="#early-access"
+                                    href="/#early-access"
                                     className="type-body mt-6 inline-flex items-center gap-1.5 font-medium">
                                     Learn more
                                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
