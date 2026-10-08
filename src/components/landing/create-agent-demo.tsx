@@ -745,7 +745,7 @@ export default function CreateAgentDemo() {
     return (
         <section
             id="create-agent"
-            className="px-3 py-44 md:px-6 md:py-72">
+            className="px-3 pt-44 pb-16 md:px-6 md:pt-72 md:pb-24">
             <SectionHeading
                 title="give it a name. make it your kind of helpful."
                 description="pick the model, voice, personality and rules for every part. no code, no one-size-fits-all. (these are examples, not live assistants yet.)"
@@ -799,7 +799,7 @@ export default function CreateAgentDemo() {
                     id="create-agent-panel"
                     role="tabpanel"
                     aria-label={`The CRM: ${current.title}`}
-                    className="relative overflow-hidden rounded-2xl p-3 shadow-[0_40px_80px_-32px_rgba(0,0,0,0.35)] ring-1 ring-black/8 transition-[background] duration-700 sm:p-8 md:p-14 dark:ring-white/10"
+                    className="relative overflow-hidden rounded-2xl p-3 shadow-[0_32px_44px_-26px_rgba(0,0,0,0.4)] ring-1 ring-black/8 transition-[background] duration-700 sm:p-8 md:p-14 dark:ring-white/10"
                     style={{
                         background: `radial-gradient(120% 90% at 20% 0%, hsl(${current.hue} 80% 78%), transparent 60%), radial-gradient(100% 80% at 100% 100%, hsl(${(current.hue + 40) % 360} 70% 62%), transparent 65%), hsl(${current.hue} 35% 22%)`,
                     }}>

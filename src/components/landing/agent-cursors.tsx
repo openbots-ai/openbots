@@ -14,13 +14,36 @@ const BISCUIT: Agent = { name: 'Biscuit', hue: 25 }
 
 class Cancelled extends Error {}
 
-// Measures a [data-cursor-target] element relative to the cursor layer
+// Measures a [data-cursor-target] element in the cursor layer's coordinates. It measures against the layer's
+// parent (the hero), not the layer itself: the layer drifts up while scrolling, and measuring against a moved
+// layer would bake that drift in, leaving the highlight off once you scroll back. The layer sits at the
+// parent's top-left, so the two share an origin.
 const measure = (layer: HTMLElement | null, target: string): Rect | null => {
-    const el = layer?.parentElement?.querySelector(`[data-cursor-target="${target}"]`)
-    if (!layer || !el) return null
+    const parent = layer?.parentElement
+    const el = parent?.querySelector(`[data-cursor-target="${target}"]`)
+    if (!parent || !el) return null
     const a = el.getBoundingClientRect()
-    const b = layer.getBoundingClientRect()
+    const b = parent.getBoundingClientRect()
     return { left: a.left - b.left, top: a.top - b.top, width: a.width, height: a.height }
+}
+
+// Keeps a target's rect current through resizes and reflows (e.g. text rewrapping at a new width)
+function useLiveRect(layerRef: RefObject<HTMLDivElement | null>, target: string | null) {
+    const [rect, setRect] = useState<Rect | null>(null)
+    useEffect(() => {
+        if (!target) return
+        const update = () => setRect(measure(layerRef.current, target))
+        update()
+        const parent = layerRef.current?.parentElement
+        const ro = new ResizeObserver(update)
+        if (parent) ro.observe(parent)
+        window.addEventListener('resize', update)
+        return () => {
+            ro.disconnect()
+            window.removeEventListener('resize', update)
+        }
+    }, [layerRef, target])
+    return target ? rect : null
 }
 
 type Script = (tools: {
@@ -157,7 +180,9 @@ const jitter = (n: number) => (Math.random() - 0.5) * n
 // They fade away as soon as the page starts scrolling.
 export function AgentCursors() {
     const layerRef = useRef<HTMLDivElement>(null)
-    const [highlight, setHighlight] = useState<{ rect: Rect; duration: number } | null>(null)
+    // Which phrase is highlighted; its box is re-measured live so it stays on the text
+    const [highlight, setHighlight] = useState<{ target: string; duration: number } | null>(null)
+    const highlightRect = useLiveRect(layerRef, highlight?.target ?? null)
     const [boxes, setBoxes] = useState<(Rect & { id: number; duration: number })[]>([])
 
     const biscuit = useCursorScript(
@@ -174,7 +199,7 @@ export function AgentCursors() {
             say('Highlighting a line')
             await move({ x: phrase.left - 2, y: phrase.top + phrase.height * 0.55, duration: 1.4 })
             await click()
-            setHighlight({ rect: phrase, duration: 1.4 })
+            setHighlight({ target: 'phrase', duration: 1.4 })
             await move({ x: phrase.left + phrase.width, y: phrase.top + phrase.height * 0.55, duration: 1.4 })
             say('Love this line 👀')
             await wait(2800)
@@ -221,21 +246,21 @@ export function AgentCursors() {
     )
 
     const { scrollY } = useScroll()
+    // Fade only: the layer stays put, so highlights and cursors stay on the text while scrolling
     const opacity = useTransform(scrollY, [0, 280], [1, 0])
-    const y = useTransform(scrollY, [0, 280], [0, -40])
 
     return (
         <motion.div
             ref={layerRef}
             aria-hidden
-            style={{ opacity, y }}
+            style={{ opacity }}
             className="pointer-events-none absolute inset-x-0 top-0 z-10 hidden h-[640px] xl:block">
             {/* Biscuit's highlighter sweep */}
             <AnimatePresence>
-                {highlight && (
+                {highlight && highlightRect && (
                     <motion.div
                         className="absolute rounded-sm mix-blend-multiply"
-                        style={{ ...highlight.rect, originX: 0, background: `hsl(${BISCUIT.hue} 95% 70% / 0.45)` }}
+                        style={{ ...highlightRect, originX: 0, background: `hsl(${BISCUIT.hue} 95% 70% / 0.45)` }}
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         exit={{ opacity: 0 }}
