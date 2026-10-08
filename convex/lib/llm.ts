@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { env } from '../_generated/server'
+import { demoReply } from './demo'
 import type { ModelOption, Provider } from './models'
 
 export type Turn = { role: 'user' | 'assistant'; content: string }
@@ -17,6 +18,9 @@ export const keyFor = (provider: Provider) => {
     const name = PROVIDER_KEYS[provider]
     return name ? env[name] || undefined : undefined
 }
+
+// Demo deployments answer with sample replies when a provider has no key (see convex.config.ts)
+export const demoMode = () => env.DEMO_MODE === 'true'
 
 // A failure worth showing the operator as-is ("OPENAI_API_KEY isn't set")
 export class ReplyError extends Error {}
@@ -73,7 +77,10 @@ export async function complete(option: ModelOption, p: Prompt): Promise<string> 
     const keyName = PROVIDER_KEYS[option.provider]
     if (!keyName || !option.api) throw new ReplyError(`${option.label} can't write replies`)
     const key = keyFor(option.provider)
-    if (!key) throw new ReplyError(`${keyName} isn't set on the Convex deployment, so ${option.label} can't reply`)
+    if (!key) {
+        if (demoMode()) return demoReply(p.turns.at(-1)?.content ?? '')
+        throw new ReplyError(`${keyName} isn't set on the Convex deployment, so ${option.label} can't reply`)
+    }
     let text: string
     switch (option.provider) {
         case 'anthropic':

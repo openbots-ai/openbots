@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { env, internalAction, internalMutation, internalQuery } from './_generated/server'
 import { deliveryStatus } from './schema'
-import { keyFor } from './lib/llm'
+import { demoMode, keyFor } from './lib/llm'
 import { resolveModels } from './lib/models'
 
 // What the relay needs to send one agent message: which of your numbers it goes out from, and to whom
@@ -39,8 +39,8 @@ export const typingTarget = internalQuery({
             ctx.db.get('agents', conversation.agentId),
             ctx.db.query('workspace').first(),
         ])
-        // No bubble when the reply can't be written (its provider has no key)
-        if (!contact || !agent || !keyFor(resolveModels(ws?.models, agent.models, agent.model).brain.option.provider)) return null
+        // No bubble when the reply can't be written (its provider has no key and this isn't a demo)
+        if (!contact || !agent || (!keyFor(resolveModels(ws?.models, agent.models, agent.model).brain.option.provider) && !demoMode())) return null
         return { conversationId, from: number?.handle ?? null, to: contact.handle }
     },
 })

@@ -7,6 +7,7 @@ import schema from './schema'
 import { msUntilQuietEnds } from './lib/quiet'
 import { handleKey } from './lib/handles'
 import { parseReply, toTurns } from './lib/prompt'
+import { demoReply } from './lib/demo'
 
 const modules = import.meta.glob('./**/*.ts')
 
@@ -85,6 +86,21 @@ describe('inbound pipeline', () => {
         const again = await t.mutation(api.inbound.simulate, { to: '+14155550101', from: '2125550187', body: 'thanks' })
         expect(again.conversationId).toBe(conversationId)
         expect((await t.query(api.notifications.list, {})).map((n) => n.kind)).toEqual(['new_contact'])
+    })
+
+    it('answers with a sample reply in demo mode when the provider has no key', async () => {
+        vi.unstubAllEnvs()
+        vi.stubEnv('DEMO_MODE', 'true')
+        const fetchMock = vi.fn()
+        vi.stubGlobal('fetch', fetchMock)
+        const { t } = await setup()
+        const { conversationId } = await t.mutation(api.inbound.simulate, { to: '4155550101', from: '2125550187', body: 'book me a table for friday' })
+        await t.finishAllScheduledFunctions(vi.runAllTimers)
+        const thread = await t.query(api.conversations.thread, { id: conversationId })
+        expect(thread?.conversation.needsYou).toBeUndefined()
+        expect(thread?.messages.at(-1)).toMatchObject({ from: 'agent', body: demoReply('book me a table for friday') })
+        // No provider was called
+        expect(fetchMock).not.toHaveBeenCalled()
     })
 
     it('flags the conversation for you when the provider key is missing', async () => {

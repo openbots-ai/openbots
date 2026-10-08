@@ -18,6 +18,8 @@ const app = defineApp({
         // Emails notifications and the daily digest through Resend, from this address
         RESEND_API_KEY: v.optional(v.string()),
         NOTIFY_FROM_EMAIL: v.optional(v.string()),
+        // "true" lets agents without a provider key answer with sample replies, so demos work with no keys
+        DEMO_MODE: v.optional(v.string()),
     },
 })
 

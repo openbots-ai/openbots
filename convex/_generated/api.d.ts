@@ -17,6 +17,7 @@ import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as knowledge from "../knowledge.js";
 import type * as lib_cascade from "../lib/cascade.js";
+import type * as lib_demo from "../lib/demo.js";
 import type * as lib_handles from "../lib/handles.js";
 import type * as lib_inbox from "../lib/inbox.js";
 import type * as lib_llm from "../lib/llm.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   inbound: typeof inbound;
   knowledge: typeof knowledge;
   "lib/cascade": typeof lib_cascade;
+  "lib/demo": typeof lib_demo;
   "lib/handles": typeof lib_handles;
   "lib/inbox": typeof lib_inbox;
   "lib/llm": typeof lib_llm;
