@@ -7,7 +7,6 @@ export default function CallToAction() {
             <div className="relative overflow-hidden rounded-2xl bg-indigo-950 px-8 py-20 text-white md:px-14 md:py-24">
                 <ShaderBackground className="absolute inset-0" />
                 <div className="relative max-w-xl">
-                    <p className="type-label mb-4 text-white/65">Early access · coming soon</p>
                     <h2 className="type-title text-balance">what would you want yours to help with?</h2>
                     <p className="type-body-lg mt-5 max-w-md text-white/75">
                         signups aren’t open yet. peek at the builder and plan yours: the model, the voice, the vibe, all of it.
