@@ -14,8 +14,8 @@ export default function HeroSection() {
                 <StaggerItem>
                     <h1 className="type-display mx-auto max-w-4xl text-balance max-md:text-[min(3rem,10vw)]">
                         {/* Two lines on every screen size: each line stays whole, and phones scale the type to fit */}
-                        <span className="block whitespace-nowrap bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your AI agent team.</span>
-                        <span className="bg-primary-gradient block whitespace-nowrap bg-clip-text pb-1 text-transparent">Made your way.</span>
+                        <span className="block whitespace-nowrap bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your AI agent teams</span>
+                        <span className="bg-primary-gradient block whitespace-nowrap bg-clip-text pb-1 text-transparent">Made your way</span>
                     </h1>
                 </StaggerItem>
                 <StaggerItem>
