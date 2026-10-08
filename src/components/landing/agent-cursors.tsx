@@ -9,8 +9,8 @@ type CursorState = { pos: Point; message: string; clicks: number }
 
 type Agent = { name: string; hue: number }
 
-const WAFFLES: Agent = { name: 'Waffles', hue: 200 }
-const BISCUIT: Agent = { name: 'Biscuit', hue: 25 }
+const RISHI: Agent = { name: 'Rishi', hue: 270 }
+const TOFU: Agent = { name: 'Tofu', hue: 28 }
 
 class Cancelled extends Error {}
 
@@ -176,7 +176,7 @@ const Cursor = ({ agent, state }: { agent: Agent; state: CursorState }) => (
 
 const jitter = (n: number) => (Math.random() - 0.5) * n
 
-// Two agents working on the hero itself: Biscuit highlights copy, Waffles sketches frames on the left.
+// Two agents working on the hero itself: Tofu highlights copy, Rishi sketches frames on the left.
 // They fade away as soon as the page starts scrolling.
 export function AgentCursors() {
     const layerRef = useRef<HTMLDivElement>(null)
@@ -185,7 +185,7 @@ export function AgentCursors() {
     const highlightRect = useLiveRect(layerRef, highlight?.target ?? null)
     const [boxes, setBoxes] = useState<(Rect & { id: number; duration: number })[]>([])
 
-    const biscuit = useCursorScript(
+    const tofu = useCursorScript(
         layerRef,
         { pos: { x: 1080, y: 230 }, message: 'Reading the subheading', clicks: 0 },
         async ({ move, click, say, wait, rect, size }) => {
@@ -211,7 +211,7 @@ export function AgentCursors() {
         1800
     )
 
-    const waffles = useCursorScript(
+    const rishi = useCursorScript(
         layerRef,
         { pos: { x: 120, y: 400 }, message: 'Sketching a layout', clicks: 0 },
         async ({ move, click, say, wait, size }) => {
@@ -255,12 +255,12 @@ export function AgentCursors() {
             aria-hidden
             style={{ opacity }}
             className="pointer-events-none absolute inset-x-0 top-0 z-10 hidden h-[640px] xl:block">
-            {/* Biscuit's highlighter sweep */}
+            {/* Tofu's highlighter sweep */}
             <AnimatePresence>
                 {highlight && highlightRect && (
                     <motion.div
                         className="absolute rounded-sm mix-blend-multiply"
-                        style={{ ...highlightRect, originX: 0, background: `hsl(${BISCUIT.hue} 95% 70% / 0.45)` }}
+                        style={{ ...highlightRect, originX: 0, background: `hsl(${TOFU.hue} 95% 70% / 0.45)` }}
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         exit={{ opacity: 0 }}
@@ -269,13 +269,13 @@ export function AgentCursors() {
                 )}
             </AnimatePresence>
 
-            {/* Waffles's freshly drawn frames */}
+            {/* Rishi's freshly drawn frames */}
             <AnimatePresence>
                 {boxes.map((box) => (
                     <motion.div
                         key={box.id}
                         className="absolute rounded-[3px] border-[1.5px]"
-                        style={{ left: box.left, top: box.top, borderColor: `hsl(${WAFFLES.hue} 70% 55%)`, background: `hsl(${WAFFLES.hue} 85% 60% / 0.08)` }}
+                        style={{ left: box.left, top: box.top, borderColor: `hsl(${RISHI.hue} 70% 55%)`, background: `hsl(${RISHI.hue} 85% 60% / 0.08)` }}
                         initial={{ width: 0, height: 0 }}
                         animate={{ width: box.width, height: box.height }}
                         exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.3 } }}
@@ -285,7 +285,7 @@ export function AgentCursors() {
                             <span
                                 key={corner}
                                 className={`absolute size-2 rounded-[2px] border bg-white ${corner}`}
-                                style={{ borderColor: `hsl(${WAFFLES.hue} 70% 55%)` }}
+                                style={{ borderColor: `hsl(${RISHI.hue} 70% 55%)` }}
                             />
                         ))}
                     </motion.div>
@@ -293,12 +293,12 @@ export function AgentCursors() {
             </AnimatePresence>
 
             <Cursor
-                agent={WAFFLES}
-                state={waffles}
+                agent={RISHI}
+                state={rishi}
             />
             <Cursor
-                agent={BISCUIT}
-                state={biscuit}
+                agent={TOFU}
+                state={tofu}
             />
         </motion.div>
     )
