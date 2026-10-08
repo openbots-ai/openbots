@@ -31,6 +31,7 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly ANTHROPIC_API_KEY: string | undefined;
+  readonly DEMO_MODE: string | undefined;
   readonly GEMINI_API_KEY: string | undefined;
   readonly INBOUND_SECRET: string | undefined;
   readonly NOTIFY_FROM_EMAIL: string | undefined;
