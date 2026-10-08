@@ -7,7 +7,6 @@ import HeroSection from '@/components/landing/hero-section'
 import Trust from '@/components/landing/trust'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
-import Pricing from '@/components/landing/pricing'
 import { ComingSoon } from '@/pages/coming-soon'
 import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
@@ -29,7 +28,6 @@ const Landing = () => (
                 <CreateAgentDemo />
             </Suspense>
             <Trust />
-            <Pricing />
             <CallToAction />
         </main>
         <Footer />
