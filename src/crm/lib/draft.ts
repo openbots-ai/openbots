@@ -20,7 +20,12 @@ export type AgentFields = {
     models?: Record<string, string>
 }
 
-export const AVATARS = ['pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout'].map((n) => `/avatars/${n}.webp`)
+export const AVATARS = [
+    '/avatars/tofu.png',
+    '/avatars/lulu.png',
+    '/avatars/rishi.png',
+    ...['pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout'].map((n) => `/avatars/${n}.webp`),
+]
 
 export const hueFor = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
 
