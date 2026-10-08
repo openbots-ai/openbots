@@ -1,7 +1,6 @@
 import type { SlotId } from './models'
 
-// What one unit of work is for each model slot, and how much of the plan it uses.
-// Weights and limits are PLACEHOLDERS until pricing is decided.
+// What one unit of work is for each model slot, and how many usage credits it costs against your budget
 export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: number }> = {
     brain: { one: 'reply', many: 'replies', weight: 1 },
     computer: { one: 'action', many: 'actions', weight: 2 },
@@ -14,8 +13,10 @@ export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: num
     backup: { one: 'takeover', many: 'takeovers', weight: 1 },
 }
 
-// Plan allowance in usage credits (count × weight), like Claude Code's session and weekly limits
-export const PLAN_CREDITS = { day: 900, week: 5_000 }
-
 export const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 export const addDays = (day: string, n: number) => dayKey(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000)
+
+export const creditsFor = (slot: string, count: number) => count * (SLOT_UNITS[slot as SlotId]?.weight ?? 1)
+
+// Budget weeks start on Monday (UTC), like the Analytics page
+export const weekStart = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))

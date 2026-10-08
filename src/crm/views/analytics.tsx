@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { Hand, MessagesSquare, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { BRAIN_MODELS, SLOTS, slotOf, type SlotId } from '@convex/lib/models'
-import { PLAN_CREDITS, SLOT_UNITS, addDays, dayKey } from '@convex/lib/usage'
+import { SLOT_UNITS, addDays, creditsFor, dayKey, weekStart as weekStartOf } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -20,8 +21,9 @@ import { useNow } from '../use-now'
 
 type Row = { agentId: Id<'agents'>; slot: string; model: string; day: string; count: number }
 
+const count = (c: { n: number; more: boolean }) => `${compact(c.n)}${c.more ? '+' : ''}`
 const compact = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
-const credits = (r: Row) => r.count * (SLOT_UNITS[r.slot as SlotId]?.weight ?? 1)
+const credits = (r: Row) => creditsFor(r.slot, r.count)
 const sum = (rows: Row[], f: (r: Row) => number = (r) => r.count) => rows.reduce((s, r) => s + f(r), 0)
 const unit = (slot: SlotId, n: number) => (n === 1 ? SLOT_UNITS[slot].one : SLOT_UNITS[slot].many)
 // Vision can follow the brain onto a model outside its own list, so fall back to every brain model
@@ -39,6 +41,19 @@ function Section({ title, aside, children, className }: { title: string; aside?:
     )
 }
 
+function Tile({ icon: Icon, label, value, note, onClick }: { icon: LucideIcon; label: string; value?: string; note: ReactNode; onClick?: () => void }) {
+    return (
+        <Card onClick={onClick} className={cn('flex flex-col gap-1 rounded-lg p-4', onClick && 'cursor-pointer transition-colors hover:bg-neutral-50')}>
+            <span className="flex items-center gap-1.5 text-[12px] text-neutral-500">
+                <Icon className="size-3.5" />
+                {label}
+            </span>
+            <span className="text-2xl font-semibold tracking-tight tabular-nums">{value ?? '–'}</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">{note}</span>
+        </Card>
+    )
+}
+
 // The last 14 days for one slot, as a small shadcn bar chart
 function Spark({ days, slot }: { days: { day: string; count: number }[]; slot: SlotId }) {
     const config = { count: { label: SLOT_UNITS[slot].many, color: 'var(--primary)' } } satisfies ChartConfig
@@ -52,7 +67,22 @@ function Spark({ days, slot }: { days: { day: string; count: number }[]; slot: S
     )
 }
 
-const pctConfig = { pct: { label: '% of plan', color: 'var(--primary)' } } satisfies ChartConfig
+const creditConfig = { credits: { label: 'Credits', color: 'var(--primary)' } } satisfies ChartConfig
+
+// A budget gauge when a budget is set; otherwise just what was used
+function BudgetTile({ label, used, limit, note }: { label: string; used: number; limit?: number; note: string }) {
+    const go = useNav()
+    if (limit) return <UsageGauge label={label} used={used} limit={limit} note={note} />
+    return (
+        <div className="flex flex-col items-center justify-center gap-1 py-6 text-center">
+            <span className="text-3xl font-semibold tracking-tight tabular-nums">{compact(Math.round(used))}</span>
+            <span className="text-[12px] text-neutral-500">credits · {label.toLowerCase()}</span>
+            <button type="button" onClick={() => go('settings')} className="cursor-pointer text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-900 hover:underline">
+                No budget set
+            </button>
+        </div>
+    )
+}
 
 export function AnalyticsView() {
     const go = useNav()
@@ -60,11 +90,13 @@ export function AnalyticsView() {
     const today = dayKey(now)
     const rows = useQuery(api.usage.summary, { today }) as Row[] | undefined
     const agents = useQuery(api.agents.list)
+    const workspace = useQuery(api.workspace.get)
+    const [since] = useState(() => Date.now() - 30 * 86_400_000)
+    const overview = useQuery(api.usage.overview, { since })
     const all = rows ?? []
 
     // Windows like Claude Code's: today, and the week that started on Monday
-    const weekday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7
-    const weekStart = addDays(today, -weekday)
+    const weekStart = weekStartOf(today)
     const month = all.filter((r) => r.day > addDays(today, -30))
     const week = all.filter((r) => r.day >= weekStart)
     const todays = all.filter((r) => r.day === today)
@@ -72,12 +104,10 @@ export function AnalyticsView() {
     const nextMonday = new Date(`${addDays(weekStart, 7)}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
     const fourteen = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13))
 
-    const tiles: { slot: SlotId; label: string }[] = [
-        { slot: 'brain', label: 'Replies written' },
-        { slot: 'computer', label: 'Actions in your apps' },
-        { slot: 'decisions', label: 'Decisions made' },
-        { slot: 'calls', label: 'Minutes on calls' },
-    ]
+    // Replies come from Brain, or from Backup when it took over
+    const replies = month.filter((r) => r.slot === 'brain' || r.slot === 'backup')
+    const topId = [...new Set(replies.map((r) => r.model))].map((m) => ({ m, n: sum(replies.filter((r) => r.model === m)) })).sort((a, b) => b.n - a.n)[0]?.m
+    const topModel = topId ? BRAIN_MODELS.find((o) => o.id === topId) : undefined
 
     return (
         <Content>
@@ -87,37 +117,21 @@ export function AnalyticsView() {
             <Scroll>
                 <div className="space-y-4 p-4">
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        {tiles.map((t) => {
-                            const Icon = SLOT_ICONS[t.slot]
-                            const mine = month.filter((r) => r.slot === t.slot)
-                            const top = [...new Set(mine.map((r) => r.model))].map((m) => ({ m, n: sum(mine.filter((r) => r.model === m)) })).sort((a, b) => b.n - a.n)[0]
-                            const option = top && optionOf(t.slot, top.m)
-                            return (
-                                <Card key={t.slot} className="flex flex-col gap-1 rounded-lg p-4">
-                                    <span className="flex items-center gap-1.5 text-[12px] text-neutral-500">
-                                        <Icon className="size-3.5" />
-                                        {t.label}
-                                    </span>
-                                    <span className="text-2xl font-semibold tracking-tight tabular-nums">{rows ? compact(sum(mine)) : '–'}</span>
-                                    <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
-                                        {option ? (
-                                            <>
-                                                mostly <ProviderMark provider={option.provider} className="size-3" /> {option.label}
-                                            </>
-                                        ) : (
-                                            'Last 30 days'
-                                        )}
-                                    </span>
-                                </Card>
-                            )
-                        })}
+                        <Tile icon={SLOT_ICONS.brain} label="Replies written" value={rows && compact(sum(replies))} note={topModel ? <>mostly <ProviderMark provider={topModel.provider} className="size-3" /> {topModel.label}</> : 'By your agents, last 30 days'} />
+                        <Tile icon={MessagesSquare} label="Conversations" value={overview && count(overview.active)} note="Active in the last 30 days" onClick={() => go('conversations')} />
+                        <Tile icon={Hand} label="Waiting on you" value={overview && count(overview.waiting)} note="Handed off or couldn't reply" onClick={() => go('conversations')} />
+                        <Tile icon={Users} label="Contacts" value={overview && count(overview.contacts)} note={overview ? `${count(overview.newContacts)} new in the last 30 days` : 'Last 30 days'} onClick={() => go('contacts')} />
                     </div>
 
-                    <Section title="Plan usage" aside="Personal plan">
+                    <Section title="Usage budget" aside="Set your budget in Settings">
                         <div className="grid gap-6 sm:grid-cols-3">
-                            <UsageGauge label="Today" used={sum(todays, credits)} limit={PLAN_CREDITS.day} note="Resets at midnight UTC" />
-                            <UsageGauge label="This week · all models" used={sum(week, credits)} limit={PLAN_CREDITS.week} note={`Resets ${nextMonday}`} />
-                            <UsageGauge label={`This week · ${heaviest?.slot.label ?? 'Computer use'}`} used={heaviest?.used ?? 0} limit={PLAN_CREDITS.week} note="Your heaviest part this week" />
+                            <BudgetTile label="Today" used={sum(todays, credits)} limit={workspace?.dailyBudget} note="Resets at midnight UTC" />
+                            <BudgetTile label="This week" used={sum(week, credits)} limit={workspace?.weeklyBudget} note={`Resets ${nextMonday}`} />
+                            {heaviest && heaviest.used > 0 ? (
+                                <BudgetTile label={`This week · ${heaviest.slot.label}`} used={heaviest.used} limit={workspace?.weeklyBudget} note="Your heaviest part this week" />
+                            ) : (
+                                <div className="flex items-center justify-center py-6 text-center text-[12px] text-neutral-400">No usage this week yet</div>
+                            )}
                         </div>
                     </Section>
 
@@ -160,7 +174,7 @@ export function AnalyticsView() {
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className="text-[12px] text-neutral-400">{rows ? 'Not used in the last 30 days' : '…'}</span>
+                                                <span className="text-[12px] text-neutral-400">{!slot.runs ? 'Not live yet' : rows ? 'Not used in the last 30 days' : '…'}</span>
                                             )}
                                         </span>
                                         <Spark days={spark} slot={slot.id} />
@@ -174,33 +188,33 @@ export function AnalyticsView() {
                     </Section>
 
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-                        <Section title="This week by agent" aside="Share of the weekly plan">
+                        <Section title="This week by agent" aside="Credits used">
                             {(() => {
                                 const data = (agents ?? [])
-                                    .map((a) => ({ id: a._id, name: a.name, pct: Math.round((sum(week.filter((r) => r.agentId === a._id), credits) / PLAN_CREDITS.week) * 100) }))
-                                    .sort((a, b) => b.pct - a.pct)
+                                    .map((a) => ({ id: a._id, name: a.name, credits: Math.round(sum(week.filter((r) => r.agentId === a._id), credits)) }))
+                                    .sort((a, b) => b.credits - a.credits)
                                 return (
-                                    <ChartContainer config={pctConfig} className="aspect-auto w-full" style={{ height: Math.max(120, data.length * 34) }}>
+                                    <ChartContainer config={creditConfig} className="aspect-auto w-full" style={{ height: Math.max(120, data.length * 34) }}>
                                         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 36 }} onClick={(e) => e?.activeIndex != null && go('agents', data[Number(e.activeIndex)].id)}>
                                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={64} />
-                                            <XAxis type="number" dataKey="pct" hide domain={[0, 'dataMax']} />
-                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator formatter={(v) => `${v}% of the weekly plan`} />} />
-                                            <Bar dataKey="pct" fill="var(--color-pct)" radius={4} className="cursor-pointer">
-                                                <LabelList dataKey="pct" position="right" formatter={(v: unknown) => `${v}%`} className="fill-foreground" fontSize={12} />
+                                            <XAxis type="number" dataKey="credits" hide domain={[0, 'dataMax']} />
+                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator formatter={(v) => `${v} credits this week`} />} />
+                                            <Bar dataKey="credits" fill="var(--color-credits)" radius={4} className="cursor-pointer">
+                                                <LabelList dataKey="credits" position="right" className="fill-foreground" fontSize={12} />
                                             </Bar>
                                         </BarChart>
                                     </ChartContainer>
                                 )
                             })()}
                         </Section>
-                        <Section title="Daily plan usage" aside="Last 8 weeks">
-                            <ChartContainer config={pctConfig} className="aspect-auto h-56 w-full">
-                                <AreaChart data={Array.from({ length: 56 }, (_, i) => addDays(today, i - 55)).map((day) => ({ day, pct: Math.round((sum(all.filter((r) => r.day === day), credits) / PLAN_CREDITS.day) * 100) }))} margin={{ left: 0, right: 8 }}>
+                        <Section title="Daily usage" aside="Credits, last 8 weeks">
+                            <ChartContainer config={creditConfig} className="aspect-auto h-56 w-full">
+                                <AreaChart data={Array.from({ length: 56 }, (_, i) => addDays(today, i - 55)).map((day) => ({ day, credits: Math.round(sum(all.filter((r) => r.day === day), credits)) }))} margin={{ left: 0, right: 8 }}>
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="day" tickLine={false} axisLine={false} minTickGap={40} tickFormatter={dayLabel} />
-                                    <YAxis tickLine={false} axisLine={false} width={36} tickFormatter={(v) => `${v}%`} />
-                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(_, payload) => dayLabel(payload[0]?.payload.day ?? '')} formatter={(v) => `${v}% of the daily plan`} />} />
-                                    <Area dataKey="pct" type="monotone" fill="var(--color-pct)" fillOpacity={0.2} stroke="var(--color-pct)" strokeWidth={2} />
+                                    <YAxis tickLine={false} axisLine={false} width={36} allowDecimals={false} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(_, payload) => dayLabel(payload[0]?.payload.day ?? '')} formatter={(v) => `${v} credits`} />} />
+                                    <Area dataKey="credits" type="monotone" fill="var(--color-credits)" fillOpacity={0.2} stroke="var(--color-credits)" strokeWidth={2} />
                                 </AreaChart>
                             </ChartContainer>
                         </Section>

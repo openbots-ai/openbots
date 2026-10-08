@@ -11,6 +11,18 @@ export const get = query({
     handler: (ctx) => ctx.db.query('workspace').first(),
 })
 
+// First visit: the dashboard asks for these two names and creates the workspace
+export const create = mutation({
+    args: { name: v.string(), ownerName: v.string(), timezone: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        if (await ctx.db.query('workspace').first()) throw new Error('This workspace is already set up')
+        const name = args.name.trim()
+        const ownerName = args.ownerName.trim()
+        if (!name || !ownerName) throw new Error('Workspace and owner name are required')
+        return ctx.db.insert('workspace', { name, ownerName, timezone: args.timezone })
+    },
+})
+
 export const update = mutation({
     args: { name: v.string(), ownerName: v.string(), ...workspaceSettings },
     handler: async (ctx, args) => {
@@ -22,7 +34,8 @@ export const update = mutation({
         if (ownerEmail && handleKind(ownerEmail) !== 'email') throw new Error('Enter a valid email address')
         if ((args.quietStart && !TIME.test(args.quietStart)) || (args.quietEnd && !TIME.test(args.quietEnd))) throw new Error('Quiet hours need a start and end time')
         if (args.replyDelaySec !== undefined && (args.replyDelaySec < 0 || args.replyDelaySec > 60)) throw new Error('Reply delay must be between 0 and 60 seconds')
-        if (args.defaultAgentId && !(await ctx.db.get(args.defaultAgentId))) throw new Error('That agent no longer exists')
+        for (const budget of [args.dailyBudget, args.weeklyBudget]) if (budget !== undefined && !(budget > 0)) throw new Error('A budget must be more than 0 credits')
+        if (args.defaultAgentId && !(await ctx.db.get('agents', args.defaultAgentId))) throw new Error('That agent no longer exists')
 
         // Every settings key is written explicitly, so one the client left out (undefined) is cleared.
         // Model choices are the exception: the Models page saves those through setModel.
@@ -34,7 +47,7 @@ export const update = mutation({
         const fields = { ...settings, name, ownerName, ownerEmail, newContactTag: args.newContactTag?.trim().toLowerCase() || undefined }
 
         const ws = await ctx.db.query('workspace').first()
-        if (ws) await ctx.db.patch(ws._id, fields)
+        if (ws) await ctx.db.patch('workspace', ws._id, fields)
         else await ctx.db.insert('workspace', fields)
     },
 })
@@ -54,7 +67,7 @@ export const setModel = mutation({
 export const exportAll = query({
     args: {},
     handler: async (ctx) => {
-        const [workspace, agents, numbers, contacts, conversations, messages, knowledge] = await Promise.all([
+        const [workspace, agents, numbers, contacts, conversations, messages, knowledge, usage, notifications] = await Promise.all([
             ctx.db.query('workspace').first(),
             ctx.db.query('agents').collect(),
             ctx.db.query('numbers').collect(),
@@ -62,7 +75,9 @@ export const exportAll = query({
             ctx.db.query('conversations').collect(),
             ctx.db.query('messages').collect(),
             ctx.db.query('knowledge').collect(),
+            ctx.db.query('usage').collect(),
+            ctx.db.query('notifications').collect(),
         ])
-        return { workspace, agents, numbers, contacts, conversations, messages, knowledge }
+        return { workspace, agents, numbers, contacts, conversations, messages, knowledge, usage, notifications }
     },
 })

@@ -11,7 +11,7 @@ function title(raw: string) {
 
 export const list = query({
     args: {},
-    handler: async (ctx) => (await ctx.db.query('knowledge').collect()).sort((a, b) => b.updatedAt - a.updatedAt),
+    handler: (ctx) => ctx.db.query('knowledge').withIndex('by_updatedAt').order('desc').take(500),
 })
 
 export const create = mutation({
@@ -21,10 +21,10 @@ export const create = mutation({
 
 export const update = mutation({
     args: { id: v.id('knowledge'), ...fields },
-    handler: (ctx, { id, body, agentId, ...rest }) => ctx.db.patch(id, { title: title(rest.title), body, agentId, updatedAt: Date.now() }),
+    handler: (ctx, { id, body, agentId, ...rest }) => ctx.db.patch('knowledge', id, { title: title(rest.title), body, agentId, updatedAt: Date.now() }),
 })
 
 export const remove = mutation({
     args: { id: v.id('knowledge') },
-    handler: (ctx, { id }) => ctx.db.delete(id),
+    handler: (ctx, { id }) => ctx.db.delete('knowledge', id),
 })
