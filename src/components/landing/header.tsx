@@ -6,8 +6,10 @@ import { sectionHref } from '@/lib/site'
 
 const menuItems = [
     { name: 'Product', href: sectionHref('product') },
-    { name: 'Features', href: sectionHref('features') },
+    { name: 'Features', href: '/features' },
     { name: 'Use cases', href: sectionHref('create-agent') },
+    { name: 'Trust', href: sectionHref('trust') },
+    { name: 'Pricing', href: '/pricing' },
 ]
 
 export const Header = () => {

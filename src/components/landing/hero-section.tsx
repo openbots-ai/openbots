@@ -13,8 +13,8 @@ export default function HeroSection() {
                 className="px-6 pt-24 text-center md:pt-32">
                 <StaggerItem>
                     <h1 className="type-display mx-auto max-w-4xl text-balance">
-                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your agents,</span>{' '}
-                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">your rules</span>
+                        <span className="bg-gradient-to-b from-neutral-400 to-neutral-600 bg-clip-text text-transparent dark:from-neutral-300 dark:to-neutral-500">Your own personal AI assistant.</span>{' '}
+                        <span className="bg-primary-gradient bg-clip-text pb-1 text-transparent">Made your way.</span>
                     </h1>
                 </StaggerItem>
                 <StaggerItem>
@@ -39,6 +39,7 @@ export default function HeroSection() {
                 id="product"
                 className="mt-16 px-4 md:mt-20">
                 <PhoneDemo />
+                <p className="type-caption text-muted-foreground mt-6 text-center">Example conversations · fictional places and amounts</p>
             </div>
         </section>
     )

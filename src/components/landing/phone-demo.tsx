@@ -25,28 +25,54 @@ type Contact = { name: string; role: string; hue: number; preview: string; time:
 
 const ME = 'me'
 
-const MOCHI = 0
+const TOFU = 0
+const RISHI = 1
+const MOCHI = 2
 
 const contacts: Contact[] = [
+    {
+        name: 'Tofu',
+        role: 'Weekend Planner',
+        hue: 28,
+        preview: 'saturday sorted: two plans, under $50 🐯',
+        time: '9:41 AM',
+        messages: [
+            { from: ME, text: 'sort saturday for me + maya. under $50 each, no early starts' },
+            { from: 'them', text: 'you’re both free after 1. ramen at 1:30 ($18), then the free gallery nearby. 8-min walk 🐯' },
+            { from: ME, text: 'perfect. put it on my calendar' },
+            { from: 'them', text: 'added both stops with addresses + walking time. maya’s invite is drafted for you to approve.' },
+        ],
+    },
+    {
+        name: 'Rishi',
+        role: 'Deal Hunter',
+        hue: 270,
+        preview: '2 veggie burgers for $14. pickup, no code 🍔',
+        time: '9:38 AM',
+        messages: [
+            { from: 'them', text: 'your friday food find 🍔 2 veggie burgers for $14 at Bun Club, 6 min away.' },
+            { from: 'them', text: 'checked their menu: buy 1, get 1 free. pickup only, ends at 8pm. no code needed.' },
+            { from: ME, text: 'remind me at 6 and save the link' },
+            { from: 'them', text: '6pm reminder set, order link attached. $14 saved if you go 🐶' },
+        ],
+    },
     {
         name: 'Mochi',
         role: 'Chief of Staff',
         hue: 278,
-        preview: 'morning! your weekly brief is ready ☕️',
+        preview: '3 overdue invoices. follow-ups ready to review ☕️',
         time: '8:42 AM',
         messages: [
-            { from: 'them', text: 'morning! your weekly brief is ready ☕️' },
-            { from: 'them', text: 'revenue +8% WoW, churn flat, 2 alerts need you' },
-            { from: ME, text: 'what are the alerts?' },
-            { from: 'them', text: 'easier to walk you through it live, calling you now 📞' },
+            { from: 'them', text: 'checked invoices against payments: 3 overdue, $2,400 total. one client paid this morning ☕️' },
+            { from: 'them', text: 'marked that one paid. drafted follow-ups for the other two, with invoice links. ready for your review.' },
+            { from: ME, text: 'call me and walk me through the drafts' },
+            { from: 'them', text: 'calling now 📞 nothing sends until you approve.' },
         ],
     },
-    { name: 'Biscuit', role: 'Growth Marketer', hue: 25, preview: 'variant B is winning checkout by 12% 👀', time: '8:05 AM' },
-    { name: 'Waffles', role: 'Sales Outbound', hue: 200, preview: 'Booked 3 demos for Thursday 📅', time: 'Yesterday' },
-    { name: 'Honey', role: 'Customer Support', hue: 160, preview: '12 tickets resolved, 2 escalated.', time: 'Yesterday' },
-    { name: 'Penny', role: 'Expense Manager', hue: 340, preview: 'Receipts coded, one needs a look.', time: 'Tuesday' },
-    { name: 'Pip', role: 'Talent Scout', hue: 45, preview: 'Shortlist of 6 candidates is ready.', time: 'Monday' },
-    { name: 'Sprout', role: 'Data Analyst', hue: 230, preview: 'Q3 cohort report is in your inbox.', time: 'Sunday' },
+    { name: 'Lulu', role: 'Trip Planner', hue: 45, preview: 'compared 12 stays. 3 fit your $600 trip budget ☀️', time: 'Yesterday' },
+    { name: 'Biscuit', role: 'Meal Planner', hue: 25, preview: '5 dinners, $48 grocery cart. used your pantry first 🥕', time: 'Yesterday' },
+    { name: 'Honey', role: 'Home Finder', hue: 160, preview: '2 new pet-friendly listings under $1,800. tour requests drafted 🏡', time: 'Tuesday' },
+    { name: 'Pip', role: 'Writing Buddy', hue: 45, preview: 'your landlord reply is drafted, with the repair dates included ✨', time: 'Monday' },
 ]
 
 type CallPhase = 'incoming' | 'answering'
@@ -58,10 +84,18 @@ type Step =
 // Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
 const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
 
-// One entry per beat: open Mochi, then Mochi calls in and the swipe to answer ends it.
+// Personal life comes first: Tofu plans the weekend, Rishi finds a deal, then Mochi handles work.
 const steps: Step[] = [
     { view: 'list', read: [] },
-    { view: 'list', read: [], press: MOCHI },
+    { view: 'list', read: [], press: TOFU },
+    ...chatSteps(TOFU),
+    { view: 'chat', chat: TOFU, shown: contacts[TOFU].messages!.length, pressBack: true },
+    { view: 'list', read: [TOFU] },
+    { view: 'list', read: [TOFU], press: RISHI },
+    ...chatSteps(RISHI),
+    { view: 'chat', chat: RISHI, shown: contacts[RISHI].messages!.length, pressBack: true },
+    { view: 'list', read: [TOFU, RISHI] },
+    { view: 'list', read: [TOFU, RISHI], press: MOCHI },
     ...chatSteps(MOCHI),
     { view: 'call', chat: MOCHI, phase: 'incoming' },
     { view: 'call', chat: MOCHI, phase: 'answering' },
@@ -607,6 +641,11 @@ const fitScale = () => Math.min(1.6, (window.innerHeight - 64 - 32) / PHONE_HEIG
 // Autoplay timing (ms): the typing half of a beat, the settled half, and how long the answered call holds before looping
 const TYPING_MS = 600
 const SETTLED_MS = 1100
+const readingTime = (step: Step) => {
+    if (step.view !== 'chat' || step.shown === 0) return SETTLED_MS
+    const text = contacts[step.chat].messages?.[step.shown - 1]?.text ?? ''
+    return Math.max(SETTLED_MS, text.split(/\s+/).length * 220)
+}
 const SWIPE_MS = 800
 const HOLD_MS = 2500
 // A row tap only flashes its highlight before the chat opens, like a real iMessage tap
@@ -646,7 +685,7 @@ export function PhoneDemo() {
                 if (beat === LAST_BEAT) slide.set(0)
                 setBeat(beat === LAST_BEAT ? 1 : beat + 1)
             },
-            beat === LAST_BEAT ? HOLD_MS : isTap(steps[beat >> 1]) ? (beat & 1 ? TAP_MS : 0) : beat & 1 ? SETTLED_MS : TYPING_MS,
+            beat === LAST_BEAT ? HOLD_MS : isTap(steps[beat >> 1]) ? (beat & 1 ? TAP_MS : 0) : beat & 1 ? readingTime(steps[beat >> 1]) : TYPING_MS,
         )
         return () => clearTimeout(id)
     }, [inView, beat, slide])

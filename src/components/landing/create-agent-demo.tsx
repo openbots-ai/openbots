@@ -59,7 +59,7 @@ const existing: { name: string; role: string; number: string; status: Status | '
     { name: 'Sprout', role: 'Fitness coach', number: '', status: 'draft', edited: 'Sep 28' },
 ]
 
-const AVATARS = ['pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout']
+const AVATARS = ['tofu', 'lulu', 'rishi', 'pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout']
 
 // The flow as timed beats: press Create, fill the dialog, pick model, voice and language, fill the editor, attach a
 // number and go live, then open Models to see its mix and Analytics to see what each model did

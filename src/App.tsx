@@ -4,7 +4,7 @@ import 'lenis/dist/lenis.css'
 import { MotionConfig } from 'motion/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
-import Features from '@/components/landing/features'
+import Trust from '@/components/landing/trust'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
@@ -16,6 +16,8 @@ import { isCrmPath } from '@/crm/lib/route'
 const CrmApp = lazy(() => import('@/crm/crm-app'))
 // The CRM demo pulls in the chart library, so it loads on its own instead of with the first paint
 const CreateAgentDemo = lazy(() => import('@/components/landing/create-agent-demo'))
+const PricingPage = lazy(() => import('@/pages/pricing').then((module) => ({ default: module.PricingPage })))
+const FeaturesPage = lazy(() => import('@/pages/features').then((module) => ({ default: module.FeaturesPage })))
 
 const Landing = () => (
     <>
@@ -25,7 +27,7 @@ const Landing = () => (
             <Suspense fallback={<div id="create-agent" className="min-h-[60rem]" />}>
                 <CreateAgentDemo />
             </Suspense>
-            <Features />
+            <Trust />
             <CallToAction />
         </main>
         <Footer />
@@ -33,7 +35,6 @@ const Landing = () => (
 )
 
 const comingSoon: Record<string, string> = {
-    '/pricing': 'Pricing',
     '/changelog': 'Changelog',
     '/docs': 'Docs',
     '/careers': 'Careers',
@@ -47,6 +48,8 @@ function Page() {
     if (path === '/privacy') return <PrivacyPage />
     if (path === '/terms') return <TermsPage />
     if (path === '/contact') return <ContactPage />
+    if (path === '/features') return <Suspense fallback={null}><FeaturesPage /></Suspense>
+    if (path === '/pricing') return <Suspense fallback={null}><PricingPage /></Suspense>
     if (comingSoon[path]) return <ComingSoon title={comingSoon[path]} />
 
     // About (and any unknown path) is the landing page itself
