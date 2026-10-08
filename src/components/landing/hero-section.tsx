@@ -38,7 +38,7 @@ export default function HeroSection() {
 
             <div
                 id="product"
-                className="mt-16 px-4 md:mt-20">
+                className="mt-24 px-4 md:mt-36">
                 <PhoneDemo />
                 <p className="type-caption text-muted-foreground mt-6 text-center">Example conversations · fictional places and amounts</p>
             </div>

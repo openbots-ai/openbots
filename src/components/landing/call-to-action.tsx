@@ -3,7 +3,7 @@ import { ShaderBackground } from '@/components/ui/shader-background'
 
 export default function CallToAction() {
     return (
-        <section id="early-access" className="scroll-mt-24 px-3 pb-24 md:px-6 md:pb-36">
+        <section id="early-access" className="scroll-mt-24 px-3 pb-40 md:px-6 md:pb-64">
             <div className="relative overflow-hidden rounded-2xl bg-indigo-950 px-8 py-20 text-white md:px-14 md:py-24">
                 <ShaderBackground className="absolute inset-0" />
                 <div className="relative max-w-xl">
