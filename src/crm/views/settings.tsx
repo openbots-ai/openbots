@@ -1,11 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { useConvex, useMutation, useQuery } from 'convex/react'
-import { Bell, Building2, Database, Download, MessageCircle, Users, type LucideIcon } from 'lucide-react'
+import { Bell, Building2, Check, Copy, Database, Download, Gauge, MessageCircle, Plug, Users, X, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +17,8 @@ const SECTIONS: { id: string; label: string; icon: LucideIcon }[] = [
     { id: 'messaging', label: 'Messaging', icon: MessageCircle },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'usage', label: 'Usage budget', icon: Gauge },
+    { id: 'integrations', label: 'Integrations', icon: Plug },
     { id: 'data', label: 'Data', icon: Database },
 ]
 
@@ -48,6 +49,9 @@ type Form = {
     notifyNewContact: boolean
     notifyHandoff: boolean
     notifyDigest: boolean
+    // Kept as text so the field can be empty (no cap)
+    dailyBudget: string
+    weeklyBudget: string
 }
 
 // Older workspaces have none of the optional settings; these are the defaults they start from
@@ -67,7 +71,13 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     notifyNewContact: w.notifyNewContact ?? true,
     notifyHandoff: w.notifyHandoff ?? true,
     notifyDigest: w.notifyDigest ?? false,
+    dailyBudget: w.dailyBudget?.toString() ?? '',
+    weeklyBudget: w.weeklyBudget?.toString() ?? '',
 })
+
+// '' means no budget; anything else must be a positive number
+const parseBudget = (s: string) => (s.trim() ? Number(s) : undefined)
+const budgetOk = (s: string) => !s.trim() || Number(s) > 0
 
 // Mirrors the server's cleanup so the form isn't left "unsaved" after a save
 const normalize = (f: Form): Form => ({
@@ -76,6 +86,8 @@ const normalize = (f: Form): Form => ({
     ownerName: f.ownerName.trim(),
     ownerEmail: f.ownerEmail.trim(),
     newContactTag: f.newContactTag.trim().toLowerCase(),
+    dailyBudget: f.dailyBudget.trim() && String(Number(f.dailyBudget)),
+    weeklyBudget: f.weeklyBudget.trim() && String(Number(f.weeklyBudget)),
 })
 
 export function SettingsView() {
@@ -117,7 +129,8 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
     const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }))
     const dirty = JSON.stringify(normalize(form)) !== JSON.stringify(toForm(workspace))
     const emailOk = !form.ownerEmail.trim() || handleKind(form.ownerEmail) === 'email'
-    const valid = form.name.trim() && form.ownerName.trim() && emailOk && form.quietStart && form.quietEnd
+    const budgetsOk = budgetOk(form.dailyBudget) && budgetOk(form.weeklyBudget)
+    const valid = form.name.trim() && form.ownerName.trim() && emailOk && form.quietStart && form.quietEnd && budgetsOk
     const timezones = Intl.supportedValuesOf('timeZone')
 
     const save = async () => {
@@ -129,6 +142,8 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 ownerEmail: f.ownerEmail || undefined,
                 defaultAgentId: f.defaultAgentId ? (f.defaultAgentId as Id<'agents'>) : undefined,
                 newContactTag: f.newContactTag || undefined,
+                dailyBudget: parseBudget(f.dailyBudget),
+                weeklyBudget: parseBudget(f.weeklyBudget),
             }),
         )
         setSaving(false)
@@ -154,12 +169,6 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                         onChange={(v) => set('timezone', v)}
                         options={(timezones.includes(form.timezone) ? timezones : [form.timezone, ...timezones]).map((tz) => ({ value: tz, label: tz.replaceAll('_', ' ') }))}
                     />
-                </Row>
-                <Row label="Plan">
-                    <span className="flex h-9 items-center gap-2 text-[13px] text-neutral-700">
-                        Personal
-                        <Badge variant="secondary" className="text-[11px] font-normal text-neutral-500">Free</Badge>
-                    </span>
                 </Row>
             </Section>
 
@@ -213,8 +222,19 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
+            <Section id="usage" title="Usage budget" description="Every reply, action and voice note uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
+                <Row label="Daily budget" description={budgetOk(form.dailyBudget) ? 'Credits per day (UTC). Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.dailyBudget)} htmlFor="s-daily">
+                    <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder="No cap" />
+                </Row>
+                <Row label="Weekly budget" description={budgetOk(form.weeklyBudget) ? 'Credits per week, Monday to Sunday. Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.weeklyBudget)} htmlFor="s-weekly">
+                    <Input id="s-weekly" inputMode="numeric" aria-invalid={!budgetOk(form.weeklyBudget)} value={form.weeklyBudget} onChange={(e) => set('weeklyBudget', e.target.value)} placeholder="No cap" />
+                </Row>
+            </Section>
+
+            <Integrations />
+
             <Section id="data" title="Data" description="Your workspace data belongs to you.">
-                <Row label="Export everything" description="Agents, contacts, conversations, messages and knowledge as JSON.">
+                <Row label="Export everything" description="Agents, numbers, contacts, conversations, messages, knowledge, usage and notifications as JSON.">
                     <ExportButton />
                 </Row>
             </Section>
@@ -232,6 +252,59 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                     </span>
                 </Card>
             )}
+        </div>
+    )
+}
+
+// Live status of the deployment's environment variables; values are never sent to the browser
+function Integrations() {
+    const status = useQuery(api.system.status)
+    const [copied, setCopied] = useState(false)
+    const copy = async () => {
+        if (!status) return
+        await navigator.clipboard.writeText(status.inboundUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+    }
+    const names: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google Gemini', xai: 'xAI' }
+    return (
+        <Section id="integrations" title="Integrations" description="Set these on your Convex deployment with npx convex env set NAME value. Changes show up here right away.">
+            <Row label="Model providers" description="An agent replies only when its Brain (or Backup) model's provider has a key.">
+                <div className="w-full space-y-1">
+                    {status ? (
+                        Object.entries(status.providers).map(([p, { key, set }]) => <EnvRow key={p} label={names[p] ?? p} env={key} ok={set} />)
+                    ) : (
+                        <Skeleton className="h-20" />
+                    )}
+                </div>
+            </Row>
+            <Row label="Incoming texts" description="Point your iMessage relay at this URL. It must send Authorization: Bearer INBOUND_SECRET; the answer says whether to send a read receipt.">
+                <div className="w-full space-y-1.5">
+                    <div className="flex w-full items-center gap-1.5">
+                        <Input readOnly aria-label="Inbound webhook URL" value={status?.inboundUrl ?? ''} className="font-mono text-[12px]" />
+                        <Btn variant="ghost" size="icon-sm" aria-label="Copy URL" onClick={copy}>
+                            {copied ? <Check /> : <Copy />}
+                        </Btn>
+                    </div>
+                    {status && <EnvRow label="Secret" env="INBOUND_SECRET" ok={status.inboundSecret} />}
+                </div>
+            </Row>
+            <Row label="Outgoing replies" description="Agent replies are POSTed here as JSON { type: message, from, to, body } for your relay to send, plus typing events when the typing indicator is on.">
+                {status ? <EnvRow label="Relay URL" env="OUTBOUND_WEBHOOK_URL" ok={status.outbound} /> : <Skeleton className="h-6 w-full" />}
+            </Row>
+            <Row label="Email" description="Sends notifications and the digest to your email through Resend.">
+                {status ? <EnvRow label="Resend" env="RESEND_API_KEY, NOTIFY_FROM_EMAIL" ok={status.email} /> : <Skeleton className="h-6 w-full" />}
+            </Row>
+        </Section>
+    )
+}
+
+function EnvRow({ label, env, ok }: { label: string; env: string; ok: boolean }) {
+    return (
+        <div className="flex w-full items-center gap-2 text-[13px]">
+            {ok ? <Check className="size-3.5 text-emerald-600" /> : <X className="size-3.5 text-neutral-400" />}
+            <span className="flex-1 text-neutral-800">{label}</span>
+            <code className={cn('truncate rounded px-1 text-[11px]', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-500')}>{env}</code>
         </div>
     )
 }
