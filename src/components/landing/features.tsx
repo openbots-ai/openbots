@@ -1,131 +1,14 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { ArrowRight, BookmarkCheck, Check, ChevronLeft, Lock, MousePointer2, Play, type LucideIcon } from 'lucide-react'
-import { AnimatePresence, motion, useInView } from 'motion/react'
+import { ArrowRight, Check, Lock, MousePointer2, type LucideIcon } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
+import { useLoopedSteps } from '@/components/landing/use-looped-steps'
+import { BrainMock, DecisionsMock, MemoryMock, PersonalityMock, VoiceMock } from '@/components/landing/feature-mocks'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
-import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
 import { slotOf, type Provider, type SlotId } from '@convex/lib/models'
-
-type Bubble = { from?: string; hue?: number; text: string; system?: boolean }
-
-// Advances one step after each delay while the mock is on screen, holds on the last step, then loops.
-function useLoopedSteps(ref: RefObject<HTMLElement | null>, delays: number[], hold = 3200) {
-    const inView = useInView(ref, { amount: 0.4 })
-    const [reduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    const [step, setStep] = useState(reduceMotion ? delays.length : 0)
-    const delaysRef = useRef(delays)
-
-    useEffect(() => {
-        delaysRef.current = delays
-    })
-
-    useEffect(() => {
-        if (reduceMotion || !inView) return
-        const last = delaysRef.current.length
-        const id = window.setTimeout(() => setStep((s) => (s >= last ? 0 : s + 1)), step >= last ? hold : delaysRef.current[step])
-        return () => clearTimeout(id)
-    }, [inView, step, hold, reduceMotion])
-
-    return step
-}
-
-const TypingDots = () => (
-    <span className="imsg imsg-them imsg-tail relative flex w-fit gap-1 rounded-[16px] bg-[#E9E9EB] px-3 py-2">
-        {[0, 0.15, 0.3].map((delay) => (
-            <motion.span
-                key={delay}
-                className="size-1.5 rounded-full bg-neutral-400"
-                animate={{ y: [0, -2.5, 0], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 0.9, repeat: Infinity, delay }}
-            />
-        ))}
-    </span>
-)
-
-// A small iMessage thread that plays out message by message, used for the 1:1 and group chat mockups.
-// Every bubble keeps its slot from the start so the card never changes height.
-const Thread = ({ title, avatars, bubbles }: { title: string; avatars: { name: string }[]; bubbles: Bubble[] }) => {
-    const ref = useRef<HTMLDivElement>(null)
-    const shown = useLoopedSteps(
-        ref,
-        bubbles.map((b, i) => (i === 0 ? 700 : b.from ? 1500 : 900))
-    )
-
-    return (
-        <div
-            ref={ref}
-            className="w-full max-w-sm overflow-hidden rounded-[1.6rem] bg-white text-left text-[12px] leading-snug text-black shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8">
-            <div className="relative flex flex-col items-center border-b border-black/5 pb-2.5 pt-3">
-                <ChevronLeft className="absolute left-3 top-4 size-4 text-[#0A84FF]" />
-                <div className="flex -space-x-2">
-                    {avatars.map((a) => (
-                        <AgentAvatar
-                            key={a.name}
-                            name={a.name}
-                            className="size-8 ring-2 ring-white"
-                        />
-                    ))}
-                </div>
-                <span className="mt-1 text-[11px] font-semibold">{title}</span>
-            </div>
-            <div className="flex flex-col gap-1 px-3 py-3">
-                {bubbles.map((b, i) => {
-                    const mine = !b.from && !b.system
-                    const showName = !!b.from && bubbles[i - 1]?.from !== b.from && avatars.length > 1
-                    const content = b.system ? (
-                        <p className="w-full py-1 text-center text-[10px] text-neutral-400">{b.text}</p>
-                    ) : (
-                        <>
-                            {showName && <span className="mb-0.5 ml-2 text-[9px] text-neutral-500">{b.from}</span>}
-                            <p
-                                className={cn(
-                                    'imsg imsg-tail relative max-w-[80%] rounded-[16px] px-3 py-1.5',
-                                    mine ? 'imsg-me bg-[#0A84FF] text-white' : 'imsg-them bg-[#E9E9EB]'
-                                )}>
-                                {b.text}
-                            </p>
-                        </>
-                    )
-                    return (
-                        <div
-                            key={i}
-                            className={cn('relative', i > 0 && bubbles[i - 1].from !== b.from && 'mt-1.5')}>
-                            <div className={cn('invisible flex flex-col', mine ? 'items-end' : 'items-start')}>{content}</div>
-                            <AnimatePresence>
-                                {i < shown && (
-                                    <motion.div
-                                        className={cn('absolute inset-0 flex flex-col', mine ? 'items-end' : 'items-start')}
-                                        initial={{ opacity: 0, y: 8, scale: 0.94 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                                        transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-                                        style={{ originX: mine ? 1 : 0, originY: 1 }}>
-                                        {content}
-                                    </motion.div>
-                                )}
-                                {i === shown && !!b.from && (
-                                    <motion.div
-                                        key="typing"
-                                        className="absolute left-0 top-0 flex flex-col items-start"
-                                        initial={{ opacity: 0, scale: 0.7 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                                        style={{ originX: 0, originY: 1 }}>
-                                        {showName && <span className="mb-0.5 ml-2 text-[9px] text-neutral-500">{b.from}</span>}
-                                        <TypingDots />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
-    )
-}
 
 const dealFields = [
     { label: 'Destination', before: 'Undecided', after: 'Montreal' },
@@ -299,73 +182,6 @@ const ComputerMock = () => {
     )
 }
 
-const TextItMock = () => (
-    <Thread
-        title="Penny · Your assistant"
-        avatars={[{ name: 'Penny' }]}
-        bubbles={[
-            { text: 'can you help me plan dinners this week?' },
-            { from: 'Penny', hue: 340, text: 'yep. still vegetarian, and under 30 minutes?' },
-            { text: 'exactly. use what’s in this fridge photo too' },
-            { from: 'Penny', hue: 340, text: 'five dinners, one shopping list. starting with those mushrooms 🍄' },
-        ]}
-    />
-)
-
-const TeamMock = () => (
-    <Thread
-        title="Mochi · Your assistant"
-        avatars={[
-            { name: 'Mochi' },
-        ]}
-        bubbles={[
-            { text: 'keep your replies short. and no meetings before 10 please' },
-            { from: 'Mochi', hue: 278, text: 'got it. short replies, slower mornings.' },
-            { system: true, text: 'Saved to memory · editable in your dashboard' },
-            { text: 'actually, forget the meeting preference' },
-            { from: 'Mochi', hue: 278, text: 'forgotten. short replies are staying 👍' },
-        ]}
-    />
-)
-
-// A voice note from the assistant, with a waveform that plays while the card is on screen
-const bars = [5, 9, 14, 8, 16, 11, 6, 13, 18, 10, 7, 12, 15, 9, 5, 11, 14, 8, 6, 10]
-
-const VoiceMock = () => (
-    <div className="w-full max-w-sm overflow-hidden rounded-[1.6rem] bg-white text-left text-[12px] leading-snug text-black shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8">
-        <div className="relative flex flex-col items-center border-b border-black/5 pb-2.5 pt-3">
-            <ChevronLeft className="absolute left-3 top-4 size-4 text-[#0A84FF]" />
-            <AgentAvatar
-                name="Pip"
-                className="size-8 ring-2 ring-white"
-            />
-            <span className="mt-1 text-[11px] font-semibold">Pip · Your assistant</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <p className="imsg imsg-me imsg-tail relative max-w-[80%] self-end rounded-[16px] bg-[#0A84FF] px-3 py-1.5 text-white">too long to read rn, just tell me</p>
-            <div className="imsg imsg-them imsg-tail relative flex w-fit items-center gap-2 self-start rounded-[16px] bg-[#E9E9EB] px-3 py-2">
-                <Play
-                    className="size-3.5 text-[#0A84FF]"
-                    fill="currentColor"
-                />
-                <span className="flex h-5 items-center gap-[2px]">
-                    {bars.map((h, i) => (
-                        <motion.span
-                            key={i}
-                            className="w-[2px] rounded-full bg-neutral-500"
-                            style={{ height: h }}
-                            animate={{ scaleY: [1, 0.45, 1] }}
-                            transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.06 }}
-                        />
-                    ))}
-                </span>
-                <span className="text-[10px] text-neutral-500">0:14</span>
-            </div>
-            <p className="w-full py-1 text-center text-[10px] text-neutral-400">Voice, accent and speed set in your builder</p>
-        </div>
-    </div>
-)
-
 type PickerOption = { label: string; provider?: Provider }
 
 // A floating settings menu that cycles through its options, so each card shows the part you get to choose
@@ -418,16 +234,14 @@ const SlotPicker = ({ slot }: { slot: SlotId }) => {
     )
 }
 
+// Each card shows one thing you customize, changing on its own
 const features = [
     { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
-    { label: 'just text it', title: 'pick the brain behind every reply.', mock: <TextItMock />, picker: <SlotPicker slot="brain" /> },
-    {
-        label: 'personal memory',
-        title: 'you decide what it remembers.',
-        mock: <TeamMock />,
-        picker: <Picker icon={BookmarkCheck} label="Memory" options={[{ label: 'Remember what I tell it' }, { label: 'Only what I pin' }, { label: 'This chat only' }, { label: 'Off' }]} />,
-    },
-    { label: 'voice notes', title: 'give it a voice. literally.', mock: <VoiceMock />, picker: <SlotPicker slot="voice" /> },
+    { label: 'brain', title: 'pick the brain behind every reply.', mock: <BrainMock /> },
+    { label: 'voice', title: 'give it a voice. literally.', mock: <VoiceMock /> },
+    { label: 'personality', title: 'tune its personality, down to the vibe.', mock: <PersonalityMock /> },
+    { label: 'personal memory', title: 'you decide what it remembers.', mock: <MemoryMock /> },
+    { label: 'decisions', title: 'quick calls, each with a confidence score.', mock: <DecisionsMock /> },
 ]
 
 export default function Features() {
