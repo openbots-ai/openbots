@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
+import { useState } from 'react'
+import { useQuery } from 'convex/react'
 import { Menu } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { View } from './lib/view'
 import { NavContext } from './nav'
+import { Onboarding } from './onboarding'
 import { Sidebar } from './sidebar'
 import { useView } from './use-view'
 import { AgentDetail } from './views/agent-detail'
@@ -21,13 +22,10 @@ import { SettingsView } from './views/settings'
 export function Shell() {
     const { view, id, go } = useView()
     const workspace = useQuery(api.workspace.get)
-    const seed = useMutation(api.seed.run)
     const [menuOpen, setMenuOpen] = useState(false)
 
-    // An empty deployment (no workspace row yet) gets the mascot team and sample data
-    useEffect(() => {
-        if (workspace === null) void seed()
-    }, [workspace, seed])
+    // A fresh deployment has no workspace yet: ask for the two names it needs, nothing is made up
+    if (workspace === null) return <Onboarding />
 
     return (
         <NavContext value={go}>

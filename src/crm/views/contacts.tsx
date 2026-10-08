@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { matches, parseTags } from '../lib/text'
 import { relativeTime } from '../lib/time'
+import { useNav } from '../nav'
 import { useRun } from '../use-run'
 import { AgentAvatar, Btn, Cell, ConfirmDelete, Content, Dialog, EmptyState, Field, Initials, Row, Scroll, SearchInput, Select, SkeletonRows, Table, Toolbar } from '../ui'
 import { useNow } from '../use-now'
@@ -125,9 +126,40 @@ function ContactDialog({ contact, agents, onClose }: { contact?: Doc<'contacts'>
             <Field label="Agent">
                 <Select value={agentId} onChange={setAgentId} options={[{ value: '', label: 'None' }, ...agents.map((a) => ({ value: a._id, label: a.name }))]} />
             </Field>
-            <Field label="Notes">
+            <Field label="Notes" hint="Agents read these before replying to this person.">
                 <Textarea className="min-h-20" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </Field>
+            {contact && <ContactConversations id={contact._id} onOpen={onClose} />}
         </Dialog>
+    )
+}
+
+function ContactConversations({ id, onOpen }: { id: Id<'contacts'>; onOpen: () => void }) {
+    const go = useNav()
+    const now = useNow()
+    const rows = useQuery(api.contacts.conversations, { id })
+    if (!rows?.length) return null
+    return (
+        <div className="space-y-1.5">
+            <span className="text-xs font-medium text-neutral-600">Conversations</span>
+            <ul className="divide-y divide-neutral-100 rounded-md border">
+                {rows.map((c) => (
+                    <li key={c._id}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onOpen()
+                                go('conversations', c._id)
+                            }}
+                            className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-[13px] hover:bg-neutral-50"
+                        >
+                            <span className="font-medium">{c.agentName}</span>
+                            <span className="min-w-0 flex-1 truncate text-neutral-500">{c.lastMessage}</span>
+                            <span className="shrink-0 text-[11px] text-neutral-400">{relativeTime(c.lastAt, now)}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </div>
     )
 }

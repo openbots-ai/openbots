@@ -4,7 +4,8 @@
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
 
-export type ModelOption = { id: string; label: string; provider: Provider }
+// `api` is the provider's own model name, for the slots that call a provider (Brain and Backup today)
+export type ModelOption = { id: string; label: string; provider: Provider; api?: string }
 
 export type SlotId = 'brain' | 'computer' | 'voice' | 'listening' | 'calls' | 'vision' | 'decisions' | 'router' | 'backup'
 
@@ -17,15 +18,17 @@ export type Slot = {
     default: string
     // Shown as a "New" badge
     isNew?: boolean
+    // True for the slots the reply pipeline uses today; the others are saved choices that don't run yet
+    runs?: boolean
 }
 
 export const BRAIN_MODELS: ModelOption[] = [
-    { id: 'gpt-5.1', label: 'GPT 5.1', provider: 'openai' },
-    { id: 'gpt-5.1-mini', label: 'GPT 5.1 mini', provider: 'openai' },
-    { id: 'claude-sonnet-5.5', label: 'Claude Sonnet 5.5', provider: 'anthropic' },
-    { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5', provider: 'anthropic' },
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google' },
-    { id: 'grok-4', label: 'Grok 4', provider: 'xai' },
+    { id: 'gpt-5.1', label: 'GPT 5.1', provider: 'openai', api: 'gpt-5.1' },
+    { id: 'gpt-5.1-mini', label: 'GPT 5.1 mini', provider: 'openai', api: 'gpt-5.1-mini' },
+    { id: 'claude-sonnet-5.5', label: 'Claude Sonnet 5.5', provider: 'anthropic', api: 'claude-sonnet-5-5' },
+    { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5', provider: 'anthropic', api: 'claude-haiku-4-5' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google', api: 'gemini-2.5-flash' },
+    { id: 'grok-4', label: 'Grok 4', provider: 'xai', api: 'grok-4' },
 ]
 
 const brain = (...ids: string[]) => BRAIN_MODELS.filter((m) => ids.includes(m.id))
@@ -36,7 +39,7 @@ export const NONE = 'none'
 export const INHERIT = 'inherit'
 
 export const SLOTS: Slot[] = [
-    { id: 'brain', label: 'Brain', blurb: 'Reads your texts, plans the work and writes the replies.', options: BRAIN_MODELS, default: 'gpt-5.1' },
+    { id: 'brain', label: 'Brain', blurb: 'Reads your texts, plans the work and writes the replies.', options: BRAIN_MODELS, default: 'gpt-5.1', runs: true },
     {
         id: 'computer',
         label: 'Computer use',
@@ -111,6 +114,7 @@ export const SLOTS: Slot[] = [
         blurb: 'Takes over if a provider is down, so your agent never goes quiet.',
         options: [...brain('claude-sonnet-5.5', 'gpt-5.1', 'gemini-2.5-flash'), { id: NONE, label: 'None', provider: 'none' }],
         default: 'claude-sonnet-5.5',
+        runs: true,
     },
 ]
 
