@@ -45,7 +45,7 @@ export default function Trust() {
     return (
         <section
             id="trust"
-            className="px-6 py-28 md:py-40">
+            className="px-6 py-44 md:py-72">
             <SectionHeading
                 title="helpful, not weird about it"
                 description="it can know you really well without owning your life. you decide what it remembers, touches, and does."

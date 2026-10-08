@@ -745,7 +745,7 @@ export default function CreateAgentDemo() {
     return (
         <section
             id="create-agent"
-            className="px-3 py-28 md:px-6 md:py-40">
+            className="px-3 py-44 md:px-6 md:py-72">
             <SectionHeading
                 title="give it a name. make it your kind of helpful."
                 description="pick the model, voice, personality and rules for every part. no code, no one-size-fits-all. (these are examples, not live assistants yet.)"
