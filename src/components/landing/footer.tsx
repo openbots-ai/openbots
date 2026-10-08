@@ -1,13 +1,13 @@
 import { Logo } from '@/components/landing/logo'
-import { sectionHref } from '@/lib/site'
 
 const footerLinks = [
     {
         name: 'Product',
         links: [
-            { label: 'Features', href: sectionHref('features') },
-            { label: 'Make it yours', href: sectionHref('create-agent') },
-            { label: 'Pricing', href: sectionHref('pricing') },
+            { label: 'Features', href: '/features' },
+            { label: 'Pricing', href: '/pricing' },
+            { label: 'Changelog', href: '/changelog' },
+            { label: 'Docs', href: '/docs' },
         ],
     },
     {
