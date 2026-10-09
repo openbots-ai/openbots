@@ -8,6 +8,7 @@ const menuItems = [
     { name: 'Product', href: sectionHref('product') },
     { name: 'Features', href: '/features' },
     { name: 'Use cases', href: sectionHref('create-agent') },
+    { name: 'Why OpenBots', href: sectionHref('why-openbots') },
     { name: 'Trust', href: sectionHref('trust') },
     { name: 'Pricing', href: '/pricing' },
 ]
