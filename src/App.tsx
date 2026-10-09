@@ -5,6 +5,7 @@ import { MotionConfig } from 'motion/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
 import Trust from '@/components/landing/trust'
+import WhyOpenBots from '@/components/landing/why-openbots'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
@@ -27,6 +28,7 @@ const Landing = () => (
             <Suspense fallback={<div id="create-agent" className="min-h-[60rem]" />}>
                 <CreateAgentDemo />
             </Suspense>
+            <WhyOpenBots />
             <Trust />
             <CallToAction />
         </main>
