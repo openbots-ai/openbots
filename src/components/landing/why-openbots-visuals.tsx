@@ -1,17 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
-import { CalendarDays, Check, Clock3, Cloud, RotateCw, Server, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
+import { Brain, Check, ChevronRight, Cloud, FileText, Plus, Server } from 'lucide-react'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { cn } from '@/lib/utils'
 
-// Animated visuals for the "Why OpenBots" cards. Each one tells a single idea at a glance and only animates while on screen.
+// Visuals for the "Why OpenBots" cards, built from the product's own UI: iMessage threads, the conversation list,
+// dashboard-style docs and settings rows. Each one has a single moment, loops only while on screen, and holds a
+// sensible still frame when reduced motion is on.
 
-const card = 'w-full rounded-[1.6rem] bg-white text-left text-neutral-900 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8'
+const card = 'w-full rounded-[1.6rem] bg-white text-left text-neutral-900 shadow-[0_14px_32px_-14px_rgba(0,0,0,0.22)] ring-1 ring-black/8'
 const ease = [0.22, 1, 0.36, 1] as const
 const spring = { type: 'spring', stiffness: 380, damping: 32 } as const
+const bubbleSpring = { type: 'spring', stiffness: 380, damping: 36, mass: 0.9 } as const
 
-// A tick that keeps counting up while the visual is on screen, waiting delays[tick % delays.length] between ticks.
-// Callers derive their phase (tick % n) and loop number (tick / n) from it. Reduced motion freezes it at 0.
+// A tick that counts up while the visual is on screen, waiting delays[tick % delays.length] between ticks.
+// Callers derive their phase from it. Reduced motion freezes it, and callers pick a finished frame.
 function useTicks(delays: readonly number[]) {
     const ref = useRef<HTMLDivElement>(null)
     const inView = useInView(ref, { amount: 0.4 })
@@ -24,540 +27,354 @@ function useTicks(delays: readonly number[]) {
         return () => clearTimeout(id)
     }, [tick, inView, reduce, delays])
 
-    return { ref, tick, reduce, inView }
+    return { ref, tick, reduce }
 }
 
-/* ------------------------------------------------------------------ */
-/* 1. Memory: facts keep arriving over months and none ever drop out   */
-/* ------------------------------------------------------------------ */
+// Status chip colors copied from the dashboard
+const LiveBadge = () => (
+    <span className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full border border-emerald-600/15 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-700">
+        <span className="relative flex size-1.5">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:hidden" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+        </span>
+        Live
+    </span>
+)
 
-const MEMORIES = [
-    { emoji: '🥛', text: 'oat milk, never dairy', when: 'wk 1' },
-    { emoji: '🗓️', text: 'no meetings till 9:30', when: 'wk 3' },
-    { emoji: '📞', text: 'calls mom on sundays', when: 'mo 2' },
-    { emoji: '✈️', text: 'aisle seat, always', when: 'mo 3' },
-    { emoji: '🎂', text: "sam's birthday: may 12", when: 'mo 4' },
-    { emoji: '🐶', text: "biscuit's vet: dr. lee", when: 'mo 6' },
-]
-const MEMORY_TIME = ['week 1', 'week 3', 'month 2', 'month 3', 'month 4', 'month 6']
-const MEMORY_COUNT = [3, 18, 41, 77, 112, 164]
-const MEMORY_DELAYS = [1500, 1500, 1500, 1500, 1500, 3600] as const
+// Compact chat header: who you're texting
+const ThreadHeader = ({ name, role, aside }: { name: string; role: string; aside?: ReactNode }) => (
+    <div className="flex items-center gap-2.5 border-b border-neutral-100 px-4 py-2.5">
+        <AgentAvatar
+            name={name}
+            className="size-8"
+        />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+            {name} <span className="font-normal text-neutral-400">· {role}</span>
+        </span>
+        {aside}
+    </div>
+)
+
+// iMessage bubble, same classes as the phone demo (the tail needs a white backdrop)
+const Bubble = ({ mine, tail = true, children, className }: { mine?: boolean; tail?: boolean; children: ReactNode; className?: string }) => (
+    <p
+        className={cn(
+            'imsg relative max-w-[82%] rounded-[18px] px-3 py-1.5 text-[13px] leading-snug',
+            mine ? 'imsg-me bg-[#0A84FF] text-white' : 'imsg-them bg-[#E9E9EB] text-black',
+            tail && 'imsg-tail',
+            className,
+        )}>
+        {children}
+    </p>
+)
+
+const TypingDots = () => (
+    <span className="imsg imsg-them imsg-tail relative flex gap-1 rounded-[18px] bg-[#E9E9EB] px-3 py-2.5">
+        {[0, 0.2, 0.4].map((delay) => (
+            <motion.span
+                key={delay}
+                className="size-1.5 rounded-full bg-neutral-500"
+                animate={{ opacity: [0.3, 0.85, 0.3] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut', delay }}
+            />
+        ))}
+    </span>
+)
+
+// A message row that enters the way iMessage does: yours rise, theirs grow from the tail
+const Msg = ({ mine, children, className }: { mine?: boolean; children: ReactNode; className?: string }) => (
+    <motion.div
+        layout="position"
+        initial={mine ? { opacity: 0, y: 18, scale: 0.97 } : { opacity: 0, scale: 0.88 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -12, transition: { duration: 0.2 } }}
+        transition={{ default: bubbleSpring, opacity: { duration: 0.2 } }}
+        style={{ originX: mine ? 1 : 0, originY: 1 }}
+        className={cn('flex flex-col', mine ? 'items-end' : 'items-start', className)}>
+        {children}
+    </motion.div>
+)
+
+/* 1. Memory: months later, Biscuit's reply quietly uses what it learned back in january and march */
+
+const MEMORY_DELAYS = [1300, 1100, 1300, 3800] as const
 
 export function MemoryVisual() {
     const { ref, tick, reduce } = useTicks(MEMORY_DELAYS)
-    const n = MEMORIES.length
-    const phase = reduce ? n - 1 : tick % n
-    const loop = Math.floor(tick / n)
-    const shown = MEMORIES.slice(0, phase + 1).reverse()
+    // 0 your ask, 1 typing, 2 the reply, 3 what it remembered lights up
+    const phase = reduce ? 3 : tick % MEMORY_DELAYS.length
+    const loop = Math.floor(tick / MEMORY_DELAYS.length)
+    const recalled = phase >= 3
+    const mark = (text: string) => (
+        <span className={cn('rounded-[4px] whitespace-nowrap transition-colors duration-500', recalled && 'bg-primary/10 text-primary')}>{text}</span>
+    )
 
     return (
         <div
             ref={ref}
-            className={cn(card, 'max-w-[20rem] p-3.5 sm:p-4')}>
-            <div className="flex items-center gap-3">
-                <AgentAvatar
-                    name="Pip"
-                    className="size-9"
-                />
-                <div className="min-w-0 flex-1">
-                    <p className="text-[14px] leading-tight font-semibold">Pip</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-[11.5px] leading-4 whitespace-nowrap text-neutral-500">
-                        <span className="relative inline-flex h-4 shrink-0 overflow-hidden leading-4 tabular-nums">
-                            <AnimatePresence
-                                mode="popLayout"
-                                initial={false}>
-                                <motion.span
-                                    key={MEMORY_COUNT[phase]}
-                                    initial={{ y: 12, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    exit={{ y: -12, opacity: 0 }}
-                                    transition={{ duration: 0.35, ease }}>
-                                    {MEMORY_COUNT[phase]}
-                                </motion.span>
-                            </AnimatePresence>
-                        </span>
-                        memories
-                    </p>
-                </div>
-                <span className="flex h-7 items-center gap-1.5 rounded-full bg-sky-50 px-2.5 text-[11.5px] font-medium text-sky-700 ring-1 ring-sky-200">
-                    <CalendarDays className="size-3.5" />
-                    <AnimatePresence
-                        mode="wait"
-                        initial={false}>
-                        <motion.span
-                            key={MEMORY_TIME[phase]}
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2 }}
-                            className="whitespace-nowrap">
-                            {MEMORY_TIME[phase]}
-                        </motion.span>
-                    </AnimatePresence>
-                </span>
-            </div>
-
-            {/* Newest memory lands on top; older ones slide down and stay (the fade hints at many more below) */}
-            <div className="relative mt-3.5 h-[7.75rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
+            className={cn(card, '@container max-w-[25rem] overflow-hidden')}>
+            <ThreadHeader
+                name="Biscuit"
+                role="Meal Planner"
+            />
+            <div className="h-[11rem] px-4 pt-2.5">
+                <p className="text-center text-[11px] text-neutral-400">
+                    <span className="font-medium text-neutral-500">Today</span> 6:12 PM
+                </p>
                 <AnimatePresence
-                    mode="wait"
+                    mode="popLayout"
                     initial={false}>
                     <motion.div
                         key={loop}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex flex-col gap-1.5">
+                        exit={{ opacity: 0, transition: { duration: 0.25 } }}
+                        className="mt-2 flex flex-col gap-2">
                         <AnimatePresence initial={false}>
-                            {shown.map((m, k) => (
-                                <motion.div
-                                    key={m.text}
-                                    layout
-                                    initial={{ opacity: 0, y: -14, scale: 0.94 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    transition={spring}
-                                    className={cn(
-                                        'flex h-7 shrink-0 items-center gap-2 rounded-lg px-2 text-[12px] sm:px-2.5 transition-colors duration-700',
-                                        k === 0 && !reduce ? 'bg-sky-100/80 ring-1 ring-sky-300/70' : 'bg-neutral-50 ring-1 ring-black/5',
-                                    )}>
-                                    <span className="text-[13px] leading-none">{m.emoji}</span>
-                                    <span className="min-w-0 flex-1 truncate font-medium text-neutral-800">{m.text}</span>
-                                    <span className="shrink-0 font-mono text-[11px] text-neutral-400">{m.when}</span>
-                                </motion.div>
-                            ))}
+                            <Msg
+                                key="ask"
+                                mine>
+                                <Bubble mine>mom's here thursday. dinners?</Bubble>
+                            </Msg>
+                            {phase === 1 && (
+                                <Msg key="typing">
+                                    <TypingDots />
+                                </Msg>
+                            )}
+                            {phase >= 2 && (
+                                <Msg key="reply">
+                                    <Bubble>
+                                        5 {mark('veggie')} dinners, $46 cart. thursday's a {mark('dairy‑free')} risotto for mom 🥕
+                                    </Bubble>
+                                    <AnimatePresence>
+                                        {recalled && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 6 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0 }}
+                                                transition={{ duration: 0.4, ease }}
+                                                className="mt-2 flex items-center gap-1.5 text-[11px] whitespace-nowrap text-neutral-500">
+                                                <span className="flex items-center gap-1">
+                                                    <Brain className="text-primary size-3.5" />
+                                                    <span className="@max-sm:hidden">remembered</span>
+                                                </span>
+                                                {[
+                                                    ['vegetarian', 'jan'],
+                                                    ['mom: no dairy', 'mar'],
+                                                ].map(([fact, when], k) => (
+                                                    <motion.span
+                                                        key={fact}
+                                                        initial={{ opacity: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        transition={{ ...spring, delay: 0.15 + k * 0.12 }}
+                                                        className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium text-neutral-700 ring-1 ring-black/5">
+                                                        {fact} <span className="font-normal text-neutral-400">· {when}</span>
+                                                    </motion.span>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </Msg>
+                            )}
                         </AnimatePresence>
                     </motion.div>
                 </AnimatePresence>
             </div>
-
-            <div className="mt-2.5 flex items-center gap-2.5 text-[11px] text-neutral-400">
-                <span className="relative h-1.5 flex-1 rounded-full bg-neutral-100">
-                    <motion.span
-                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-200 to-sky-500"
-                        animate={{ width: `${((phase + 1) / n) * 100}%` }}
-                        transition={{ duration: 0.8, ease }}
-                    />
-                </span>
-                <span className="font-medium whitespace-nowrap text-sky-700">0 forgotten</span>
-            </div>
         </div>
     )
 }
 
-/* ------------------------------------------------------------------ */
-/* 2. Learning: correction → learned rule → a better next reply        */
-/* ------------------------------------------------------------------ */
+/* 2. Self-improving: you correct Mochi once, the rule lands in its instructions, the next reply is one line */
 
-const LESSONS = [
-    {
-        before: "Dear Sam, I hope you're well. I'm writing to kindly confirm our 3pm meeting today.",
-        fix: 'too formal, keep it short',
-        rule: 'short and casual',
-        after: "sam's in for 3pm 👍",
-        score: [64, 79],
-    },
-    {
-        before: 'done! booked nobu for 8pm, table for 4.',
-        fix: 'ask me before you book',
-        rule: 'ask before booking',
-        after: 'nobu has 8pm for 4. want it?',
-        score: [79, 88],
-    },
-    {
-        before: 'reminder: dentist tomorrow at 2 🦷',
-        fix: 'not after 10pm please',
-        rule: 'quiet after 10pm',
-        after: 'morning! dentist at 2 today 🦷',
-        score: [88, 96],
-    },
-]
-// Per lesson: first reply, your correction, it learns, the better reply
-const LEARNING_DELAYS = [1400, 1400, 1500, 2800] as const
-
-const Bubble = ({ mine, children }: { mine?: boolean; children: string }) => (
-    <div className={cn('flex items-end gap-1.5', mine && 'justify-end')}>
-        {!mine && <AgentAvatar name="Penny" className="size-6" />}
-        <span
-            className={cn(
-                'max-w-[80%] rounded-[18px] px-3 py-1.5 text-[12.5px] leading-snug',
-                mine ? 'rounded-br-md bg-[#0A84FF] text-white' : 'rounded-bl-md bg-[#E9E9EB] text-neutral-900',
-            )}>
-            {children}
-        </span>
-    </div>
-)
-
-function ScoreRing({ value }: { value: number }) {
-    const r = 17
-    return (
-        <span className="relative grid size-11 shrink-0 place-items-center">
-            <svg
-                viewBox="0 0 44 44"
-                className="absolute inset-0 -rotate-90">
-                <circle
-                    cx="22"
-                    cy="22"
-                    r={r}
-                    fill="none"
-                    strokeWidth="4"
-                    className="stroke-violet-100"
-                />
-                <motion.circle
-                    cx="22"
-                    cy="22"
-                    r={r}
-                    fill="none"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    className="stroke-violet-500"
-                    initial={false}
-                    animate={{ pathLength: value / 100 }}
-                    transition={{ duration: 0.9, ease }}
-                />
-            </svg>
-            <AnimatePresence
-                mode="popLayout"
-                initial={false}>
-                <motion.span
-                    key={value}
-                    initial={{ y: 8, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -8, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-[12px] font-semibold tabular-nums">
-                    {value}
-                </motion.span>
-            </AnimatePresence>
-        </span>
-    )
-}
+const LEARNING_DELAYS = [1800, 1400, 1700, 3600] as const
 
 export function LearningVisual() {
     const { ref, tick, reduce } = useTicks(LEARNING_DELAYS)
-    const steps = LEARNING_DELAYS.length
-    const phase = reduce ? 3 : tick % steps
-    const lesson = LESSONS[reduce ? 0 : Math.floor(tick / steps) % LESSONS.length]
+    // 0 a long reply, 1 your correction, 2 the rule is saved, 3 next morning's reply is one line
+    const phase = reduce ? 3 : tick % LEARNING_DELAYS.length
     const learned = phase >= 2
-
-    // The thread: the first reply and your correction, then (once learned) just the better reply
-    const messages =
-        phase < 3
-            ? [{ id: 'before', mine: false, text: lesson.before }, ...(phase >= 1 ? [{ id: 'fix', mine: true, text: lesson.fix }] : [])]
-            : [{ id: 'after', mine: false, text: lesson.after }]
 
     return (
         <div
             ref={ref}
-            className={cn(card, 'max-w-[20rem] overflow-hidden')}>
-            <div className="relative h-[8.5rem] px-3.5 pt-3.5">
-                <AnimatePresence
-                    mode="popLayout"
-                    initial={false}>
-                    {phase === 3 && (
-                        <motion.p
-                            key={`next-${lesson.rule}`}
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
-                            className="mb-2 flex items-center justify-center gap-1 text-[11px] font-medium text-violet-600">
-                            <Sparkles className="size-3" />
-                            next time
-                        </motion.p>
-                    )}
-                </AnimatePresence>
-                <div className="flex flex-col gap-1.5">
+            className="@container flex w-full max-w-[25rem] flex-col gap-2.5">
+            <div className={cn(card, 'overflow-hidden')}>
+                {/* Newest at the bottom like iMessage; older bubbles scroll up under the fade */}
+                <div className="flex h-[8rem] flex-col justify-end overflow-hidden px-4 pb-3 [mask-image:linear-gradient(to_bottom,transparent,black_30%)]">
                     <AnimatePresence
                         mode="popLayout"
                         initial={false}>
-                        {messages.map((m) => (
-                            <motion.div
-                                key={`${lesson.rule}-${m.id}`}
-                                layout
-                                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -16, transition: { duration: 0.25 } }}
-                                transition={spring}
-                                style={{ originX: m.mine ? 1 : 0 }}>
-                                <Bubble mine={m.mine}>
-                                    {m.text}
+                        {phase < 3 && (
+                            <Msg key="long">
+                                <Bubble tail={phase < 1}>
+                                    here's your week: standup moved to 10 on monday, dentist tuesday at 2, dinner with maya wednesday at 7, and the acme invoice is
+                                    due thursday ☕️
                                 </Bubble>
-                            </motion.div>
-                        ))}
+                            </Msg>
+                        )}
+                        {phase >= 1 && phase < 3 && (
+                            <Msg
+                                key="fix"
+                                mine
+                                className="mt-2">
+                                <Bubble mine>too long, keep it to one line</Bubble>
+                            </Msg>
+                        )}
+                        {phase === 3 && (
+                            <motion.p
+                                key="next"
+                                layout="position"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="mb-2 text-center text-[11px] text-neutral-400">
+                                <span className="font-medium text-neutral-500">Tomorrow</span> 8:00 AM
+                            </motion.p>
+                        )}
+                        {phase === 3 && (
+                            <Msg key="short">
+                                <Bubble>dentist at 2, dinner with maya at 7 ☕️</Bubble>
+                            </Msg>
+                        )}
                     </AnimatePresence>
                 </div>
-                <AnimatePresence>
-                    {phase === 3 && (
-                        <motion.p
-                            key={`sent-${lesson.rule}`}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, delay: 0.45 }}
-                            className="mt-1.5 flex items-center gap-1 pl-[30px] text-[11px] text-neutral-400">
-                            <Check className="size-3 text-violet-500" strokeWidth={3} />
-                            sent, no edits needed
-                        </motion.p>
-                    )}
-                </AnimatePresence>
             </div>
 
-            {/* The loop: what it learned, and how often it now gets things right first time */}
-            <div className="flex items-center gap-3 border-t border-neutral-100 bg-violet-50/50 px-3.5 py-3">
-                <motion.span
-                    className={cn('grid size-8 shrink-0 place-items-center rounded-full transition-colors duration-500', learned ? 'bg-violet-500 text-white' : 'bg-violet-100 text-violet-500')}
-                    animate={{ rotate: learned && !reduce ? 360 : 0 }}
-                    transition={learned ? { duration: 0.8, ease } : { duration: 0 }}>
-                    <RotateCw className="size-4" />
-                </motion.span>
-                <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-neutral-500">{learned ? 'learned' : 'listening for feedback'}</p>
-                    <div className="relative h-[18px]">
-                        <AnimatePresence
-                            mode="wait"
-                            initial={false}>
-                            <motion.p
-                                key={learned ? lesson.rule : 'waiting'}
-                                initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
-                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.3 }}
-                                className={cn('truncate text-[12.5px] font-semibold', learned ? 'text-violet-700' : 'text-neutral-300')}>
-                                {learned ? lesson.rule : '···'}
-                            </motion.p>
+            {/* Mochi's instructions doc, the way the dashboard shows it, gaining one line */}
+            <div className={cn(card, 'rounded-2xl px-4 py-2.5')}>
+                <div className="flex items-center gap-2 text-[12px]">
+                    <FileText className="size-3.5 text-neutral-400" />
+                    <span className="font-semibold">Mochi's instructions</span>
+                    <span className="ml-auto text-[11px] text-neutral-400">{learned ? 'Updated just now' : 'Updated 2d ago'}</span>
+                </div>
+                <div className="mt-2 space-y-1 text-[12px] leading-snug">
+                    <p className="flex items-center gap-2 text-neutral-500">
+                        <span className="size-1 shrink-0 rounded-full bg-neutral-300" />
+                        lowercase, warm, no jargon
+                    </p>
+                    <div className="h-[22px]">
+                        <AnimatePresence initial={false}>
+                            {learned && (
+                                <motion.p
+                                    initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
+                                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                                    transition={{ duration: 0.45, ease }}
+                                    className="bg-primary/6 -mx-1.5 flex items-center gap-2 rounded-md px-1.5 py-0.5 font-medium text-neutral-900">
+                                    <Plus
+                                        className="text-primary size-3 shrink-0"
+                                        strokeWidth={3}
+                                    />
+                                    <span className="truncate">keep replies to one line</span>
+                                    <span className="text-primary ml-auto shrink-0 text-[11px] font-normal">from your reply</span>
+                                </motion.p>
+                            )}
                         </AnimatePresence>
                     </div>
-                </div>
-                <div className="flex flex-col items-center">
-                    <ScoreRing value={learned ? lesson.score[1] : lesson.score[0]} />
                 </div>
             </div>
         </div>
     )
 }
 
-/* ------------------------------------------------------------------ */
-/* 3. Always on: a day sweeps round the clock while work gets done     */
-/* ------------------------------------------------------------------ */
+/* 3. Always on: the conversation list keeps updating on its own, morning to the middle of the night */
 
-const DAY_MS = 9000
-const TASKS = [
-    { at: 7 * 60, label: 'brief sent' },
-    { at: 13 * 60 + 20, label: 'invoice chased' },
-    { at: 22 * 60 + 5, label: 'dinner booked' },
-].map((t) => ({ ...t, t: t.at / 1440, time: `${String(Math.floor(t.at / 60)).padStart(2, '0')}:${String(t.at % 60).padStart(2, '0')}` }))
-const START_DAY = 214
-
-const clockText = (v: number) => {
-    const mins = Math.floor((v * 1440) / 5) * 5
-    return `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
+const ROLES: Record<string, string> = {
+    Mochi: 'Personal Assistant',
+    Rishi: 'Deal Hunter',
+    Lulu: 'Trip Planner',
+    Biscuit: 'Meal Planner',
+    Tofu: 'Weekend Planner',
 }
+const UPDATES = [
+    { name: 'Tofu', time: '3:10 AM', text: 'ramen spot opened saturday bookings. grabbed 1:30 🐯' },
+    { name: 'Mochi', time: '7:02 AM', text: 'morning brief: 3 meetings, rain at 5, bring a jacket ☕️' },
+    { name: 'Rishi', time: '11:30 AM', text: 'those headphones dropped to $89. link saved 🐶' },
+    { name: 'Lulu', time: '2:15 PM', text: 'checked you in for friday. seat 14a, window ☀️' },
+    { name: 'Biscuit', time: '6:40 PM', text: 'groceries ordered, arriving at 7. used the pantry first 🥕' },
+    { name: 'Mochi', time: '11:48 PM', text: 'picked the tax doc back up where we left off. 2 sections to go ☕️' },
+]
+const ROWS = 4
+const ALWAYS_DELAYS = [2200] as const
 
 export function AlwaysOnVisual() {
-    const ref = useRef<HTMLDivElement>(null)
-    const inView = useInView(ref, { amount: 0.4 })
-    const reduce = !!useReducedMotion()
-    const t = useMotionValue(reduce ? 0.96 : 0.18)
-    const [day, setDay] = useState(START_DAY)
-    const [done, setDone] = useState(reduce ? TASKS.length : 0)
-
-    // Advance the day while on screen; work picks up exactly where it paused
-    useEffect(() => {
-        if (reduce || !inView) return
-        let raf = 0
-        let last = performance.now()
-        const frame = (now: number) => {
-            let v = t.get() + (now - last) / DAY_MS
-            last = now
-            if (v >= 1) {
-                v -= 1
-                setDay((d) => d + 1)
-            }
-            t.set(v)
-            setDone(TASKS.filter((task) => task.t <= v).length)
-            raf = requestAnimationFrame(frame)
-        }
-        raf = requestAnimationFrame(frame)
-        return () => cancelAnimationFrame(raf)
-    }, [inView, reduce, t])
-
-    const rotate = useTransform(t, (v) => v * 360)
-    const time = useTransform(t, clockText)
-    const R = 52
+    const { ref, tick, reduce } = useTicks(ALWAYS_DELAYS)
+    // The newest update is on top; each agent shows its latest message. Walking back through the cycle keeps it endless.
+    const at = reduce ? UPDATES.length - 1 : tick + UPDATES.length - 1
+    const today = at - (at % UPDATES.length)
+    const rows: ((typeof UPDATES)[number] & { yesterday: boolean })[] = []
+    for (let k = at; rows.length < ROWS; k--) {
+        const u = UPDATES[((k % UPDATES.length) + UPDATES.length) % UPDATES.length]
+        if (!rows.some((r) => r.name === u.name)) rows.push({ ...u, yesterday: k < today })
+    }
 
     return (
         <div
             ref={ref}
-            className="flex w-full max-w-[20rem] items-center gap-2.5 sm:gap-3">
-            {/* 24h dial: midnight at the top, the arc fills as the day passes */}
-            <div className="relative size-[6.5rem] shrink-0 rounded-full sm:size-[8.5rem] bg-white shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-black/8">
-                <svg
-                    viewBox="0 0 136 136"
-                    className="absolute inset-0">
-                    {Array.from({ length: 24 }, (_, h) => {
-                        const a = (h / 24) * Math.PI * 2
-                        const long = h % 6 === 0
-                        const r1 = long ? 38 : 41
-                        return (
-                            <line
-                                key={h}
-                                x1={68 + Math.sin(a) * r1}
-                                y1={68 - Math.cos(a) * r1}
-                                x2={68 + Math.sin(a) * 44}
-                                y2={68 - Math.cos(a) * 44}
-                                strokeLinecap="round"
-                                strokeWidth={long ? 1.6 : 1}
-                                className={long ? 'stroke-neutral-300' : 'stroke-neutral-200'}
-                            />
-                        )
-                    })}
-                    <circle
-                        cx="68"
-                        cy="68"
-                        r={R}
-                        fill="none"
-                        strokeWidth="7"
-                        className="stroke-emerald-50"
-                    />
-                    <motion.circle
-                        cx="68"
-                        cy="68"
-                        r={R}
-                        fill="none"
-                        strokeWidth="7"
-                        strokeLinecap="round"
-                        transform="rotate(-90 68 68)"
-                        className="stroke-emerald-300"
-                        style={{ pathLength: t }}
-                    />
-                    {TASKS.map((task, k) => {
-                        const a = task.t * Math.PI * 2
-                        return (
-                            <circle
-                                key={task.time}
-                                cx={68 + Math.sin(a) * R}
-                                cy={68 - Math.cos(a) * R}
-                                r="4.5"
-                                strokeWidth="2"
-                                className={cn('stroke-white transition-colors duration-300', k < done ? 'fill-emerald-600' : 'fill-neutral-300')}
-                            />
-                        )
-                    })}
-                </svg>
-                {/* The sweeping head of the arc */}
-                <motion.div
-                    className="absolute inset-0"
-                    style={{ rotate }}>
-                    <span className="absolute top-[6.6%] left-1/2 size-3 -translate-x-1/2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]" />
-                </motion.div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <motion.span className="font-mono text-[14px] font-semibold tracking-tight sm:text-[17px] text-neutral-900 tabular-nums">{time}</motion.span>
-                    <span className="relative mt-0.5 flex h-4 items-center overflow-hidden text-[11px] text-neutral-500">
-                        day&nbsp;
-                        <AnimatePresence
-                            mode="popLayout"
-                            initial={false}>
-                            <motion.span
-                                key={day}
-                                initial={{ y: 10, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: -10, opacity: 0 }}
-                                transition={{ duration: 0.35, ease }}
-                                className="tabular-nums">
-                                {day}
-                            </motion.span>
-                        </AnimatePresence>
-                    </span>
-                </div>
+            className={cn(card, '@container max-w-[25rem] overflow-hidden')}>
+            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
+                <span className="text-[13px] font-semibold">Messages</span>
+                <LiveBadge />
             </div>
-
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <span className="flex w-fit items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap text-emerald-700 shadow-sm ring-1 ring-emerald-900/10">
-                    <span className="relative flex size-2">
-                        {!reduce && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" />}
-                        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                    </span>
-                    online · 24/7
-                </span>
-                {TASKS.map((task, k) => {
-                    const isDone = k < done
-                    return (
-                        <motion.div
-                            key={task.time}
-                            animate={{ scale: isDone ? 1 : 0.98, opacity: isDone ? 1 : 0.6 }}
-                            transition={spring}
-                            className="flex items-center gap-1.5 rounded-xl bg-white px-2 py-1.5 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.25)] ring-1 ring-black/6">
-                            <span className={cn('grid size-5 shrink-0 place-items-center rounded-full transition-colors duration-300', isDone ? 'bg-emerald-500 text-white' : 'bg-neutral-100 text-neutral-400')}>
-                                <AnimatePresence
-                                    mode="wait"
-                                    initial={false}>
-                                    <motion.span
-                                        key={isDone ? 'done' : 'todo'}
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        exit={{ scale: 0 }}
-                                        transition={spring}>
-                                        {isDone ? <Check className="size-3" strokeWidth={3} /> : <Clock3 className="size-3" />}
-                                    </motion.span>
-                                </AnimatePresence>
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block font-mono text-[11px] leading-tight text-neutral-400">{task.time}</span>
-                                <span className="block truncate text-[12px] leading-tight font-medium text-neutral-800">{task.label}</span>
-                            </span>
-                        </motion.div>
-                    )
-                })}
+            <div className="relative h-[11.75rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">
+                {rows.map((u, k) => (
+                    <motion.div
+                        key={u.name}
+                        layout="position"
+                        initial={false}
+                        transition={spring}
+                        className="relative flex items-center gap-2.5 pl-5">
+                        <AnimatePresence>
+                            {k === 0 && (
+                                <motion.span
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    exit={{ scale: 0 }}
+                                    transition={spring}
+                                    className="absolute top-1/2 left-1.5 size-2 -translate-y-1/2 rounded-full bg-[#0A84FF]"
+                                />
+                            )}
+                        </AnimatePresence>
+                        <AgentAvatar
+                            name={u.name}
+                            className="size-10"
+                        />
+                        <div className={cn('min-w-0 flex-1 border-b-[0.5px] py-2.5 pr-4', k === ROWS - 1 ? 'border-transparent' : 'border-[#E5E5EA]')}>
+                            <div className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-[13px] font-semibold">
+                                    {u.name} <span className="font-normal text-neutral-400">· {ROLES[u.name]}</span>
+                                </span>
+                                <span className="flex shrink-0 items-center text-[11px] text-neutral-400 tabular-nums">
+                                    {u.yesterday ? 'Yesterday' : u.time}
+                                    <ChevronRight className="size-3" />
+                                </span>
+                            </div>
+                            <AnimatePresence
+                                mode="wait"
+                                initial={false}>
+                                <motion.p
+                                    key={u.time}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className={cn('mt-0.5 truncate text-[12px] leading-snug', k === 0 ? 'text-neutral-700' : 'text-neutral-500')}>
+                                    {u.text}
+                                </motion.p>
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                ))}
             </div>
         </div>
     )
 }
 
-/* ------------------------------------------------------------------ */
-/* 4. Hosting: the same team lands in our cloud or on your servers     */
-/* ------------------------------------------------------------------ */
+/* 4. Hosting: a settings choice flips between our cloud and your servers; the agent underneath doesn't change */
 
 const HOSTS = [
-    { id: 'cloud', label: 'openbots cloud', Icon: Cloud, note: 'managed for you', perks: ['updates', 'scaling', 'backups'] },
-    { id: 'self', label: 'self-hosted', Icon: Server, note: 'your servers', perks: ['your servers', 'same platform'] },
+    { id: 'cloud', Icon: Cloud, title: 'OpenBots Cloud', body: 'we run it for you', host: 'mochi.openbots.app' },
+    { id: 'self', Icon: Server, title: 'Self-hosted', body: 'same platform, your servers', host: 'bots.acme.internal' },
 ] as const
-const HOSTING_DELAYS = [3400, 2600] as const
-
-const Team = () => (
-    <motion.span
-        layoutId="why-hosting-team"
-        transition={spring}
-        className="flex items-center gap-1.5 rounded-full bg-white py-1 pr-2 pl-1 shadow-[0_6px_16px_-6px_rgba(0,0,0,0.3)] ring-1 ring-black/8">
-        <span className="flex -space-x-2">
-            {['Pip', 'Penny', 'Mochi'].map((name) => (
-                <AgentAvatar
-                    key={name}
-                    name={name}
-                    className="size-6 ring-2 ring-white"
-                />
-            ))}
-        </span>
-        <span className="size-1.5 rounded-full bg-emerald-500" />
-    </motion.span>
-)
-
-const Rack = ({ active }: { active: boolean }) => (
-    <span className="flex w-16 flex-col gap-1">
-        {[0, 1, 2].map((u) => (
-            <span
-                key={u}
-                className="flex h-3.5 items-center gap-1 rounded-[5px] bg-neutral-100 px-1.5 ring-1 ring-black/5">
-                <span className="h-1 flex-1 rounded-full bg-neutral-200" />
-                <motion.span
-                    className="size-1.5 rounded-full bg-emerald-500"
-                    animate={active ? { opacity: [1, 0.25, 1] } : { opacity: 0.35 }}
-                    transition={active ? { duration: 1.1, repeat: Infinity, delay: u * 0.3 } : { duration: 0.3 }}
-                />
-            </span>
-        ))}
-    </span>
-)
+const HOSTING_DELAYS = [3400, 2800] as const
 
 export function HostingVisual() {
     const { ref, tick, reduce } = useTicks(HOSTING_DELAYS)
@@ -567,90 +384,77 @@ export function HostingVisual() {
     return (
         <div
             ref={ref}
-            className="flex w-full max-w-[20rem] flex-col items-center gap-3.5">
-            {/* Segmented toggle */}
-            <div className="flex w-full rounded-full bg-white p-1 shadow-[0_10px_24px_-14px_rgba(0,0,0,0.3)] ring-1 ring-black/8">
-                {HOSTS.map((h, k) => (
-                    <span
-                        key={h.id}
-                        className={cn('relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[12px] font-medium transition-colors duration-300', k === active ? 'text-white' : 'text-neutral-500')}>
-                        {k === active && (
-                            <motion.span
-                                layoutId="why-hosting-pill"
-                                transition={spring}
-                                className="absolute inset-0 rounded-full bg-neutral-900"
-                            />
-                        )}
-                        <h.Icon className="relative size-3.5" />
-                        <span className="relative whitespace-nowrap">{h.label}</span>
-                    </span>
-                ))}
-            </div>
-
-            {/* Two homes, one platform: the same team hops between them */}
-            <div className="grid w-full grid-cols-2 gap-3">
-                {HOSTS.map((h, k) => {
-                    const on = k === active
-                    return (
-                        <motion.div
-                            key={h.id}
-                            animate={{ opacity: on ? 1 : 0.55, scale: on ? 1 : 0.96 }}
-                            transition={{ duration: 0.4, ease }}
-                            className={cn(
-                                'relative flex flex-col items-center gap-2 rounded-[1.25rem] bg-white px-2 pt-3 pb-2.5 ring-1 transition-shadow duration-500',
-                                on ? 'shadow-[0_20px_40px_-16px_rgba(180,83,9,0.35)] ring-amber-300' : 'shadow-sm ring-black/8',
-                            )}>
-                            {h.id === 'cloud' && (
-                                <span className="absolute -top-2.5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] leading-tight font-medium whitespace-nowrap text-white shadow-sm">
-                                    <Sparkles className="size-3" />
-                                    recommended
-                                </span>
-                            )}
-                            <span className="grid h-12 place-items-center">
-                                {h.id === 'cloud' ? (
-                                    <Cloud
-                                        className={cn('size-12 transition-colors duration-500', on ? 'fill-amber-100 text-amber-400' : 'fill-neutral-50 text-neutral-300')}
-                                        strokeWidth={1.4}
+            className="@container flex w-full max-w-[25rem] flex-col gap-2.5">
+            <div className={cn(card, 'p-2.5')}>
+                <p className="px-1.5 pt-0.5 pb-1.5 text-[12px] font-medium text-neutral-600">Hosting</p>
+                <div className="space-y-1.5">
+                    {HOSTS.map((h, k) => {
+                        const on = k === active
+                        return (
+                            <div
+                                key={h.id}
+                                className={cn('relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-300', on ? 'bg-neutral-50' : 'bg-transparent')}>
+                                {on && (
+                                    <motion.span
+                                        layoutId="why-hosting-ring"
+                                        transition={spring}
+                                        className="absolute inset-0 rounded-xl ring-[1.5px] ring-neutral-900"
                                     />
-                                ) : (
-                                    <Rack active={on} />
                                 )}
-                            </span>
-                            <span className="grid h-10 w-full place-items-center rounded-xl border border-dashed border-neutral-200">
-                                {on && <Team />}
-                            </span>
-                            <span className="text-[11px] text-neutral-500">{h.note}</span>
-                        </motion.div>
-                    )
-                })}
+                                <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg ring-1 ring-black/6 transition-colors duration-300', on ? 'bg-white text-neutral-900' : 'bg-neutral-50 text-neutral-400')}>
+                                    <h.Icon className="size-4" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className={cn('flex items-center gap-2 text-[13px] font-semibold transition-colors duration-300', on ? 'text-neutral-900' : 'text-neutral-500')}>
+                                        {h.title}
+                                        {h.id === 'cloud' && <span className="rounded-full bg-neutral-100 px-1.5 py-px text-[11px] font-medium text-neutral-500">Default</span>}
+                                    </span>
+                                    <span className="block truncate text-[12px] text-neutral-500">{h.body}</span>
+                                </span>
+                                <span className={cn('grid size-4 shrink-0 place-items-center rounded-full transition-colors duration-300', on ? 'bg-primary text-white' : 'ring-1 ring-neutral-300')}>
+                                    {on && (
+                                        <Check
+                                            className="size-2.5"
+                                            strokeWidth={3.5}
+                                        />
+                                    )}
+                                </span>
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
 
-            <div className="h-6">
-                <AnimatePresence
-                    mode="wait"
-                    initial={false}>
-                    <motion.div
-                        key={host.id}
-                        className="flex items-center gap-1.5"
-                        initial="hidden"
-                        animate="shown"
-                        exit="hidden"
-                        variants={{ shown: { transition: { staggerChildren: 0.06 } }, hidden: {} }}>
-                        {host.perks.map((p) => (
-                            <motion.span
-                                key={p}
-                                variants={{ hidden: { opacity: 0, y: 6 }, shown: { opacity: 1, y: 0 } }}
-                                transition={{ duration: 0.25 }}
-                                className="flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[11.5px] leading-none font-medium whitespace-nowrap text-neutral-700 ring-1 ring-amber-900/10">
-                                <Check
-                                    className="size-3 text-amber-600"
-                                    strokeWidth={3}
-                                />
-                                {p}
-                            </motion.span>
-                        ))}
-                    </motion.div>
-                </AnimatePresence>
+            {/* The same agent either way: only where it runs changes */}
+            <div className={cn(card, 'rounded-2xl px-4 py-2.5')}>
+                <div className="flex items-center gap-3">
+                    <AgentAvatar
+                        name="Mochi"
+                        className="size-9"
+                    />
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold">
+                            Mochi <span className="font-normal text-neutral-400">· Personal Assistant</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1 text-[11px] text-neutral-500">
+                            <AnimatePresence
+                                mode="wait"
+                                initial={false}>
+                                <motion.span
+                                    key={host.host}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="flex min-w-0 items-center gap-1 font-mono text-neutral-800">
+                                    <host.Icon className="size-3 shrink-0 text-neutral-400" />
+                                    <span className="truncate">{host.host}</span>
+                                </motion.span>
+                            </AnimatePresence>
+                        </span>
+                    </span>
+                    <LiveBadge />
+                </div>
             </div>
         </div>
     )
