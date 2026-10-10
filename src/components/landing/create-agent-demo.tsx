@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Contact, Cpu, MessageCircle, MessagesSquare, Plus, Radio, Search, Settings, Tag, X } from 'lucide-react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
-import { SectionHeading } from '@/components/landing/section-heading'
-import { Reveal } from '@/components/landing/motion'
+import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { useCases } from '@/lib/assistant-examples'
 import { AgentConfigBar, MenuPicture, ProviderMark } from '@/components/agent-config-bar'
@@ -742,16 +741,13 @@ export default function CreateAgentDemo() {
 
     const select = (i: number) => setClock({ index: i, elapsed: 0 })
 
+    // Sits in the hero under the call to action, so it's the first thing people see
     return (
-        <section
-            id="create-agent"
-            className="px-3 pt-44 pb-16 md:px-6 md:pt-72 md:pb-24">
-            <SectionHeading
-                title="give it a name. make it your kind of helpful."
-                description="pick the model, voice, personality and rules for every part. no code, no one-size-fits-all. (these are examples, not live assistants yet.)"
-            />
-
-            <Reveal className="mt-12 flex justify-center">
+        // Plays in on load, not on scroll: in the hero most of the window starts below the fold
+        <Stagger
+            onMount
+            gap={0.12}>
+            <StaggerItem className="flex justify-center">
                 <div
                     role="tablist"
                     aria-label="Flows"
@@ -791,9 +787,9 @@ export default function CreateAgentDemo() {
                         )
                     })}
                 </div>
-            </Reveal>
+            </StaggerItem>
 
-            <Reveal className="mt-8">
+            <StaggerItem className="mt-8">
                 {/* Desktop "wallpaper" tinted per flow, with the CRM window floating on it */}
                 <div
                     id="create-agent-panel"
@@ -834,7 +830,7 @@ export default function CreateAgentDemo() {
                         </div>
                     </div>
                 </div>
-            </Reveal>
-        </section>
+            </StaggerItem>
+        </Stagger>
     )
 }

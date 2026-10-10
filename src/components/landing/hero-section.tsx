@@ -1,7 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { Button } from '@/components/ui/button'
-import { PhoneDemo } from '@/components/landing/phone-demo'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentCursors } from '@/components/landing/agent-cursors'
+
+// The dashboard demo pulls in the chart library, so it streams in just after the headline paints
+const CreateAgentDemo = lazy(() => import('@/components/landing/create-agent-demo'))
 
 export default function HeroSection() {
     return (
@@ -38,9 +41,11 @@ export default function HeroSection() {
 
             <div
                 id="product"
-                className="mt-24 px-4 md:mt-36">
-                <PhoneDemo />
-                <p className="type-caption text-muted-foreground mt-6 text-center">Example conversations · fictional places and amounts</p>
+                className="mx-auto mt-14 max-w-6xl scroll-mt-24 px-3 md:mt-16 md:px-6">
+                <Suspense fallback={<div className="min-h-[40rem]" />}>
+                    <CreateAgentDemo />
+                </Suspense>
+                <p className="type-caption text-muted-foreground mt-6 text-center">Example agents · not live assistants yet</p>
             </div>
         </section>
     )
