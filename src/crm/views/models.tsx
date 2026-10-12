@@ -32,7 +32,7 @@ export function ModelsView() {
     const setModel = useMutation(api.workspace.setModel)
 
     const mixes = (agents ?? []).map((a) => ({ agent: a, models: resolveModels(workspace?.models, a.models, a.model) }))
-    const providers = [...new Set(mixes.flatMap((m) => Object.values(m.models).map((r) => r.option.provider)))].filter((p): p is Exclude<Provider, 'none'> => p !== 'none')
+    const providers = [...new Set(mixes.flatMap((m) => SLOTS.map((slot) => m.models[slot.id].option.provider)))].filter((p): p is Exclude<Provider, 'none'> => p !== 'none')
 
     return (
         <Content>

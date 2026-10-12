@@ -24,7 +24,7 @@ const GROUPS: { label?: string; items: { view: View; label: string; icon: Lucide
             { view: 'agents', label: 'Agents', icon: Bot },
             { view: 'models', label: 'Models', icon: Cpu },
             { view: 'knowledge', label: 'Knowledge', icon: BookOpen },
-            { view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle },
+            { view: 'numbers', label: 'Numbers', icon: MessageCircle },
         ],
     },
     {

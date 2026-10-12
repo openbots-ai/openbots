@@ -182,7 +182,7 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                         {conversation.test && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px] font-normal">Test</Badge>}
                     </p>
                     <p className="truncate text-[11px] text-neutral-500">
-                        {group ? `Group · ${Object.keys(senders).length} people` : contact.handle}
+                        {group ? `Group · ${Object.keys(senders).length === 1 ? '1 person' : `${Object.keys(senders).length} people`} here so far` : contact.handle}
                         {number && ` → ${number.handle}`}
                     </p>
                 </div>
