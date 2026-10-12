@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 import { useQuery } from 'convex/react'
-import { BookOpen, Bot, ChartLine, CircleHelp, Contact, Cpu, Gauge, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { BookOpen, Bot, ChartLine, CircleHelp, Contact, Cpu, Gauge, LogOut, MessageCircle, MessagesSquare, Plug, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { useAuthActions } from '@convex-dev/auth/react'
 import { api } from '@convex/_generated/api'
 import type { Doc } from '@convex/_generated/dataModel'
 import { creditsFor, dayKey, weekStart } from '@convex/lib/usage'
@@ -35,7 +36,13 @@ const GROUPS: { label?: string; items: { view: View; label: string; icon: Lucide
             { view: 'live', label: 'Live', icon: Radio },
         ],
     },
-    { label: 'System', items: [{ view: 'settings', label: 'Settings', icon: Settings }] },
+    {
+        label: 'System',
+        items: [
+            { view: 'connections', label: 'Connections', icon: Plug },
+            { view: 'settings', label: 'Settings', icon: Settings },
+        ],
+    },
 ]
 
 const capped = (n: number) => (n > 99 ? '99+' : String(n))
@@ -110,7 +117,8 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                     <Avatar className="size-5">
                         <AvatarFallback className="bg-emerald-600 text-[10px] font-semibold text-white">{workspace?.ownerName.slice(0, 1).toUpperCase() ?? ''}</AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{workspace?.ownerName ?? '…'}</span>
+                    <span className="min-w-0 flex-1 truncate">{workspace?.ownerName ?? '…'}</span>
+                    <SignOut />
                 </Card>
                 <div className="flex justify-between px-1 pt-1 text-[12px] text-neutral-500">
                     <Button variant="link" size="xs" nativeButton={false} render={<a href={`mailto:${CONTACT_EMAIL}`} />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
@@ -149,5 +157,14 @@ function UsageCard({ workspace, onClick }: { workspace?: Doc<'workspace'> | null
                 {budget ? <Progress value={Math.min(100, (used / budget) * 100)} aria-label="Weekly budget used" /> : null}
             </Card>
         </a>
+    )
+}
+
+function SignOut() {
+    const { signOut } = useAuthActions()
+    return (
+        <Button variant="ghost" size="icon-xs" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} className="text-neutral-500 hover:text-neutral-900">
+            <LogOut />
+        </Button>
     )
 }

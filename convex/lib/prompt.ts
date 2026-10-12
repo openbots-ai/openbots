@@ -30,8 +30,10 @@ export function systemPrompt(args: {
     contact: Doc<'contacts'>
     knowledge: Pick<Doc<'knowledge'>, 'title' | 'body'>[]
     now: number
+    // The group chat's name, when the conversation is a group
+    group?: string
 }) {
-    const { agent, workspace, contact, knowledge, now } = args
+    const { agent, workspace, contact, knowledge, now, group } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -45,7 +47,9 @@ export function systemPrompt(args: {
     const lines = [
         `You are ${agent.name}, ${agent.role ? `${owner}'s ${agent.role.toLowerCase()}` : `an assistant for ${owner}`}. You talk with people over iMessage.`,
         agent.prompt.trim() && `How you work:\n${agent.prompt.trim()}`,
-        `You're texting ${contact.name} (${contact.handle}).${contact.tags.length ? ` Tags: ${contact.tags.join(', ')}.` : ''}${contact.notes.trim() ? ` Notes from ${owner}: ${contact.notes.trim()}` : ''}`,
+        group
+            ? `You're in a group chat (${group}). Each message starts with who sent it. Reply to the group, briefly, and only about what you were asked.`
+            : `You're texting ${contact.name} (${contact.handle}).${contact.tags.length ? ` Tags: ${contact.tags.join(', ')}.` : ''}${contact.notes.trim() ? ` Notes from ${owner}: ${contact.notes.trim()}` : ''}`,
         knowledge.length && `What you know:\n${knowledge.map((k) => `## ${k.title}\n${k.body.trim()}`).join('\n\n')}`,
         `It is ${date} (${timeZone}).`,
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,

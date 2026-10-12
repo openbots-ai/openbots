@@ -1,6 +1,6 @@
 import { DASHBOARD_PATH } from './route'
 
-export const VIEWS = ['agents', 'knowledge', 'numbers', 'conversations', 'contacts', 'models', 'analytics', 'live', 'settings'] as const
+export const VIEWS = ['agents', 'knowledge', 'numbers', 'conversations', 'contacts', 'models', 'analytics', 'live', 'connections', 'settings'] as const
 export type View = (typeof VIEWS)[number]
 
 const isView = (v: string | null): v is View => (VIEWS as readonly (string | null)[]).includes(v)

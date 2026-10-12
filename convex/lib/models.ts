@@ -120,6 +120,9 @@ export const SLOTS: Slot[] = [
 
 export const slotOf = (id: string) => SLOTS.find((s) => s.id === id)
 
+// The slots agents use today; the dashboard only offers these, so nothing it shows is just for show
+export const LIVE_SLOTS = SLOTS.filter((s) => s.runs)
+
 export const isValidChoice = (slot: string, model: string) => !!slotOf(slot)?.options.some((o) => o.id === model)
 
 export type ModelChoices = Partial<Record<string, string>>

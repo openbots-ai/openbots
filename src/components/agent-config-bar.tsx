@@ -97,6 +97,8 @@ type Props = {
     onTogglePlay?: () => void
     // The other model slots (computer use, voice notes, …), each shown as its own picker after the language
     slots?: SlotPick[]
+    // The voice picker and preview; off where voice notes aren't live yet
+    showVoice?: boolean
     className?: string
 }
 
@@ -165,6 +167,7 @@ export function AgentConfigBar({
     onReplyLengthChange = noop,
     onTogglePlay,
     slots,
+    showVoice = true,
     className,
 }: Props) {
     const m = model ? modelOf(model) : undefined
@@ -237,35 +240,37 @@ export function AgentConfigBar({
                 </Popover>
             </div>
 
-            <div className={cn('relative inline-flex items-center rounded-lg bg-neutral-100/90 pl-1.5', ring(highlight === 'voice'))}>
-                {open('voice') && <MenuPicture items={voiceItems} selected={voice} hovered={open('voice')!} />}
-                <Button
-                    variant="outline"
-                    size="icon-xs"
-                    aria-label={playing ? `Stop ${v?.name} preview` : `Preview ${v?.name ?? 'voice'}`}
-                    onClick={onTogglePlay}
-                    disabled={interactive && !onTogglePlay}
-                    className="rounded-md bg-white shadow-xs ring-black/5">
-                    {playing ? <Pause className="fill-current" /> : <Play className="fill-current" />}
-                </Button>
-                <span className="ml-2 h-5 w-px bg-neutral-300/80" />
-                <Tooltip>
-                    <Select value={voice} onValueChange={(id) => id && onVoiceChange(id)}>
-                        <TooltipTrigger render={<SelectTrigger aria-label="Voice" className={cn(pill, 'bg-transparent pl-2', !v && 'text-neutral-500')} />}>
-                            {v ? <VoiceAvatar voice={v.id} /> : <CircleDashed className="size-4 text-neutral-400" />}
-                            {v?.name ?? 'Pick a voice'}
-                        </TooltipTrigger>
-                        <SelectContent alignItemWithTrigger={false} align="start" className="min-w-48">
-                            {voiceItems.map((o) => (
-                                <SelectItem key={o.id} value={o.id}>
-                                    {o.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <TooltipContent side="bottom">{v ? `${v.name} · ${v.accent}` : 'No voice yet'}</TooltipContent>
-                </Tooltip>
-            </div>
+            {showVoice && (
+                <div className={cn('relative inline-flex items-center rounded-lg bg-neutral-100/90 pl-1.5', ring(highlight === 'voice'))}>
+                    {open('voice') && <MenuPicture items={voiceItems} selected={voice} hovered={open('voice')!} />}
+                    <Button
+                        variant="outline"
+                        size="icon-xs"
+                        aria-label={playing ? `Stop ${v?.name} preview` : `Preview ${v?.name ?? 'voice'}`}
+                        onClick={onTogglePlay}
+                        disabled={interactive && !onTogglePlay}
+                        className="rounded-md bg-white shadow-xs ring-black/5">
+                        {playing ? <Pause className="fill-current" /> : <Play className="fill-current" />}
+                    </Button>
+                    <span className="ml-2 h-5 w-px bg-neutral-300/80" />
+                    <Tooltip>
+                        <Select value={voice} onValueChange={(id) => id && onVoiceChange(id)}>
+                            <TooltipTrigger render={<SelectTrigger aria-label="Voice" className={cn(pill, 'bg-transparent pl-2', !v && 'text-neutral-500')} />}>
+                                {v ? <VoiceAvatar voice={v.id} /> : <CircleDashed className="size-4 text-neutral-400" />}
+                                {v?.name ?? 'Pick a voice'}
+                            </TooltipTrigger>
+                            <SelectContent alignItemWithTrigger={false} align="start" className="min-w-48">
+                                {voiceItems.map((o) => (
+                                    <SelectItem key={o.id} value={o.id}>
+                                        {o.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <TooltipContent side="bottom">{v ? `${v.name} · ${v.accent}` : 'No voice yet'}</TooltipContent>
+                    </Tooltip>
+                </div>
+            )}
 
             <div className="relative">
                 {open('language') && <MenuPicture items={languageItems} selected={language} hovered={open('language')!} />}
