@@ -11,6 +11,7 @@ import { Sidebar } from './sidebar'
 import { useView } from './use-view'
 import { AgentDetail } from './views/agent-detail'
 import { AgentsView } from './views/agents'
+import { ConnectionsView } from './views/connections'
 import { ContactsView } from './views/contacts'
 import { ConversationsView } from './views/conversations'
 import { AnalyticsView } from './views/analytics'
@@ -73,6 +74,8 @@ function ViewSwitch({ view, id }: { view: View; id?: string }) {
             return <ModelsView />
         case 'analytics':
             return <AnalyticsView />
+        case 'connections':
+            return <ConnectionsView />
         case 'settings':
             return <SettingsView />
     }

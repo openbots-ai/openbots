@@ -3,7 +3,7 @@ import { Hand, MessagesSquare, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
-import { BRAIN_MODELS, SLOTS, slotOf, type SlotId } from '@convex/lib/models'
+import { BRAIN_MODELS, LIVE_SLOTS as SLOTS, slotOf, type SlotId } from '@convex/lib/models'
 import { SLOT_UNITS, addDays, creditsFor, dayKey, weekStart as weekStartOf } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -174,7 +174,7 @@ export function AnalyticsView() {
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className="text-[12px] text-neutral-400">{!slot.runs ? 'Not live yet' : rows ? 'Not used in the last 30 days' : '…'}</span>
+                                                <span className="text-[12px] text-neutral-400">{rows ? 'Not used in the last 30 days' : '…'}</span>
                                             )}
                                         </span>
                                         <Spark days={spark} slot={slot.id} />

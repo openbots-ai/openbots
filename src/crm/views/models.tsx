@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { SLOTS, resolveModels, type Provider } from '@convex/lib/models'
+import { LIVE_SLOTS as SLOTS, resolveModels, type Provider } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -43,9 +43,9 @@ export function ModelsView() {
                 <div className="space-y-4 p-4">
                     <Card className="flex flex-wrap items-center justify-between gap-4 rounded-lg p-5">
                         <div className="max-w-xl">
-                            <h2 className="text-[17px] font-semibold tracking-tight">Use whatever model is best at each job</h2>
+                            <h2 className="text-[17px] font-semibold tracking-tight">Pick the models behind your agents</h2>
                             <p className="mt-1 text-[13px] text-neutral-500">
-                                One agent can think with Claude, click around with GPT, speak with ElevenLabs and make its quick calls with Jev. Mix providers freely; nothing is locked in.
+                                Pick the model that writes your agents’ replies, and a backup from another provider that takes over if the first one fails. Each runs on your own key from Connections.
                             </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -79,12 +79,6 @@ export function ModelsView() {
                                             <p className="flex items-center gap-2 text-[14px] font-semibold">
                                                 {slot.label}
                                                 {slot.isNew && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">New</Badge>}
-                                                {!slot.runs && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger render={<Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-normal text-neutral-500" />}>Not live yet</TooltipTrigger>
-                                                        <TooltipContent>Your choice is saved, but agents don't use this part yet. Today they write replies with Brain, and Backup takes over if it fails.</TooltipContent>
-                                                    </Tooltip>
-                                                )}
                                             </p>
                                             <p className="mt-0.5 text-[12px] leading-snug text-neutral-500">{slot.blurb}</p>
                                         </div>

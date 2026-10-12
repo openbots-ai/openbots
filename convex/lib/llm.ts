@@ -1,28 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { env } from '../_generated/server'
-import { demoReply } from './demo'
 import type { ModelOption, Provider } from './models'
 
 export type Turn = { role: 'user' | 'assistant'; content: string }
 export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
 
-// The env var that unlocks each provider that writes text
-export const PROVIDER_KEYS: Partial<Record<Provider, 'ANTHROPIC_API_KEY' | 'OPENAI_API_KEY' | 'GEMINI_API_KEY' | 'XAI_API_KEY'>> = {
-    anthropic: 'ANTHROPIC_API_KEY',
-    openai: 'OPENAI_API_KEY',
-    google: 'GEMINI_API_KEY',
-    xai: 'XAI_API_KEY',
-}
+// The model providers that write replies; each workspace connects its own key for them
+export const TEXT_PROVIDERS = ['openai', 'anthropic', 'google', 'xai'] as const
+export type TextProvider = (typeof TEXT_PROVIDERS)[number]
+export const isTextProvider = (p: Provider): p is TextProvider => (TEXT_PROVIDERS as readonly string[]).includes(p)
 
-export const keyFor = (provider: Provider) => {
-    const name = PROVIDER_KEYS[provider]
-    return name ? env[name] || undefined : undefined
-}
+export const PROVIDER_NAMES: Record<TextProvider, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google Gemini', xai: 'xAI' }
 
-// Demo deployments answer with sample replies when a provider has no key (see convex.config.ts)
-export const demoMode = () => env.DEMO_MODE === 'true'
-
-// A failure worth showing the operator as-is ("OPENAI_API_KEY isn't set")
+// A failure worth showing the operator as-is ("connect your OpenAI key")
 export class ReplyError extends Error {}
 
 // Claude 5.x models reject sampling parameters and take effort instead
@@ -72,15 +61,11 @@ async function gemini(model: string, key: string, p: Prompt) {
     return (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join('')
 }
 
-// Writes one reply with the given model. Throws ReplyError for problems the operator should fix.
-export async function complete(option: ModelOption, p: Prompt): Promise<string> {
-    const keyName = PROVIDER_KEYS[option.provider]
-    if (!keyName || !option.api) throw new ReplyError(`${option.label} can't write replies`)
-    const key = keyFor(option.provider)
-    if (!key) {
-        if (demoMode()) return demoReply(p.turns.at(-1)?.content ?? '')
-        throw new ReplyError(`${keyName} isn't set on the Convex deployment, so ${option.label} can't reply`)
-    }
+// Writes one reply with the given model, using the workspace's own key for its provider (undefined when not connected).
+// Throws ReplyError for problems the operator should fix.
+export async function complete(option: ModelOption, p: Prompt, key: string | undefined): Promise<string> {
+    if (!isTextProvider(option.provider) || !option.api) throw new ReplyError(`${option.label} can't write replies`)
+    if (!key) throw new ReplyError(`Connect your ${PROVIDER_NAMES[option.provider]} key in Connections so ${option.label} can reply`)
     let text: string
     switch (option.provider) {
         case 'anthropic':

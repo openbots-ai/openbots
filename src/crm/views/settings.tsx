@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useConvex, useMutation, useQuery } from 'convex/react'
-import { Bell, Building2, Check, Copy, Database, Download, Gauge, MessageCircle, Plug, Users, X, type LucideIcon } from 'lucide-react'
+import { Bell, Building2, Database, Download, Gauge, MessageCircle, Users, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
@@ -18,7 +18,6 @@ const SECTIONS: { id: string; label: string; icon: LucideIcon }[] = [
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'usage', label: 'Usage budget', icon: Gauge },
-    { id: 'integrations', label: 'Integrations', icon: Plug },
     { id: 'data', label: 'Data', icon: Database },
 ]
 
@@ -43,8 +42,6 @@ type Form = {
     quietStart: string
     quietEnd: string
     replyDelaySec: number
-    typingIndicator: boolean
-    readReceipts: boolean
     newContactTag: string
     notifyNewContact: boolean
     notifyHandoff: boolean
@@ -65,8 +62,6 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     quietStart: w.quietStart ?? '22:00',
     quietEnd: w.quietEnd ?? '08:00',
     replyDelaySec: w.replyDelaySec ?? 2,
-    typingIndicator: w.typingIndicator ?? true,
-    readReceipts: w.readReceipts ?? true,
     newContactTag: w.newContactTag ?? '',
     notifyNewContact: w.notifyNewContact ?? true,
     notifyHandoff: w.notifyHandoff ?? true,
@@ -123,12 +118,14 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
     const run = useRun()
     const update = useMutation(api.workspace.update)
     const agents = useQuery(api.agents.list)
+    const connections = useQuery(api.connections.list)
     const [form, setForm] = useState(() => toForm(workspace))
     const [saving, setSaving] = useState(false)
 
     const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }))
     const dirty = JSON.stringify(normalize(form)) !== JSON.stringify(toForm(workspace))
     const emailOk = !form.ownerEmail.trim() || handleKind(form.ownerEmail) === 'email'
+    const emailing = !!form.ownerEmail.trim() && emailOk && !!connections?.some((c) => c.provider === 'resend' && c.status === 'ok')
     const budgetsOk = budgetOk(form.dailyBudget) && budgetOk(form.weeklyBudget)
     const valid = form.name.trim() && form.ownerName.trim() && emailOk && form.quietStart && form.quietEnd && budgetsOk
     const timezones = Intl.supportedValuesOf('timeZone')
@@ -184,12 +181,6 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 <Row label="Reply delay" description="A short pause before replying feels more human." htmlFor="s-delay">
                     <Select id="s-delay" value={form.replyDelaySec} onChange={(v) => set('replyDelaySec', v)} options={REPLY_DELAYS} />
                 </Row>
-                <Row label="Typing indicator" description="Show the typing bubble while an agent writes." inline>
-                    <Toggle label="Typing indicator" checked={form.typingIndicator} onChange={(v) => set('typingIndicator', v)} />
-                </Row>
-                <Row label="Read receipts" description="Mark messages as read when an agent sees them." inline>
-                    <Toggle label="Read receipts" checked={form.readReceipts} onChange={(v) => set('readReceipts', v)} />
-                </Row>
                 <Row label="Quiet hours" description="Agents hold non-urgent messages until quiet hours end." inline>
                     <Toggle label="Quiet hours" checked={form.quietEnabled} onChange={(v) => set('quietEnabled', v)} />
                 </Row>
@@ -210,7 +201,14 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="notifications" title="Notifications" description={form.ownerEmail.trim() ? `Sent to ${form.ownerEmail.trim()}.` : 'Add an email under General to receive these.'}>
+            <Section
+                id="notifications"
+                title="Notifications"
+                description={
+                    emailing
+                        ? `In the dashboard, and emailed to ${form.ownerEmail.trim()} through your Resend account.`
+                        : 'In the dashboard (the bell). To get them by email too, add your email under General and connect Resend in Connections.'
+                }>
                 <Row label="New contact" description="When someone texts one of your agents for the first time." inline>
                     <Toggle label="New contact notifications" checked={form.notifyNewContact} onChange={(v) => set('notifyNewContact', v)} />
                 </Row>
@@ -222,7 +220,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="usage" title="Usage budget" description="Every reply, action and voice note uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
+            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
                 <Row label="Daily budget" description={budgetOk(form.dailyBudget) ? 'Credits per day (UTC). Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.dailyBudget)} htmlFor="s-daily">
                     <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder="No cap" />
                 </Row>
@@ -230,8 +228,6 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                     <Input id="s-weekly" inputMode="numeric" aria-invalid={!budgetOk(form.weeklyBudget)} value={form.weeklyBudget} onChange={(e) => set('weeklyBudget', e.target.value)} placeholder="No cap" />
                 </Row>
             </Section>
-
-            <Integrations />
 
             <Section id="data" title="Data" description="Your workspace data belongs to you.">
                 <Row label="Export everything" description="Agents, numbers, contacts, conversations, messages, knowledge, usage and notifications as JSON.">
@@ -252,59 +248,6 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                     </span>
                 </Card>
             )}
-        </div>
-    )
-}
-
-// Live status of the deployment's environment variables; values are never sent to the browser
-function Integrations() {
-    const status = useQuery(api.system.status)
-    const [copied, setCopied] = useState(false)
-    const copy = async () => {
-        if (!status) return
-        await navigator.clipboard.writeText(status.inboundUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-    }
-    const names: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google Gemini', xai: 'xAI' }
-    return (
-        <Section id="integrations" title="Integrations" description="Set these on your Convex deployment with npx convex env set NAME value. Changes show up here right away.">
-            <Row label="Model providers" description="An agent replies only when its Brain (or Backup) model's provider has a key.">
-                <div className="w-full space-y-1">
-                    {status ? (
-                        Object.entries(status.providers).map(([p, { key, set }]) => <EnvRow key={p} label={names[p] ?? p} env={key} ok={set} />)
-                    ) : (
-                        <Skeleton className="h-20" />
-                    )}
-                </div>
-            </Row>
-            <Row label="Incoming texts" description="Point your iMessage relay at this URL. It must send Authorization: Bearer INBOUND_SECRET; the answer says whether to send a read receipt.">
-                <div className="w-full space-y-1.5">
-                    <div className="flex w-full items-center gap-1.5">
-                        <Input readOnly aria-label="Inbound webhook URL" value={status?.inboundUrl ?? ''} className="font-mono text-[12px]" />
-                        <Btn variant="ghost" size="icon-sm" aria-label="Copy URL" onClick={copy}>
-                            {copied ? <Check /> : <Copy />}
-                        </Btn>
-                    </div>
-                    {status && <EnvRow label="Secret" env="INBOUND_SECRET" ok={status.inboundSecret} />}
-                </div>
-            </Row>
-            <Row label="Outgoing replies" description="Agent replies are POSTed here as JSON { type: message, from, to, body } for your relay to send, plus typing events when the typing indicator is on.">
-                {status ? <EnvRow label="Relay URL" env="OUTBOUND_WEBHOOK_URL" ok={status.outbound} /> : <Skeleton className="h-6 w-full" />}
-            </Row>
-            <Row label="Email" description="Sends notifications and the digest to your email through Resend.">
-                {status ? <EnvRow label="Resend" env="RESEND_API_KEY, NOTIFY_FROM_EMAIL" ok={status.email} /> : <Skeleton className="h-6 w-full" />}
-            </Row>
-        </Section>
-    )
-}
-
-function EnvRow({ label, env, ok }: { label: string; env: string; ok: boolean }) {
-    return (
-        <div className="flex w-full items-center gap-2 text-[13px]">
-            {ok ? <Check className="size-3.5 text-emerald-600" /> : <X className="size-3.5 text-neutral-400" />}
-            <span className="flex-1 text-neutral-800">{label}</span>
-            <code className={cn('truncate rounded px-1 text-[11px]', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-500')}>{env}</code>
         </div>
     )
 }

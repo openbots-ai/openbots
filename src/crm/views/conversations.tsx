@@ -80,11 +80,12 @@ export function ConversationsView({ id, live = false }: { id?: string; live?: bo
                                     aria-current={c._id === id ? 'true' : undefined}
                                     className={cn('h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left font-normal whitespace-normal active:scale-100', c._id === id && 'bg-neutral-100 hover:bg-neutral-100')}
                                 >
-                                    <Initials name={c.contactName} />
+                                    <Initials name={c.title ?? c.contactName} />
                                     <span className="min-w-0 flex-1">
                                         <span className="flex items-center justify-between gap-2">
                                             <span className="flex min-w-0 items-center gap-1.5">
-                                                <span className="truncate text-[13px] font-medium">{c.contactName}</span>
+                                                <span className="truncate text-[13px] font-medium">{c.title ?? c.contactName}</span>
+                                                {c.test && <Badge variant="secondary" className="h-4 px-1 text-[9px] font-normal">Test</Badge>}
                                                 {c.needsYou && <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-label="Needs you" />}
                                             </span>
                                             <span className="shrink-0 text-[11px] text-neutral-400">{relativeTime(c.lastAt, now)}</span>
@@ -137,7 +138,6 @@ function MessageMeta({ m }: { m: Doc<'messages'> }) {
 function Thread({ id, onBack }: { id: string; onBack: () => void }) {
     const run = useRun()
     const data = useQuery(api.conversations.thread, { id })
-    const status = useQuery(api.system.status)
     const send = useMutation(api.conversations.send)
     const resolve = useMutation(api.conversations.resolve)
     const retry = useMutation(api.conversations.retry)
@@ -153,7 +153,8 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
 
     if (data === undefined) return <div className="flex-1 animate-pulse bg-neutral-50/50" />
     if (data === null) return <NotFound what="conversation" onBack={onBack} />
-    const { conversation, contact, agent, number, messages } = data
+    const { conversation, contact, agent, number, messages, senders } = data
+    const group = !!conversation.threadKey
     const lastFromContact = messages.at(-1)?.from === 'contact'
 
     const submit = async () => {
@@ -174,11 +175,14 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                 <Btn variant="ghost" size="icon-sm" aria-label="Back" onClick={onBack} className="text-neutral-500 md:hidden">
                     <ArrowLeft />
                 </Btn>
-                <Initials name={contact.name} />
+                <Initials name={conversation.title ?? contact.name} />
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold">{contact.name}</p>
+                    <p className="flex items-center gap-1.5 truncate text-[13px] font-semibold">
+                        {group ? (conversation.title ?? 'Group chat') : contact.name}
+                        {conversation.test && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px] font-normal">Test</Badge>}
+                    </p>
                     <p className="truncate text-[11px] text-neutral-500">
-                        {contact.handle}
+                        {group ? `Group · ${Object.keys(senders).length} people` : contact.handle}
                         {number && ` → ${number.handle}`}
                     </p>
                 </div>
@@ -209,6 +213,7 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                     {messages.map((m) => (
                         <div key={m._id} className={cn('flex', m.from === 'agent' ? 'justify-end' : 'justify-start')}>
                             <div className="max-w-[75%]">
+                                {group && m.from === 'contact' && m.senderId && <span className="mb-0.5 ml-3 block text-[10px] text-neutral-500">{senders[m.senderId]}</span>}
                                 <div title={new Date(m.at).toLocaleString()} className={cn('rounded-2xl px-3.5 py-2 text-[14px] leading-snug whitespace-pre-wrap', m.from === 'agent' ? 'bg-[#0a84ff] text-white' : 'bg-neutral-200/80 text-neutral-900')}>
                                     {m.body}
                                 </div>
@@ -229,8 +234,10 @@ function Thread({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
             </div>
             <div className="border-t border-neutral-200/70 p-3">
-                {status && !status.outbound && (
-                    <p className="mx-auto mb-2 max-w-2xl text-[11px] text-neutral-500">Replies are saved here but not delivered to iMessage until a relay is connected (Settings → Integrations).</p>
+                {(conversation.test || !number) && (
+                    <p className="mx-auto mb-2 max-w-2xl text-[11px] text-neutral-500">
+                        {conversation.test ? 'Test conversation: replies are written for real but never sent to a phone.' : 'Its number was removed, so replies stay here until it texts a connected number again.'}
+                    </p>
                 )}
                 <div className="mx-auto flex max-w-2xl items-end gap-2">
                     <Textarea

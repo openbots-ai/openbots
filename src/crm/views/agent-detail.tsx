@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { ArrowLeft, BookOpen, FlaskConical, MessageCircle } from 'lucide-react'
 import { api } from '@convex/_generated/api'
@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigBar } from '@/components/agent-config-bar'
-import { SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
+import { LIVE_SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
 import { INHERIT } from '@convex/lib/models'
-import { DEFAULT_CONFIG, languageOf, voiceOf } from '@/lib/agent-options'
+import { DEFAULT_CONFIG } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
 import { useNav } from '../nav'
 import { TestTextDialog } from '../test-text'
@@ -65,31 +65,6 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const myDocs = knowledge?.filter((k) => k.agentId === agent._id) ?? []
 
     const [testing, setTesting] = useState(false)
-    const [playing, setPlaying] = useState(false)
-    // Never leave a preview talking after the editor closes
-    useEffect(() => () => window.speechSynthesis?.cancel(), [])
-
-    // Says a short hello with the browser's built-in speech, shaped by the chosen voice
-    const preview = () => {
-        if (!('speechSynthesis' in window)) return
-        window.speechSynthesis.cancel()
-        if (playing) return setPlaying(false)
-        const voice = voiceOf(form.voice)
-        const language = languageOf(form.language)
-        const utterance = new SpeechSynthesisUtterance(`hey, it's ${form.name.trim() || 'your agent'}. what can I help with?`)
-        if (language.id !== 'multi') utterance.lang = language.id
-        utterance.pitch = voice.pitch
-        utterance.rate = voice.rate
-        utterance.onend = utterance.onerror = () => setPlaying(false)
-        window.speechSynthesis.speak(utterance)
-        setPlaying(true)
-    }
-    const changeVoice = (id: string) => {
-        window.speechSynthesis?.cancel()
-        setPlaying(false)
-        set('voice', id)
-    }
-
     const save = async () => {
         if (fieldsDirty) {
             const res = await run(update({ id: agent._id, ...form, name: form.name.trim(), folder: form.folder?.trim() || undefined }))
@@ -132,18 +107,16 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
             <div className="border-b border-neutral-200/70 px-4 py-2.5">
                 <AgentConfigBar
                     model={resolveModels(workspace?.models, form.models, form.model).brain.option.id}
-                    voice={form.voice ?? DEFAULT_CONFIG.voice}
                     language={form.language ?? DEFAULT_CONFIG.language}
                     temperature={form.temperature}
                     replyLength={form.replyLength}
-                    playing={playing}
                     onModelChange={(id) => setSlot('brain', id)}
-                    onVoiceChange={changeVoice}
                     onLanguageChange={(id) => set('language', id)}
                     onTemperatureChange={(value) => set('temperature', value)}
                     onReplyLengthChange={(value) => set('replyLength', value)}
-                    onTogglePlay={'speechSynthesis' in window ? preview : undefined}
-                    slots={SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({ slot, value: slotValue(slot.id), inherited: slot.options.find((o) => o.id === (workspace?.models?.[slot.id] ?? slot.default)), onChange: (id: string) => setSlot(slot.id, id) }))}
+                    voice={form.voice ?? DEFAULT_CONFIG.voice}
+                    showVoice={false}
+                    slots={LIVE_SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({ slot, value: slotValue(slot.id), inherited: slot.options.find((o) => o.id === (workspace?.models?.[slot.id] ?? slot.default)), onChange: (id: string) => setSlot(slot.id, id) }))}
                 />
             </div>
             <Scroll>
