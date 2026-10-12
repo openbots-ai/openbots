@@ -40,7 +40,7 @@ export function NumbersView() {
 
     return (
         <Content>
-            <Toolbar title="iMessage Numbers">{connections && add}</Toolbar>
+            <Toolbar title="Numbers">{connections && add}</Toolbar>
             <Scroll>
                 {numbers?.length === 0 ? (
                     <EmptyState

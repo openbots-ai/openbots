@@ -165,7 +165,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                         <Field label="Personality & instructions" hint="How it talks, what it handles, and what it should hand back to you.">
                             <Textarea className="min-h-40 leading-relaxed" value={form.prompt} onChange={(e) => set('prompt', e.target.value)} />
                         </Field>
-                        <Field label="Phone number" hint={freeNumbers.length ? 'The iMessage number people text to reach this agent.' : 'No free numbers. Add one in iMessage Numbers.'}>
+                        <Field label="Phone number" hint={freeNumbers.length ? 'The number people text to reach this agent.' : 'No free numbers. Add one in Numbers.'}>
                             <Select<string>
                                 value={numberId}
                                 onChange={setNumberChoice}

@@ -91,7 +91,7 @@ const INFO: Record<Provider, Info> = {
         steps: [
             'Create a Twilio account (Twilio bills you directly for numbers and texts).',
             'Copy the Account SID and Auth token from the console home page.',
-            'Paste them here, then get a number in iMessage Numbers. Texting US numbers needs A2P 10DLC registration in Twilio.',
+            'Paste them here, then get a number in Numbers. Texting US numbers needs A2P 10DLC registration in Twilio.',
         ],
         icon: Smartphone,
         next: { label: 'Get a number', view: 'numbers' },
@@ -142,7 +142,7 @@ export function ConnectionsView() {
                         </Card>
                     )}
                     {section('AI models', 'Agents write their replies with these. Connect the providers whose models you pick on the Models page.', AI, 'sm:grid-cols-2 xl:grid-cols-4')}
-                    {section('Texting', 'Where your agents send and receive messages. Connect one, then add its number in iMessage Numbers.', TEXTING, 'lg:grid-cols-3')}
+                    {section('Texting', 'Where your agents send and receive messages. Connect one, then add its number in Numbers.', TEXTING, 'lg:grid-cols-3')}
                     {section('Email', 'Optional. Notifications always show in the dashboard; this also emails them.', ['resend'], 'lg:grid-cols-3')}
                 </div>
             </Scroll>
