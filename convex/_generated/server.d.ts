@@ -33,7 +33,6 @@ type Env = {
   readonly ENCRYPTION_KEY: string | undefined;
   readonly JWKS: string | undefined;
   readonly JWT_PRIVATE_KEY: string | undefined;
-  readonly SITE_URL: string | undefined;
 };
 
 /**
