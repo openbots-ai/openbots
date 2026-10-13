@@ -6,6 +6,7 @@ import { blankAgent } from '../lib/draft'
 import { matches } from '../lib/text'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
+import { SetupChecklist } from '../setup-checklist'
 import { useRun } from '../use-run'
 import { Input } from '@/components/ui/input'
 import { AgentAvatar, Btn, Cell, Content, Dialog, EmptyState, Field, PaneItem, PaneLabel, Row, Scroll, SearchInput, SidePane, SkeletonRows, StatusBadge, Table, Toolbar } from '../ui'
@@ -50,6 +51,7 @@ export function AgentsView() {
                     </Btn>
                 </Toolbar>
                 <Scroll>
+                    <SetupChecklist onCreate={() => setCreating(true)} />
                     {shown?.length === 0 ? (
                         <EmptyState
                             icon={Bot}

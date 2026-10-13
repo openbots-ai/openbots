@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { View } from './lib/view'
 import { NavContext } from './nav'
+import { Onboarding } from './onboarding'
 import { Sidebar } from './sidebar'
 import { useView } from './use-view'
 import { AgentDetail } from './views/agent-detail'
 import { AgentsView } from './views/agents'
+import { ConnectionsView } from './views/connections'
 import { AnalyticsView } from './views/analytics'
 import { KnowledgeView } from './views/knowledge'
 import { ModelsView } from './views/models'
@@ -20,6 +22,9 @@ export function Shell() {
     const { view, id, go } = useView()
     const workspace = useQuery(api.workspace.get)
     const [menuOpen, setMenuOpen] = useState(false)
+
+    // A fresh deployment has no workspace yet: ask for the two names it needs, nothing is made up
+    if (workspace === null) return <Onboarding />
 
     return (
         <NavContext value={go}>
@@ -61,6 +66,8 @@ function ViewSwitch({ view, id }: { view: View; id?: string }) {
             return <ModelsView />
         case 'analytics':
             return <AnalyticsView />
+        case 'connections':
+            return <ConnectionsView />
         case 'settings':
             return <SettingsView />
     }

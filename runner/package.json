@@ -1,6 +1,6 @@
 {
   "name": "openbots-runner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The OpenBots agent: answers your iMessages with the model you choose, on a machine you control. Messages never leave it.",
   "license": "MIT",
   "type": "module",

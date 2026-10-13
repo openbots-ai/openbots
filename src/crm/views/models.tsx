@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { SLOTS, resolveModels, type Provider } from '@convex/lib/models'
+import { LIVE_SLOTS as SLOTS, resolveModels, type Provider } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
 import { useNav } from '../nav'
+import { useKeyModels, withKeyOptions } from '../lib/key-models'
 import { SlotSelect } from '../slot-select'
 import { useRun } from '../use-run'
 import { AgentAvatar, Content, Scroll, Toolbar } from '../ui'
@@ -17,7 +18,7 @@ const PROVIDER_NAMES: Record<Provider, string> = {
     anthropic: 'Anthropic',
     google: 'Google',
     xai: 'xAI',
-    local: 'Your machine',
+    local: 'local models',
     elevenlabs: 'ElevenLabs',
     deepgram: 'Deepgram',
     cartesia: 'Cartesia',
@@ -32,8 +33,16 @@ export function ModelsView() {
     const agents = useQuery(api.agents.list)
     const setModel = useMutation(api.workspace.setModel)
 
-    const mixes = (agents ?? []).map((a) => ({ agent: a, models: resolveModels(workspace?.models, a.models, a.model) }))
-    const providers = [...new Set(mixes.flatMap((m) => Object.values(m.models).map((r) => r.option.provider)))].filter((p): p is Exclude<Provider, 'none'> => p !== 'none')
+    // What your agents' keys can use; each choice here is one of these
+    const available = useKeyModels()
+    const keys = available ?? []
+    const defaults = resolveModels(workspace?.models, undefined, undefined, keys)
+    const mixes = (agents ?? []).map((a) => ({ agent: a, models: resolveModels(workspace?.models, a.models, a.model, keys) }))
+    // Providers in use, counting what the defaults resolve to as well as each agent's own picks
+    const providers = [...new Set([...SLOTS.map((slot) => defaults[slot.id].option.provider), ...mixes.flatMap((m) => SLOTS.map((slot) => m.models[slot.id].option.provider))])].filter(
+        (p): p is Exclude<Provider, 'none'> => p !== 'none',
+    )
+    const keyProviders = [...new Set(keys.map((o) => o.provider))]
 
     return (
         <Content>
@@ -44,9 +53,23 @@ export function ModelsView() {
                 <div className="space-y-4 p-4">
                     <Card className="flex flex-wrap items-center justify-between gap-4 rounded-lg p-5">
                         <div className="max-w-xl">
-                            <h2 className="text-[17px] font-semibold tracking-tight">Use whatever model is best at each job</h2>
+                            <h2 className="text-[17px] font-semibold tracking-tight">Pick the models behind your agents</h2>
                             <p className="mt-1 text-[13px] text-neutral-500">
-                                One agent can think with Claude, click around with GPT, speak with ElevenLabs and make its quick calls with Jev. Mix providers freely; nothing is locked in.
+                                Pick the model that writes your agents’ replies, and a backup from another provider that takes over if the first one fails. You can pick any model your agent’s keys can use.
+                            </p>
+                            <p className="mt-2 text-[12px] text-neutral-600">
+                                {!available ? (
+                                    '…'
+                                ) : keys.length ? (
+                                    `${keys.length} model${keys.length === 1 ? '' : 's'} from ${keyProviders.map((p) => PROVIDER_NAMES[p]).join(', ')}`
+                                ) : (
+                                    <>
+                                        No AI key connected yet.{' '}
+                                        <button type="button" onClick={() => go('connections')} className="cursor-pointer font-medium text-neutral-900 underline-offset-2 hover:underline">
+                                            Connect one
+                                        </button>
+                                    </>
+                                )}
                             </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -67,7 +90,7 @@ export function ModelsView() {
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {SLOTS.map((slot) => {
                             const Icon = SLOT_ICONS[slot.id]
-                            const chosen = workspace?.models?.[slot.id] ?? slot.default
+                            const chosen = workspace?.models?.[slot.id] ?? defaults[slot.id].option.id
                             const own = mixes.filter((m) => m.models[slot.id].overridden)
                             const onDefault = mixes.filter((m) => !m.models[slot.id].overridden)
                             return (
@@ -80,17 +103,11 @@ export function ModelsView() {
                                             <p className="flex items-center gap-2 text-[14px] font-semibold">
                                                 {slot.label}
                                                 {slot.isNew && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">New</Badge>}
-                                                {!slot.runs && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger render={<Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-normal text-neutral-500" />}>Not live yet</TooltipTrigger>
-                                                        <TooltipContent>Your choice is saved, but agents don't use this part yet. Today they write replies with Brain, and Backup takes over if it fails.</TooltipContent>
-                                                    </Tooltip>
-                                                )}
                                             </p>
                                             <p className="mt-0.5 text-[12px] leading-snug text-neutral-500">{slot.blurb}</p>
                                         </div>
                                     </div>
-                                    <SlotSelect slot={slot} value={chosen} onChange={(model) => run(setModel({ slot: slot.id, model }))} />
+                                    <SlotSelect slot={withKeyOptions(slot, keys, chosen)} value={chosen} onChange={(model) => run(setModel({ slot: slot.id, model }))} />
                                     <div className="mt-auto flex items-center justify-between gap-2 text-[11px] text-neutral-500">
                                         <span className="flex -space-x-1.5">
                                             {onDefault.slice(0, 6).map((m) => (

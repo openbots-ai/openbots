@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react'
 import { useQuery } from 'convex/react'
+import { BookOpen, Bot, ChartLine, CircleHelp, Cpu, Gauge, LogOut, MessageCircle, Plug, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import { useAuthActions } from '@convex-dev/auth/react'
-import { BookOpen, Bot, ChartLine, CircleHelp, Cpu, Gauge, LogOut, MessageCircle, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc } from '@convex/_generated/dataModel'
 import { creditsFor, dayKey, weekStart } from '@convex/lib/usage'
@@ -22,19 +22,24 @@ const GROUPS: { label?: string; items: { view: View; label: string; icon: Lucide
             { view: 'agents', label: 'Agents', icon: Bot },
             { view: 'models', label: 'Models', icon: Cpu },
             { view: 'knowledge', label: 'Knowledge', icon: BookOpen },
-            { view: 'numbers', label: 'iMessage Numbers', icon: MessageCircle },
+            { view: 'numbers', label: 'Numbers', icon: MessageCircle },
         ],
     },
     {
         label: 'Insights',
         items: [{ view: 'analytics', label: 'Analytics', icon: ChartLine }],
     },
-    { label: 'System', items: [{ view: 'settings', label: 'Settings', icon: Settings }] },
+    {
+        label: 'System',
+        items: [
+            { view: 'connections', label: 'Connections', icon: Plug },
+            { view: 'settings', label: 'Settings', icon: Settings },
+        ],
+    },
 ]
 
 export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace?: Doc<'workspace'> | null; onNavigate?: () => void }) {
     const go = useNav()
-    const { signOut } = useAuthActions()
 
     // Real hrefs so cmd-click opens a tab; plain clicks stay in-app
     const link = (target: View) => (e: MouseEvent) => {
@@ -96,10 +101,8 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                     <Avatar className="size-5">
                         <AvatarFallback className="bg-emerald-600 text-[10px] font-semibold text-white">{workspace?.ownerName.slice(0, 1).toUpperCase() ?? ''}</AvatarFallback>
                     </Avatar>
-                    <span className="flex-1 truncate">{workspace?.ownerName ?? '…'}</span>
-                    <Button variant="ghost" size="icon-xs" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} className="-mr-1 rounded-md text-neutral-500 hover:text-neutral-900">
-                        <LogOut />
-                    </Button>
+                    <span className="min-w-0 flex-1 truncate">{workspace?.ownerName ?? '…'}</span>
+                    <SignOut />
                 </Card>
                 <div className="flex justify-between px-1 pt-1 text-[12px] text-neutral-500">
                     <Button variant="link" size="xs" nativeButton={false} render={<a href={`mailto:${CONTACT_EMAIL}`} />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
@@ -138,5 +141,14 @@ function UsageCard({ workspace, onClick }: { workspace?: Doc<'workspace'> | null
                 {budget ? <Progress value={Math.min(100, (used / budget) * 100)} aria-label="Weekly budget used" /> : null}
             </Card>
         </a>
+    )
+}
+
+function SignOut() {
+    const { signOut } = useAuthActions()
+    return (
+        <Button variant="ghost" size="icon-xs" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} className="text-neutral-500 hover:text-neutral-900">
+            <LogOut />
+        </Button>
     )
 }

@@ -3,7 +3,8 @@ import { Hand, MessagesSquare, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
-import { BRAIN_MODELS, SLOTS, slotOf, type SlotId } from '@convex/lib/models'
+import { LIVE_SLOTS as SLOTS, slotOf, type SlotId } from '@convex/lib/models'
+import { optionFromId } from '@/lib/agent-options'
 import { SLOT_UNITS, addDays, creditsFor, dayKey, weekStart as weekStartOf } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -25,8 +26,8 @@ const compact = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compa
 const credits = (r: Row) => creditsFor(r.slot, r.count)
 const sum = (rows: Row[], f: (r: Row) => number = (r) => r.count) => rows.reduce((s, r) => s + f(r), 0)
 const unit = (slot: SlotId, n: number) => (n === 1 ? SLOT_UNITS[slot].one : SLOT_UNITS[slot].many)
-// Vision can follow the brain onto a model outside its own list, so fall back to every brain model
-const optionOf = (slot: string, model: string) => slotOf(slot)?.options.find((o) => o.id === model) ?? BRAIN_MODELS.find((o) => o.id === model)
+// Usage names the model as "provider:model" (older rows used a catalog id); both read as a labelled option
+const optionOf = (slot: string, model: string) => slotOf(slot)?.options.find((o) => o.id === model) ?? optionFromId(model)
 
 function Section({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
     return (
@@ -106,7 +107,7 @@ export function AnalyticsView() {
     // Replies come from Brain, or from Backup when it took over
     const replies = month.filter((r) => r.slot === 'brain' || r.slot === 'backup')
     const topId = [...new Set(replies.map((r) => r.model))].map((m) => ({ m, n: sum(replies.filter((r) => r.model === m)) })).sort((a, b) => b.n - a.n)[0]?.m
-    const topModel = topId ? BRAIN_MODELS.find((o) => o.id === topId) : undefined
+    const topModel = topId ? optionFromId(topId) : undefined
 
     return (
         <Content>
@@ -173,7 +174,7 @@ export function AnalyticsView() {
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className="text-[12px] text-neutral-400">{!slot.runs ? 'Not live yet' : rows ? 'Not used in the last 30 days' : '…'}</span>
+                                                <span className="text-[12px] text-neutral-400">{rows ? 'Not used in the last 30 days' : '…'}</span>
                                             )}
                                         </span>
                                         <Spark days={spark} slot={slot.id} />

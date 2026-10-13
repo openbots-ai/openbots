@@ -1,4 +1,4 @@
-// Sample replies for demo deployments (DEMO_MODE=true) whose agents have no provider key.
+// Sample replies for an agent started with OPENBOTS_DEMO=true when no AI key is set up.
 // They read like a real agent acknowledging the request, so a demo works end to end without any keys.
 const REPLIES = [
     "on it 👍 give me a few minutes and I'll text you back",

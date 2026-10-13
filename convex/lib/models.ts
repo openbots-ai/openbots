@@ -1,6 +1,7 @@
 // Every part of an agent ("slot") can run on a different model. This is the single list of slots and the
-// models offered for each, shared by the backend (to validate choices) and the UI (to show them).
-// Model names are display labels for the picker; your agent (runner/) is what calls the providers.
+// models offered for each, shared by the backend (to validate choices), the agent and the UI.
+// Brain and Backup offer the models your own AI keys can use, as your agent reports them; a choice is stored as
+// "provider:model", e.g. "openai:gpt-5.1". The fixed lists below are what the landing page shows.
 
 // 'local' is any OpenAI-compatible server the agent can reach (Ollama, LM Studio, vLLM…), so nothing leaves your machines
 export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
@@ -21,6 +22,8 @@ export type Slot = {
     isNew?: boolean
     // True for the slots the reply pipeline uses today; the others are saved choices that don't run yet
     runs?: boolean
+    // Offers the models your keys can use (see keyModels) instead of `options`, which is then only a showcase
+    fromKeys?: boolean
 }
 
 export const BRAIN_MODELS: ModelOption[] = [
@@ -30,8 +33,6 @@ export const BRAIN_MODELS: ModelOption[] = [
     { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5', provider: 'anthropic', api: 'claude-haiku-4-5' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google', api: 'gemini-2.5-flash' },
     { id: 'grok-4', label: 'Grok 4', provider: 'xai', api: 'grok-4' },
-    // The agent's OPENBOTS_LOCAL_MODEL decides which model this is
-    { id: 'local', label: 'Local model', provider: 'local', api: 'local' },
 ]
 
 const brain = (...ids: string[]) => BRAIN_MODELS.filter((m) => ids.includes(m.id))
@@ -42,7 +43,7 @@ export const NONE = 'none'
 export const INHERIT = 'inherit'
 
 export const SLOTS: Slot[] = [
-    { id: 'brain', label: 'Brain', blurb: 'Reads your texts, plans the work and writes the replies.', options: BRAIN_MODELS, default: 'gpt-5.1', runs: true },
+    { id: 'brain', label: 'Brain', blurb: 'Reads your texts, plans the work and writes the replies.', options: BRAIN_MODELS, default: 'gpt-5.1', runs: true, fromKeys: true },
     {
         id: 'computer',
         label: 'Computer use',
@@ -115,27 +116,116 @@ export const SLOTS: Slot[] = [
         id: 'backup',
         label: 'Backup',
         blurb: 'Takes over if a provider is down, so your agent never goes quiet.',
-        options: [...brain('claude-sonnet-5.5', 'gpt-5.1', 'gemini-2.5-flash', 'local'), { id: NONE, label: 'None', provider: 'none' }],
+        options: [...brain('claude-sonnet-5.5', 'gpt-5.1', 'gemini-2.5-flash'), { id: NONE, label: 'None', provider: 'none' }],
         default: 'claude-sonnet-5.5',
         runs: true,
+        fromKeys: true,
     },
 ]
 
 export const slotOf = (id: string) => SLOTS.find((s) => s.id === id)
 
-export const isValidChoice = (slot: string, model: string) => !!slotOf(slot)?.options.some((o) => o.id === model)
+// The slots agents use today; the dashboard only offers these, so nothing it shows is just for show
+export const LIVE_SLOTS = SLOTS.filter((s) => s.runs)
+
+// The providers that write replies, in the order the pickers group them. 'local' is the agent's own model server.
+export const AI_PROVIDERS = ['openai', 'anthropic', 'google', 'xai', 'local'] as const
+export type AiProvider = (typeof AI_PROVIDERS)[number]
+export const PROVIDER_NAMES: Record<AiProvider, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', xai: 'xAI', local: 'local model' }
+const isAiProvider = (p: string): p is AiProvider => (AI_PROVIDERS as readonly string[]).includes(p)
+
+// A model a key can use, as the agent reports it (see convex/runner.ts)
+export type KeyModel = { provider: string; id: string; label: string }
+
+const NO_KEY: ModelOption = { id: NONE, label: 'Connect an AI key', provider: 'none' }
+const NO_BACKUP: ModelOption = { id: NONE, label: 'None', provider: 'none' }
+
+// "openai:gpt-5.1" → { provider, model }. Older choices saved as a catalog id ("gpt-5.1") still read.
+export function parseModel(id: string): { provider: AiProvider; model: string } | null {
+    const at = id.indexOf(':')
+    if (at > 0) {
+        const provider = id.slice(0, at)
+        const model = id.slice(at + 1)
+        return isAiProvider(provider) && /^[\w.\-/:@]{1,128}$/.test(model) ? { provider, model } : null
+    }
+    const known = BRAIN_MODELS.find((m) => m.id === id)
+    return known?.api && isAiProvider(known.provider) ? { provider: known.provider, model: known.api } : null
+}
+
+// The stored form of a choice, so a catalog id and its "provider:model" twin compare equal
+const normalize = (id: string) => {
+    const parsed = parseModel(id)
+    return parsed ? `${parsed.provider}:${parsed.model}` : id
+}
+
+// A readable name for a choice: the catalog's label for well-known models, else the provider's model name
+export function modelLabel(id: string) {
+    const parsed = parseModel(id)
+    if (!parsed) return id
+    return BRAIN_MODELS.find((m) => m.provider === parsed.provider && m.api === parsed.model)?.label ?? parsed.model
+}
+
+// What the keys can use, as picker options: grouped by provider, each provider in its own (newest first) order
+export function keyModels(models: KeyModel[]): ModelOption[] {
+    const seen = new Set<string>()
+    return AI_PROVIDERS.flatMap((provider) =>
+        models
+            .filter((m) => m.provider === provider)
+            .flatMap((m) => {
+                const id = `${provider}:${m.id}`
+                if (seen.has(id)) return []
+                seen.add(id)
+                return [{ id, label: m.label || m.id, provider, api: m.id }]
+            }),
+    )
+}
+
+// The options a slot offers: your keys' models for Brain and Backup (Backup can also be off), else its fixed list
+export function slotOptions(slot: Slot, available: ModelOption[]) {
+    if (!slot.fromKeys) return slot.options
+    return slot.id === 'backup' ? [...available, NO_BACKUP] : available
+}
+
+export const isValidChoice = (slot: string, model: string) => {
+    const s = slotOf(slot)
+    if (!s) return false
+    if (s.fromKeys) return (s.id === 'backup' && model === NONE) || parseModel(model) !== null
+    return s.options.some((o) => o.id === model)
+}
+
+// The option for a saved choice: the key's own entry when it still offers it, else one built from the id
+function optionFor(id: string, available: ModelOption[]): ModelOption {
+    if (id === NONE) return NO_BACKUP
+    const key = normalize(id)
+    const offered = available.find((o) => o.id === key)
+    if (offered) return offered
+    const parsed = parseModel(id)!
+    return { id: key, label: modelLabel(id), provider: parsed.provider, api: parsed.model }
+}
+
+// The first well-known model the keys offer, else the first they offer at all
+const firstOf = (offered: ModelOption[]) => BRAIN_MODELS.map((m) => offered.find((o) => o.provider === m.provider && o.api === m.api)).find(Boolean) ?? offered[0]
 
 export type ModelChoices = Partial<Record<string, string>>
 
-// The model an agent actually uses for each slot: its own override, else the workspace's choice, else the
-// slot's default. `legacyBrain` is the single `model` field agents had before slots existed.
-export function resolveModels(workspace: ModelChoices | undefined, agent: ModelChoices | undefined, legacyBrain?: string) {
-    const pick = (slot: Slot) => {
+// The model an agent actually uses for each slot: its own override, else the workspace's choice, else a default.
+// `legacyBrain` is the single `model` field agents had before slots existed. Pass `available` (keyModels of the
+// workspace's keys) for real agents: Brain then defaults to a model the keys offer, and Backup to one from another
+// provider. Without it (the landing page), the fixed lists are used.
+export function resolveModels(workspace: ModelChoices | undefined, agent: ModelChoices | undefined, legacyBrain?: string, available?: ModelOption[]) {
+    const pick = (slot: Slot, fallback?: () => ModelOption) => {
         const own = agent?.[slot.id] ?? (slot.id === 'brain' ? legacyBrain : undefined)
+        if (available && slot.fromKeys) {
+            const id = [own, workspace?.[slot.id]].find((m) => m !== undefined && isValidChoice(slot.id, m))
+            return { slot, option: id !== undefined ? optionFor(id, available) : fallback!(), overridden: own !== undefined && own === id }
+        }
         const id = [own, workspace?.[slot.id], slot.default].find((m) => m !== undefined && isValidChoice(slot.id, m)) ?? slot.default
-        return { slot, option: slot.options.find((o) => o.id === id)!, overridden: own !== undefined && own === id }
+        return { slot, option: slot.options.find((o) => o.id === id) ?? optionFor(id, []), overridden: own !== undefined && own === id }
     }
-    const resolved = Object.fromEntries(SLOTS.map((s) => [s.id, pick(s)])) as Record<SlotId, ReturnType<typeof pick>>
+    const brain = pick(slotOf('brain')!, () => firstOf(available ?? []) ?? NO_KEY)
+    const resolved = Object.fromEntries(
+        SLOTS.map((s) => [s.id, s.id === 'brain' ? brain : pick(s, () => firstOf((available ?? []).filter((o) => o.provider !== brain.option.provider)) ?? NO_BACKUP)]),
+    ) as Record<SlotId, ReturnType<typeof pick>>
     // "Same as Brain" shows the brain's model, so the grid reads as real models
     if (resolved.vision.option.id === SAME_AS_BRAIN) resolved.vision = { ...resolved.vision, option: { ...resolved.brain.option } }
     return resolved

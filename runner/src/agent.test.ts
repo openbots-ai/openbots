@@ -5,21 +5,33 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
-import { ReplyError, type Brains, type complete } from './brain'
+import type { KeyModel } from '../../convex/lib/models'
+import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
+import { listModels } from './models'
 import { Vault } from './crypto'
 import { PAUSE_MS, Pipeline, type Activity, type Config, type Link } from './pipeline'
 import { Store } from './store'
 import { textFromAttributedBody } from './transports/mac'
-import type { Outgoing, Transport } from './transports/types'
+import type { Channel, Outgoing, Transport } from './transports/types'
 
 const AGENT = 'agent1' as Id<'agents'>
+const WS = 'ws' as Id<'workspace'>
 const OWNER = '+1 (650) 555-0000'
+// What the agent's keys can use
+const KEYS: KeyModel[] = [
+    { provider: 'openai', id: 'gpt-5.1', label: 'gpt-5.1' },
+    { provider: 'openai', id: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+    { provider: 'anthropic', id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+]
 
 function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial<Config['workspace']> } = {}): Config {
     return {
-        workspace: { _id: 'ws' as Id<'workspace'>, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ...overrides.workspace },
-        agents: [{ _id: AGENT, _creationTime: 0, name: 'Pip', role: 'Assistant', hue: 0, prompt: 'Be brief.', greeting: 'hi', status: 'live', updatedAt: 0, models: { brain: 'gpt-5.1', backup: 'claude-sonnet-5.5' }, ...overrides.agent }],
-        numbers: [{ _id: 'n1' as Id<'numbers'>, _creationTime: 0, handle: '+1 (415) 555-0101', key: '4155550101', kind: 'phone', agentId: AGENT }],
+        workspace: { _id: WS, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ...overrides.workspace },
+        agents: [{ _id: AGENT, _creationTime: 0, workspaceId: WS, name: 'Pip', role: 'Assistant', hue: 0, prompt: 'Be brief.', greeting: 'hi', status: 'live', updatedAt: 0, ...overrides.agent }],
+        numbers: [
+            { _id: 'n1' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0101', key: '4155550101', kind: 'phone', channel: 'relay', agentId: AGENT },
+            { _id: 'n2' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: 'pip@icloud.com', key: 'pip@icloud.com', kind: 'email', channel: 'bluebubbles', agentId: AGENT },
+        ],
         knowledge: [],
     }
 }
@@ -37,7 +49,7 @@ class FakeLink implements Link {
 }
 
 class FakeTransport implements Transport {
-    readonly name = 'relay'
+    constructor(readonly channel: Channel = 'relay') {}
     sent: Outgoing[] = []
     fail = false
     start = async () => {}
@@ -63,14 +75,15 @@ afterEach(() => {
 type Complete = typeof complete
 const model = (impl: Complete) => vi.fn<Complete>(impl)
 
-function setup(cfg = config(), complete = model(async () => 'sure, booked for friday')) {
+function setup(cfg = config(), complete = model(async () => 'sure, booked for friday'), keys: { brains?: Brains; models?: KeyModel[] } = {}) {
     const vault = Vault.open(dir)
     const store = new Store(join(dir, 'openbots.db'), vault)
     const link = new FakeLink(cfg)
     const transport = new FakeTransport()
-    const pipeline = new Pipeline({ store, link, transport, brains, complete, log: () => {} })
-    const text = (body: string, from = '+1 212 555 0187') => pipeline.receive({ to: '4155550101', from, body, name: 'Dana' })
-    return { store, link, transport, pipeline, complete, text, vault }
+    const bubbles = new FakeTransport('bluebubbles')
+    const pipeline = new Pipeline({ store, link, transports: { relay: transport, bluebubbles: bubbles }, brains: keys.brains ?? brains, models: () => keys.models ?? KEYS, complete, log: () => {} })
+    const text = (body: string, from = '+1 212 555 0187') => pipeline.receive({ channel: 'relay', to: '4155550101', from, body, name: 'Dana' })
+    return { store, link, transport, bubbles, pipeline, complete, text, vault }
 }
 
 describe('vault', () => {
@@ -105,7 +118,7 @@ describe('agent', () => {
         expect(link.total('messagesIn')).toBe(1)
         expect(link.total('messagesOut')).toBe(1)
         expect(link.total('newContacts')).toBe(1)
-        expect(link.records.find((r) => r.usage)?.usage).toEqual({ slot: 'brain', model: 'gpt-5.1' })
+        expect(link.records.find((r) => r.usage)?.usage).toEqual({ slot: 'brain', model: 'openai:gpt-5.1' })
         // Nothing sent to Convex carries text or numbers
         expect(JSON.stringify(link.records)).not.toMatch(/friday|212|Dana/)
 
@@ -173,23 +186,23 @@ describe('agent', () => {
 
     it('falls back to the Backup model, and hands off when both fail', async () => {
         const flaky = model(async (_, option) => {
-            if (option.id === 'gpt-5.1') throw new Error('rate limited')
+            if (option.id === 'openai:gpt-5.1') throw new Error('rate limited')
             return 'from backup'
         })
         const first = setup(config(), flaky)
         await first.text('hi')
         await vi.runAllTimersAsync()
         expect(first.transport.sent.at(-1)?.body).toBe('from backup')
-        expect(first.link.records.find((r) => r.usage)?.usage).toEqual({ slot: 'backup', model: 'claude-sonnet-5.5' })
+        expect(first.link.records.find((r) => r.usage)?.usage).toEqual({ slot: 'backup', model: 'anthropic:claude-sonnet-5-5' })
         first.store.close()
         rmSync(dir, { recursive: true, force: true })
 
         const broken = setup(config(), model(async () => {
-            throw new ReplyError("OPENAI_API_KEY isn't set on your agent")
+            throw new ReplyError('Add your OpenAI key to your agent so gpt-5.1 can reply')
         }))
         await broken.text('hi')
         await vi.runAllTimersAsync()
-        expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/OPENAI_API_KEY isn't set.*failed too/) })
+        expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/Add your OpenAI key to your agent.*failed too/) })
     })
 
     it('hands off when the budget is used up or the agent is paused', async () => {
@@ -211,7 +224,7 @@ describe('agent', () => {
         expect(await text('ok thanks', OWNER)).toEqual({ markRead: true })
         await vi.runAllTimersAsync()
         expect(transport.sent).toHaveLength(0)
-        await expect(pipeline.receive({ to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)
+        await expect(pipeline.receive({ channel: 'relay', to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)
     })
 
     it('picks queued replies back up after a restart', async () => {
@@ -224,6 +237,65 @@ describe('agent', () => {
         second.pipeline.resume()
         await vi.runAllTimersAsync()
         expect(second.transport.sent.at(-1)?.body).toBe('sure, booked for friday')
+    })
+})
+
+describe('channels and models', () => {
+    it('answers a group chat only when named, on its own channel, with who said what', async () => {
+        const { bubbles, transport, complete, pipeline } = setup()
+        const group = (from: string, body: string, name: string) => pipeline.receive({ channel: 'bluebubbles', from, body, name, thread: { key: 'iMessage;+;chat99', title: 'Book club' } })
+        await group('+1 212 555 0187', 'who picks the next book?', 'Dana')
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+
+        await group('+1 212 555 0222', 'Pip, any ideas?', 'Lee')
+        await vi.runAllTimersAsync()
+        const prompt = complete.mock.calls[0]?.[2]
+        expect(prompt?.system).toContain('group chat (Book club)')
+        expect(prompt?.turns).toEqual([{ role: 'user', content: 'Dana: who picks the next book?\nLee: Pip, any ideas?' }])
+        expect(bubbles.sent.at(-1)).toMatchObject({ from: 'pip@icloud.com', threadKey: 'iMessage;+;chat99', body: 'sure, booked for friday' })
+        expect(transport.sent.filter((m) => m.to !== OWNER)).toEqual([])
+    })
+
+    it('uses the model picked from the key, and says what to do when the key is gone', async () => {
+        const fetch = vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: 'hi from mini' } }], model: JSON.parse(String(init?.body)).model })))
+        vi.stubGlobal('fetch', fetch)
+        const picked = setup(config({ agent: { models: { brain: 'openai:gpt-4o-mini', backup: 'none' } } }), model(realComplete))
+        await picked.text('hello')
+        await vi.runAllTimersAsync()
+        expect(JSON.parse(String(fetch.mock.calls[0][1]?.body)).model).toBe('gpt-4o-mini')
+        expect(picked.transport.sent.at(-1)?.body).toBe('hi from mini')
+        picked.store.close()
+        rmSync(dir, { recursive: true, force: true })
+
+        const gone = setup(config({ agent: { models: { brain: 'openai:gpt-4o-mini', backup: 'none' } } }), model(realComplete), { brains: { keys: {}, demo: false }, models: [] })
+        await gone.text('hello')
+        await vi.runAllTimersAsync()
+        expect(gone.transport.sent.at(-1)?.body).toMatch(/Add your OpenAI key to your agent so gpt-4o-mini can reply/)
+        vi.unstubAllGlobals()
+    })
+
+    it('with no AI key at all, asks you to add one', async () => {
+        const { transport, text } = setup(config(), model(realComplete), { brains: { keys: {}, demo: false }, models: [] })
+        await text('hello')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toMatch(/Add an AI key to your agent, then pick a model on the Models page/)
+    })
+
+    it('lists only the chat models a key can use, newest first', async () => {
+        const openai = { data: ['gpt-4o-mini', 'whisper-1', 'gpt-5.1', 'text-embedding-3-large', 'gpt-4o-realtime-preview', 'o3', 'dall-e-3', 'gpt-4o-mini-tts'].map((id, i) => ({ id, created: [10, 1, 30, 2, 3, 20, 4, 5][i] })) }
+        const google = { models: [
+            { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+            { name: 'models/gemini-2.0-flash-live-001', supportedGenerationMethods: ['generateContent'] },
+        ] }
+        vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('googleapis') ? google : url.includes('x.ai') ? { data: [{ id: 'grok-4' }, { id: 'grok-2-image' }] } : openai))))
+        expect(await listModels('openai', 'k')).toEqual(['gpt-5.1', 'o3', 'gpt-4o-mini'].map((id) => ({ id, label: id })))
+        expect(await listModels('google', 'k')).toEqual([{ id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }])
+        expect(await listModels('xai', 'k')).toEqual([{ id: 'grok-4', label: 'grok-4' }])
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 401 })))
+        await expect(listModels('openai', 'bad')).rejects.toThrow('OpenAI rejected this key')
+        vi.unstubAllGlobals()
     })
 })
 

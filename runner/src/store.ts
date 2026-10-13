@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { Vault } from './crypto'
+import type { Channel } from './transports/types'
 
 // Contacts, conversations and messages, kept only on the agent's machine. Names, numbers, notes and message
 // text are encrypted with the Vault; numbers are found through a keyed fingerprint.
@@ -9,8 +10,12 @@ export type Conversation = {
     id: number
     contactId: number
     agentId: string
-    // The iMessage number the contact texted, so replies go out from the same one
+    // The number the contact texted and its channel, so replies go out the same way
     number: string
+    channel: Channel
+    // Group chats: the channel's thread id and the group's name
+    threadKey?: string
+    title?: string
     lastAt: number
     // The contact message a reply is queued for, and when it's due
     pendingId: number | null
@@ -19,9 +24,23 @@ export type Conversation = {
     pausedUntil: number | null
     needsYou: boolean
 }
-export type Message = { id: number; conversationId: number; from: 'contact' | 'agent'; body: string; at: number; model?: string }
+// `senderId` is the contact who wrote it, which matters in group chats
+export type Message = { id: number; conversationId: number; from: 'contact' | 'agent'; senderId?: number; body: string; at: number; model?: string }
 
-type ConversationRow = { id: number; contact_id: number; agent_id: string; number: string; last_at: number; pending_id: number | null; due_at: number | null; paused_until: number | null; needs_you: number }
+type ConversationRow = {
+    id: number
+    contact_id: number
+    agent_id: string
+    number: string
+    channel: Channel
+    thread_key: string | null
+    title: string | null
+    last_at: number
+    pending_id: number | null
+    due_at: number | null
+    paused_until: number | null
+    needs_you: number
+}
 
 export class Store {
     private db: DatabaseSync
@@ -34,9 +53,12 @@ export class Store {
         this.db.exec(`
             PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS contacts (id INTEGER PRIMARY KEY, tag TEXT NOT NULL UNIQUE, handle TEXT NOT NULL, name TEXT NOT NULL, tags TEXT NOT NULL, notes TEXT NOT NULL, created_at INTEGER NOT NULL);
-            CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY, contact_id INTEGER NOT NULL, agent_id TEXT NOT NULL, number TEXT NOT NULL, last_at INTEGER NOT NULL,
-                pending_id INTEGER, due_at INTEGER, paused_until INTEGER, needs_you INTEGER NOT NULL DEFAULT 0, UNIQUE (contact_id, agent_id));
-            CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, conversation_id INTEGER NOT NULL, sender TEXT NOT NULL, body TEXT NOT NULL, at INTEGER NOT NULL, model TEXT);
+            -- thread_tag finds a group chat by a keyed fingerprint of its id; thread_key and title are sealed
+            CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY, contact_id INTEGER NOT NULL, agent_id TEXT NOT NULL, number TEXT NOT NULL, channel TEXT NOT NULL,
+                thread_tag TEXT UNIQUE, thread_key TEXT, title TEXT, last_at INTEGER NOT NULL,
+                pending_id INTEGER, due_at INTEGER, paused_until INTEGER, needs_you INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX IF NOT EXISTS conversations_by_contact ON conversations (contact_id, agent_id);
+            CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, conversation_id INTEGER NOT NULL, sender TEXT NOT NULL, sender_id INTEGER, body TEXT NOT NULL, at INTEGER NOT NULL, model TEXT);
             CREATE INDEX IF NOT EXISTS messages_by_conversation ON messages (conversation_id, id);
             -- Which conversations were already counted as active on a day, for the daily counts sent to Convex
             CREATE TABLE IF NOT EXISTS counted (day TEXT NOT NULL, conversation_id INTEGER NOT NULL, PRIMARY KEY (day, conversation_id));
@@ -73,22 +95,45 @@ export class Store {
         this.db.prepare('UPDATE contacts SET handle = ?, name = ?, tags = ?, notes = ? WHERE id = ?').run(seal('handle', c.handle), seal('name', c.name), seal('tags', JSON.stringify(c.tags)), seal('notes', c.notes), c.id)
     }
 
-    conversation(contactId: number, agentId: string, number: string, at: number): { conversation: Conversation; isNew: boolean } {
-        const row = this.db.prepare('SELECT id FROM conversations WHERE contact_id = ? AND agent_id = ?').get(contactId, agentId) as { id: number } | undefined
+    // Finds or starts the conversation: one per group chat, else one per contact and agent
+    conversation(c: { contactId: number; agentId: string; number: string; channel: Channel; at: number; thread?: { key: string; title?: string } }): { conversation: Conversation; isNew: boolean } {
+        const tag = c.thread ? this.vault.tag(`thread:${c.channel}:${c.thread.key}`) : null
+        const row = (
+            tag
+                ? this.db.prepare('SELECT id FROM conversations WHERE thread_tag = ?').get(tag)
+                : this.db.prepare('SELECT id FROM conversations WHERE contact_id = ? AND agent_id = ? AND thread_tag IS NULL').get(c.contactId, c.agentId)
+        ) as { id: number } | undefined
         if (row) return { conversation: this.getConversation(row.id)!, isNew: false }
-        const id = Number(this.db.prepare('INSERT INTO conversations (contact_id, agent_id, number, last_at) VALUES (?, ?, ?, ?)').run(contactId, agentId, number, at).lastInsertRowid)
+        const id = Number(
+            this.db.prepare('INSERT INTO conversations (contact_id, agent_id, number, channel, thread_tag, last_at) VALUES (?, ?, ?, ?, ?, ?)').run(c.contactId, c.agentId, c.number, c.channel, tag, c.at).lastInsertRowid,
+        )
+        if (c.thread) {
+            this.db.prepare('UPDATE conversations SET thread_key = ?, title = ? WHERE id = ?').run(this.vault.seal(c.thread.key, `conversation:${id}:thread`), c.thread.title ? this.vault.seal(c.thread.title, `conversation:${id}:title`) : null, id)
+        }
         return { conversation: this.getConversation(id)!, isNew: true }
     }
 
     getConversation(id: number): Conversation | null {
         const r = this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(id) as ConversationRow | undefined
-        return r
-            ? { id: r.id, contactId: r.contact_id, agentId: r.agent_id, number: r.number, lastAt: r.last_at, pendingId: r.pending_id, dueAt: r.due_at, pausedUntil: r.paused_until, needsYou: !!r.needs_you }
-            : null
+        if (!r) return null
+        return {
+            id: r.id,
+            contactId: r.contact_id,
+            agentId: r.agent_id,
+            number: r.number,
+            channel: r.channel,
+            threadKey: r.thread_key ? this.vault.open(r.thread_key, `conversation:${id}:thread`) : undefined,
+            title: r.title ? this.vault.open(r.title, `conversation:${id}:title`) : undefined,
+            lastAt: r.last_at,
+            pendingId: r.pending_id,
+            dueAt: r.due_at,
+            pausedUntil: r.paused_until,
+            needsYou: !!r.needs_you,
+        }
     }
 
-    updateConversation(id: number, patch: Partial<Pick<Conversation, 'number' | 'lastAt' | 'pendingId' | 'dueAt' | 'pausedUntil' | 'needsYou'>>) {
-        const columns: Record<string, string> = { number: 'number', lastAt: 'last_at', pendingId: 'pending_id', dueAt: 'due_at', pausedUntil: 'paused_until', needsYou: 'needs_you' }
+    updateConversation(id: number, patch: Partial<Pick<Conversation, 'number' | 'channel' | 'lastAt' | 'pendingId' | 'dueAt' | 'pausedUntil' | 'needsYou'>>) {
+        const columns: Record<string, string> = { number: 'number', channel: 'channel', lastAt: 'last_at', pendingId: 'pending_id', dueAt: 'due_at', pausedUntil: 'paused_until', needsYou: 'needs_you' }
         for (const [k, v] of Object.entries(patch)) {
             this.db.prepare(`UPDATE conversations SET ${columns[k]} = ? WHERE id = ?`).run(typeof v === 'boolean' ? Number(v) : (v ?? null), id)
         }
@@ -100,22 +145,33 @@ export class Store {
         return rows.map((r) => this.getConversation(r.id)!)
     }
 
-    addMessage(conversationId: number, from: Message['from'], body: string, at: number, model?: string) {
-        const id = Number(this.db.prepare('INSERT INTO messages (conversation_id, sender, body, at, model) VALUES (?, ?, ?, ?, ?)').run(conversationId, from, '', at, model ?? null).lastInsertRowid)
+    addMessage(conversationId: number, from: Message['from'], body: string, at: number, extra: { model?: string; senderId?: number } = {}) {
+        const id = Number(
+            this.db.prepare('INSERT INTO messages (conversation_id, sender, sender_id, body, at, model) VALUES (?, ?, ?, ?, ?, ?)').run(conversationId, from, extra.senderId ?? null, '', at, extra.model ?? null).lastInsertRowid,
+        )
         this.db.prepare('UPDATE messages SET body = ? WHERE id = ?').run(this.vault.seal(body, `message:${id}:${conversationId}:${from}`), id)
         return id
     }
 
     // The latest `limit` messages, oldest first
     history(conversationId: number, limit: number): Message[] {
-        const rows = this.db.prepare('SELECT id, sender, body, at, model FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT ?').all(conversationId, limit) as {
+        const rows = this.db.prepare('SELECT id, sender, sender_id, body, at, model FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT ?').all(conversationId, limit) as {
             id: number
             sender: Message['from']
+            sender_id: number | null
             body: string
             at: number
             model: string | null
         }[]
-        return rows.reverse().map((r) => ({ id: r.id, conversationId, from: r.sender, body: this.vault.open(r.body, `message:${r.id}:${conversationId}:${r.sender}`), at: r.at, model: r.model ?? undefined }))
+        return rows.reverse().map((r) => ({
+            id: r.id,
+            conversationId,
+            from: r.sender,
+            senderId: r.sender_id ?? undefined,
+            body: this.vault.open(r.body, `message:${r.id}:${conversationId}:${r.sender}`),
+            at: r.at,
+            model: r.model ?? undefined,
+        }))
     }
 
     // True the first time a conversation is seen on `day`

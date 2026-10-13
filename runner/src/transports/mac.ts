@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { DatabaseSync } from 'node:sqlite'
 import type { Store } from '../store'
-import type { Incoming, Outgoing, Transport } from './types'
+import type { OnText, Outgoing, Transport } from './types'
 
 const run = promisify(execFile)
 
@@ -40,17 +40,16 @@ export function textFromAttributedBody(blob: Uint8Array): string | null {
 const cleanAddress = (dest: string | null) => dest?.replace(/^[ep]:/, '') || null
 
 export class MacTransport implements Transport {
-    readonly name = 'mac'
+    readonly channel = 'mac'
     private db?: DatabaseSync
     private timer?: NodeJS.Timeout
 
     constructor(
         private store: Store,
-        private fallbackNumber: () => string | null,
         private path = join(homedir(), 'Library/Messages/chat.db'),
     ) {}
 
-    async start(onText: (text: Incoming) => Promise<{ markRead: boolean }>) {
+    async start(onText: OnText) {
         try {
             this.db = new DatabaseSync(this.path, { readOnly: true })
         } catch {
@@ -64,8 +63,7 @@ export class MacTransport implements Transport {
         const poll = async () => {
             for (const row of this.newTexts()) {
                 const body = row.text ?? (row.body ? textFromAttributedBody(row.body) : null)
-                const to = cleanAddress(row.dest) ?? this.fallbackNumber()
-                if (body?.trim() && to) await onText({ to, from: row.sender, body }).catch((e) => console.error(`Skipped a text: ${e instanceof Error ? e.message : e}`))
+                if (body?.trim()) await onText({ channel: 'mac', to: cleanAddress(row.dest) ?? undefined, from: row.sender, body }).catch((e) => console.error(`Skipped a text: ${e instanceof Error ? e.message : e}`))
                 this.store.setMeta('mac.lastRowId', String(row.id))
             }
             this.timer = setTimeout(poll, POLL_MS)

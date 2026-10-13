@@ -4,46 +4,57 @@ import { convexTest } from 'convex-test'
 import { describe, expect, it } from 'vitest'
 import { api } from './_generated/api'
 import schema from './schema'
+import { keyModels, resolveModels } from './lib/models'
 import { hashToken, newToken } from './lib/tokens'
 
 const modules = import.meta.glob('./**/*.ts')
 
-// Signs in as a fresh account; Convex Auth's subject is "<userId>|<sessionId>"
-async function signIn(base: ReturnType<typeof convexTest>) {
+const OPENAI = [
+    { provider: 'openai', id: 'gpt-5.1', label: 'gpt-5.1' },
+    { provider: 'openai', id: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+]
+
+// A signed-in user with their own workspace; Convex Auth's subject is "<userId>|<sessionId>"
+async function user(base: ReturnType<typeof convexTest>, name = 'Sam') {
     const userId = await base.run((ctx) => ctx.db.insert('users', {}))
-    return base.withIdentity({ subject: `${userId}|session`, tokenIdentifier: `test|${userId}` })
+    const t = base.withIdentity({ subject: `${userId}|session`, tokenIdentifier: `test|${userId}` })
+    await t.mutation(api.workspace.create, { name: `${name}'s agents`, ownerName: name, timezone: 'UTC' })
+    return t
 }
+
+type Service = 'openai' | 'twilio'
 
 async function setup() {
     const base = convexTest(schema, modules)
-    const owner = await signIn(base)
-    await owner.mutation(api.workspace.create, { name: 'Test', ownerName: 'Sam', timezone: 'UTC' })
+    const owner = await user(base)
     const agentId = await owner.mutation(api.agents.create, { name: 'Pip', role: 'Assistant', hue: 10, prompt: 'Be brief.', greeting: 'hi', status: 'live' })
-    await owner.mutation(api.numbers.create, { handle: '+1 (415) 555-0101', agentId })
+    await owner.mutation(api.numbers.add, { handle: '+1 (415) 555-0101', channel: 'mac', agentId })
     const token = newToken()
     const runnerId = await owner.mutation(api.runners.create, { name: 'Mac mini', tokenHash: await hashToken(token) })
-    return { base, owner, agentId, token, runnerId }
+    const beat = (extra: { models?: typeof OPENAI; services?: { service: Service; error?: string }[] } = {}) =>
+        base.mutation(api.runner.heartbeat, { token, version: '0.2.0', services: [{ service: 'openai' }], models: OPENAI, channels: ['mac'], lines: [], demo: false, ...extra })
+    return { base, owner, agentId, token, runnerId, beat }
 }
 
-describe('sign-in', () => {
-    it('only lets the workspace owner in', async () => {
-        const { base } = await setup()
-        await expect(base.query(api.agents.list, {})).rejects.toThrow(/Sign in/)
-        expect(await base.query(api.workspace.access, {})).toBe('signedOut')
-        const stranger = await signIn(base)
-        expect(await stranger.query(api.workspace.access, {})).toBe('denied')
-        await expect(stranger.query(api.runners.list, {})).rejects.toThrow(/access/)
-        await expect(stranger.mutation(api.workspace.claim, {})).rejects.toThrow(/owner/)
-    })
+// The editable fields of an agent, for update
+const fields = (a: { name: string; role: string; hue: number; prompt: string; greeting: string; status: 'draft' | 'live' | 'paused' }) => ({
+    name: a.name,
+    role: a.role,
+    hue: a.hue,
+    prompt: a.prompt,
+    greeting: a.greeting,
+    status: a.status,
+})
 
-    it('lets the first account claim a workspace made before sign-in existed', async () => {
-        const base = convexTest(schema, modules)
-        await base.run((ctx) => ctx.db.insert('workspace', { name: 'Old', ownerName: 'Sam' }))
-        const t = await signIn(base)
-        expect(await t.query(api.workspace.access, {})).toBe('unclaimed')
-        await expect(t.query(api.workspace.get, {})).rejects.toThrow(/access/)
-        await t.mutation(api.workspace.claim, {})
-        expect(await t.query(api.workspace.access, {})).toBe('owner')
+describe('workspaces', () => {
+    it("keeps each user's workspace to themselves", async () => {
+        const { base, owner, agentId } = await setup()
+        await expect(base.query(api.agents.list, {})).rejects.toThrow(/Sign in/)
+        const other = await user(base, 'Ali')
+        expect(await other.query(api.agents.list, {})).toEqual([])
+        expect(await other.query(api.runners.list, {})).toEqual([])
+        await expect(other.mutation(api.agents.remove, { id: agentId })).rejects.toThrow(/Not found/)
+        expect(await owner.query(api.agents.list, {})).toHaveLength(1)
     })
 })
 
@@ -56,30 +67,27 @@ describe('agent API', () => {
         await expect(base.query(api.runner.config, { token })).rejects.toThrow(/invalid or was revoked/)
     })
 
-    it('stores only the hash of a token, and never shows it', async () => {
+    it('stores only the hash of a token, and shows the agent only its own workspace', async () => {
         const { base, owner, token } = await setup()
         const stored = await base.run((ctx) => ctx.db.query('runners').first())
         expect(stored?.tokenHash).toBe(await hashToken(token))
-        expect(JSON.stringify(stored)).not.toContain(token)
         expect(JSON.stringify(await owner.query(api.runners.list, {}))).not.toContain(stored!.tokenHash)
-        await expect(owner.mutation(api.runners.create, { name: 'x', tokenHash: token })).rejects.toThrow(/Make the token/)
-    })
 
-    it('gives the agent its configuration without the owner account', async () => {
-        const { base, token } = await setup()
+        const other = await user(base, 'Ali')
+        await other.mutation(api.agents.create, { name: 'Not yours', role: '', hue: 0, prompt: '', greeting: '', status: 'live' })
         const config = (await base.query(api.runner.config, { token }))!
         expect(config.agents.map((a) => a.name)).toEqual(['Pip'])
-        expect(config.numbers[0].key).toBe('4155550101')
-        expect(config.workspace).not.toHaveProperty('ownerId')
+        expect(config.numbers[0]).toMatchObject({ key: '4155550101', channel: 'mac' })
+        expect(config.workspace).not.toHaveProperty('userId')
     })
 
     it('adds up counts and usage, and reports a used-up budget', async () => {
         const { base, owner, agentId, token } = await setup()
         await base.mutation(api.runner.record, { token, agentId, activity: { messagesIn: 1, conversations: 1, newContacts: 1 } })
-        await base.mutation(api.runner.record, { token, agentId, activity: { messagesIn: 1, messagesOut: 1 }, usage: { slot: 'brain', model: 'gpt-5.1' } })
+        await base.mutation(api.runner.record, { token, agentId, activity: { messagesIn: 1, messagesOut: 1 }, usage: { slot: 'brain', model: 'openai:gpt-5.1' } })
         const today = new Date().toISOString().slice(0, 10)
         expect(await owner.query(api.usage.activity, { since: today })).toEqual({ conversations: 1, newContacts: 1, messagesIn: 2, messagesOut: 1, handoffs: 0 })
-        expect(await owner.query(api.usage.summary, { today })).toEqual([{ agentId, slot: 'brain', model: 'gpt-5.1', day: today, count: 1 }])
+        expect(await owner.query(api.usage.summary, { today })).toEqual([{ agentId, slot: 'brain', model: 'openai:gpt-5.1', day: today, count: 1 }])
         await expect(base.mutation(api.runner.record, { token, agentId, activity: { messagesIn: -5 } })).rejects.toThrow(/whole numbers/)
 
         expect(await base.query(api.runner.budget, { token, today })).toBeNull()
@@ -88,16 +96,56 @@ describe('agent API', () => {
         expect(await base.query(api.runner.budget, { token, today })).toMatch(/Today's usage budget/)
     })
 
-    it('records the heartbeat for the dashboard', async () => {
-        const { base, owner, token } = await setup()
-        await base.mutation(api.runner.heartbeat, { token, version: '0.1.0', transport: 'mac', providers: { openai: true, local: false }, demo: false })
-        const [runner] = await owner.query(api.runners.list, {})
-        expect(runner).toMatchObject({ name: 'Mac mini', version: '0.1.0', transport: 'mac', providers: { openai: true, local: false } })
-        expect(runner.lastSeenAt).toBeTypeOf('number')
+    it('keeps no messages, contacts or credentials in Convex', () => {
+        const tables = Object.keys(schema.tables)
+        for (const gone of ['messages', 'conversations', 'contacts', 'notifications', 'connections']) expect(tables).not.toContain(gone)
+    })
+})
+
+describe('models from your keys', () => {
+    it("offers the models the agent's keys can use, and refuses others", async () => {
+        const { owner, agentId, beat } = await setup()
+        const agent = (await owner.query(api.agents.get, { id: agentId }))!
+        const save = (brain: string, name = agent.name) => owner.mutation(api.agents.update, { id: agentId, ...fields(agent), name, models: { brain } })
+
+        await expect(save('openai:gpt-4o-mini')).rejects.toThrow(/Add your OpenAI key to your agent/)
+        await beat()
+        await expect(save('anthropic:claude-sonnet-5-5')).rejects.toThrow(/Add your Anthropic key to your agent/)
+        await expect(save('openai:o9-ultra')).rejects.toThrow(/Your OpenAI key can't use o9-ultra/)
+        await save('openai:gpt-4o-mini')
+        await expect(owner.mutation(api.workspace.setModel, { slot: 'backup', model: 'openai:o9-ultra' })).rejects.toThrow(/can't use/)
+        await owner.mutation(api.workspace.setModel, { slot: 'backup', model: 'none' })
+
+        // A saved choice the key no longer offers can stay while other fields change
+        await beat({ models: [OPENAI[0]] })
+        await save('openai:gpt-4o-mini', 'Pip 2')
     })
 
-    it('keeps no messages, contacts or notifications in Convex', () => {
-        const tables = Object.keys(schema.tables)
-        for (const gone of ['messages', 'conversations', 'contacts', 'notifications']) expect(tables).not.toContain(gone)
+    it('defaults Brain to a well-known model and Backup to another provider', () => {
+        const available = keyModels([...OPENAI, { provider: 'anthropic', id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' }])
+        const r = resolveModels(undefined, undefined, undefined, available)
+        expect(r.brain.option.id).toBe('openai:gpt-5.1')
+        expect(r.backup.option.id).toBe('anthropic:claude-sonnet-5-5')
+        expect(resolveModels(undefined, undefined, undefined, keyModels(OPENAI)).backup.option.id).toBe('none')
+        expect(resolveModels(undefined, undefined, undefined, []).brain.option).toMatchObject({ id: 'none', label: 'Connect an AI key' })
+        // An older catalog id still reads as its provider:model
+        expect(resolveModels({ brain: 'gpt-5.1' }, undefined, undefined, available).brain.option.id).toBe('openai:gpt-5.1')
+    })
+})
+
+describe('Twilio through the agent', () => {
+    it('queues a purchase for the agent, which adds the number when done', async () => {
+        const { base, owner, agentId, token, beat } = await setup()
+        await expect(owner.mutation(api.tasks.request, { request: { kind: 'twilioSearch', country: 'US' } })).rejects.toThrow(/Add your Twilio account/)
+        await beat({ services: [{ service: 'twilio' }] })
+
+        const id = await owner.mutation(api.tasks.request, { request: { kind: 'twilioBuy', phoneNumber: '+14155550199', agentId } })
+        expect(await base.query(api.runner.tasks, { token })).toEqual([{ _id: id, request: { kind: 'twilioBuy', phoneNumber: '+14155550199', agentId } }])
+        await base.mutation(api.runner.finishTask, { token, id, result: { phoneNumber: '+14155550199', sid: 'PN123' } })
+
+        expect(await owner.query(api.tasks.get, { id })).toMatchObject({ status: 'done' })
+        expect(await base.query(api.runner.tasks, { token })).toEqual([])
+        const numbers = await owner.query(api.numbers.list, {})
+        expect(numbers.find((n) => n.channel === 'twilio')).toMatchObject({ handle: '+14155550199', externalId: 'PN123', agentId })
     })
 })

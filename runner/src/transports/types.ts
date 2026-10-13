@@ -1,15 +1,36 @@
-// How the agent talks to iMessage. Plain text exists only here and on the contact's phone (iMessage itself is
-// end-to-end encrypted between them).
-export type Incoming = { to: string; from: string; body: string; name?: string }
-// `from` is which of your numbers to send from (null lets the transport pick)
-export type Outgoing = { from: string | null; to: string; body: string }
+import type { Doc } from '../../../convex/_generated/dataModel'
+
+// How the agent talks to people. Plain text exists only here and on their phones.
+
+export type Channel = Doc<'numbers'>['channel']
+
+export type Incoming = {
+    channel: Channel
+    // Which of your numbers it was sent to, when the channel says (a BlueBubbles Mac has just one address)
+    to?: string
+    from: string
+    body: string
+    name?: string
+    // Group chats: the channel's thread id and the group's name
+    thread?: { key: string; title?: string }
+}
+
+// `threadKey` sends to a group instead of to one person
+export type Outgoing = { from: string; to: string; body: string; threadKey?: string }
+
+// An address a channel answers on, offered when adding a number in the dashboard
+export type Line = { channel: Channel; handle: string; externalId?: string }
+
+export type OnText = (text: Incoming) => Promise<{ markRead: boolean }>
 
 export interface Transport {
-    name: 'mac' | 'relay'
-    // Calls `onText` for each new text; its answer says whether to send a read receipt (where supported)
-    start(onText: (text: Incoming) => Promise<{ markRead: boolean }>): Promise<void>
+    channel: Channel
+    // Starts listening; for webhook channels this registers routes on the agent's server
+    start(onText: OnText): Promise<void>
     send(message: Outgoing): Promise<void>
-    // Shows the typing bubble, where the transport can
+    // Shows the typing bubble, where the channel can
     typing?(target: Omit<Outgoing, 'body'>): Promise<void>
+    // The addresses this channel answers on
+    lines?(): Promise<Line[]>
     stop(): Promise<void>
 }

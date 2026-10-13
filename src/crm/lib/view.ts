@@ -1,7 +1,7 @@
 import { DASHBOARD_PATH } from './route'
 
 // No conversations or contacts: those live only on your agent, never in the dashboard
-export const VIEWS = ['agents', 'knowledge', 'numbers', 'models', 'analytics', 'settings'] as const
+export const VIEWS = ['agents', 'knowledge', 'numbers', 'models', 'analytics', 'connections', 'settings'] as const
 export type View = (typeof VIEWS)[number]
 
 const isView = (v: string | null): v is View => (VIEWS as readonly (string | null)[]).includes(v)
