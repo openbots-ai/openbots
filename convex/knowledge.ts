@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, query } from './lib/auth'
 
 const fields = { title: v.string(), body: v.string(), agentId: v.optional(v.id('agents')) }
 

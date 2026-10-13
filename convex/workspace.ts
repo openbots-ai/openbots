@@ -1,5 +1,7 @@
+import { getAuthUserId } from '@convex-dev/auth/server'
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation as rawMutation, query as rawQuery } from './_generated/server'
+import { mutation, query } from './lib/auth'
 import { handleKind } from './lib/handles'
 import { isValidChoice } from './lib/models'
 import { workspaceSettings } from './schema'
@@ -11,15 +13,43 @@ export const get = query({
     handler: (ctx) => ctx.db.query('workspace').first(),
 })
 
-// First visit: the dashboard asks for these two names and creates the workspace
-export const create = mutation({
+// What the signed-in user can do here, so the dashboard knows which screen to show:
+// 'owner' gets in, 'setup' creates the workspace, 'unclaimed' takes over one made before sign-in existed, 'denied' is someone else's
+export const access = rawQuery({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx)
+        if (!userId) return 'signedOut' as const
+        const ws = await ctx.db.query('workspace').first()
+        if (!ws) return 'setup' as const
+        if (!ws.ownerId) return 'unclaimed' as const
+        return ws.ownerId === userId ? ('owner' as const) : ('denied' as const)
+    },
+})
+
+// First visit: the dashboard asks for these two names and creates the workspace, owned by whoever is signed in
+export const create = rawMutation({
     args: { name: v.string(), ownerName: v.string(), timezone: v.optional(v.string()) },
     handler: async (ctx, args) => {
+        const ownerId = await getAuthUserId(ctx)
+        if (!ownerId) throw new Error('Sign in to continue')
         if (await ctx.db.query('workspace').first()) throw new Error('This workspace is already set up')
         const name = args.name.trim()
         const ownerName = args.ownerName.trim()
         if (!name || !ownerName) throw new Error('Workspace and owner name are required')
-        return ctx.db.insert('workspace', { name, ownerName, timezone: args.timezone })
+        return ctx.db.insert('workspace', { name, ownerName, ownerId, timezone: args.timezone })
+    },
+})
+
+// A workspace made before sign-in existed has no owner: the first account to sign in takes it
+export const claim = rawMutation({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx)
+        if (!userId) throw new Error('Sign in to continue')
+        const ws = await ctx.db.query('workspace').first()
+        if (!ws || ws.ownerId) throw new Error('This workspace already has an owner')
+        await ctx.db.patch('workspace', ws._id, { ownerId: userId })
     },
 })
 
@@ -30,8 +60,8 @@ export const update = mutation({
         const ownerName = args.ownerName.trim()
         if (!name || !ownerName) throw new Error('Workspace and owner name are required')
 
-        const ownerEmail = args.ownerEmail?.trim() || undefined
-        if (ownerEmail && handleKind(ownerEmail) !== 'email') throw new Error('Enter a valid email address')
+        const ownerHandle = args.ownerHandle?.trim() || undefined
+        if (ownerHandle && !handleKind(ownerHandle)) throw new Error('Enter a phone number or an Apple ID email for handoff alerts')
         if ((args.quietStart && !TIME.test(args.quietStart)) || (args.quietEnd && !TIME.test(args.quietEnd))) throw new Error('Quiet hours need a start and end time')
         if (args.replyDelaySec !== undefined && (args.replyDelaySec < 0 || args.replyDelaySec > 60)) throw new Error('Reply delay must be between 0 and 60 seconds')
         for (const budget of [args.dailyBudget, args.weeklyBudget]) if (budget !== undefined && !(budget > 0)) throw new Error('A budget must be more than 0 credits')
@@ -44,11 +74,10 @@ export const update = mutation({
                 .filter((k) => k !== 'models')
                 .map((k) => [k, args[k as keyof typeof workspaceSettings]]),
         )
-        const fields = { ...settings, name, ownerName, ownerEmail, newContactTag: args.newContactTag?.trim().toLowerCase() || undefined }
+        const fields = { ...settings, name, ownerName, ownerHandle, newContactTag: args.newContactTag?.trim().toLowerCase() || undefined }
 
         const ws = await ctx.db.query('workspace').first()
         if (ws) await ctx.db.patch('workspace', ws._id, fields)
-        else await ctx.db.insert('workspace', fields)
     },
 })
 
@@ -63,21 +92,20 @@ export const setModel = mutation({
     },
 })
 
-// Everything in the workspace, for the Settings → Export button
+// Your configuration and counts, for the Settings → Export button. Messages and contacts live on your agent.
 export const exportAll = query({
     args: {},
     handler: async (ctx) => {
-        const [workspace, agents, numbers, contacts, conversations, messages, knowledge, usage, notifications] = await Promise.all([
+        const [ws, agents, numbers, knowledge, usage, activity] = await Promise.all([
             ctx.db.query('workspace').first(),
             ctx.db.query('agents').collect(),
             ctx.db.query('numbers').collect(),
-            ctx.db.query('contacts').collect(),
-            ctx.db.query('conversations').collect(),
-            ctx.db.query('messages').collect(),
             ctx.db.query('knowledge').collect(),
             ctx.db.query('usage').collect(),
-            ctx.db.query('notifications').collect(),
+            ctx.db.query('activity').collect(),
         ])
-        return { workspace, agents, numbers, contacts, conversations, messages, knowledge, usage, notifications }
+        // Your account id isn't part of the export
+        const workspace = ws ? (({ ownerId, ...rest }) => rest)(ws) : null
+        return { workspace, agents, numbers, knowledge, usage, activity }
     },
 })

@@ -9,29 +9,21 @@
  */
 
 import type * as agents from "../agents.js";
-import type * as contacts from "../contacts.js";
-import type * as conversations from "../conversations.js";
-import type * as crons from "../crons.js";
-import type * as delivery from "../delivery.js";
+import type * as auth from "../auth.js";
 import type * as http from "../http.js";
-import type * as inbound from "../inbound.js";
 import type * as knowledge from "../knowledge.js";
-import type * as lib_cascade from "../lib/cascade.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as lib_demo from "../lib/demo.js";
 import type * as lib_handles from "../lib/handles.js";
-import type * as lib_inbox from "../lib/inbox.js";
-import type * as lib_llm from "../lib/llm.js";
 import type * as lib_models from "../lib/models.js";
-import type * as lib_notify from "../lib/notify.js";
 import type * as lib_prompt from "../lib/prompt.js";
 import type * as lib_quiet from "../lib/quiet.js";
-import type * as lib_stats from "../lib/stats.js";
+import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_usage from "../lib/usage.js";
 import type * as migrations from "../migrations.js";
-import type * as notifications from "../notifications.js";
 import type * as numbers from "../numbers.js";
-import type * as replies from "../replies.js";
-import type * as system from "../system.js";
+import type * as runner from "../runner.js";
+import type * as runners from "../runners.js";
 import type * as usage from "../usage.js";
 import type * as workspace from "../workspace.js";
 
@@ -43,29 +35,21 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
-  contacts: typeof contacts;
-  conversations: typeof conversations;
-  crons: typeof crons;
-  delivery: typeof delivery;
+  auth: typeof auth;
   http: typeof http;
-  inbound: typeof inbound;
   knowledge: typeof knowledge;
-  "lib/cascade": typeof lib_cascade;
+  "lib/auth": typeof lib_auth;
   "lib/demo": typeof lib_demo;
   "lib/handles": typeof lib_handles;
-  "lib/inbox": typeof lib_inbox;
-  "lib/llm": typeof lib_llm;
   "lib/models": typeof lib_models;
-  "lib/notify": typeof lib_notify;
   "lib/prompt": typeof lib_prompt;
   "lib/quiet": typeof lib_quiet;
-  "lib/stats": typeof lib_stats;
+  "lib/tokens": typeof lib_tokens;
   "lib/usage": typeof lib_usage;
   migrations: typeof migrations;
-  notifications: typeof notifications;
   numbers: typeof numbers;
-  replies: typeof replies;
-  system: typeof system;
+  runner: typeof runner;
+  runners: typeof runners;
   usage: typeof usage;
   workspace: typeof workspace;
 }>;

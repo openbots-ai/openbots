@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Contact, Cpu, MessageCircle, MessagesSquare, Plus, Radio, Search, Settings, Tag, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Cpu, MessageCircle, Plus, Search, Settings, Tag, X } from 'lucide-react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Reveal } from '@/components/landing/motion'
@@ -203,7 +203,7 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
 
 const nav: { label: string; items: [string, typeof Bot][] }[] = [
     { label: 'Build', items: [['Agents', Bot], ['Models', Cpu], ['Knowledge', BookOpen], ['iMessage Numbers', MessageCircle]] },
-    { label: 'Data', items: [['Conversations', MessagesSquare], ['Contacts', Contact], ['Analytics', ChartLine], ['Live', Radio]] },
+    { label: 'Insights', items: [['Analytics', ChartLine]] },
     { label: 'System', items: [['Settings', Settings]] },
 ]
 

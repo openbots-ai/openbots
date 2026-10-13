@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { useRun } from './use-run'
 import { Btn, Field } from './ui'
 
-// First visit to an empty deployment: creates the workspace, then the dashboard takes over (the query updates)
+// First sign-in on an empty deployment: creates the workspace (owned by this account), then the dashboard takes over
 export function Onboarding() {
     const run = useRun()
     const create = useMutation(api.workspace.create)

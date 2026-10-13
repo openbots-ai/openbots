@@ -1,5 +1,9 @@
 import type { Doc } from '../_generated/dataModel'
-import type { Turn } from './llm'
+
+export type Turn = { role: 'user' | 'assistant'; content: string }
+// The agent keeps contacts and messages on its own machine; these are the parts the prompt uses
+export type PromptContact = { name: string; handle: string; tags: string[]; notes: string }
+export type PromptMessage = { from: 'contact' | 'agent'; body: string }
 
 // The agent ends a reply with this when it wants you to step in; it's stripped before sending
 export const HANDOFF = '[[handoff]]'
@@ -26,8 +30,8 @@ const LANGUAGE_NAMES: Record<string, string> = {
 
 export function systemPrompt(args: {
     agent: Doc<'agents'>
-    workspace: Doc<'workspace'> | null
-    contact: Doc<'contacts'>
+    workspace: Pick<Doc<'workspace'>, 'ownerName' | 'timezone'> | null
+    contact: PromptContact
     knowledge: Pick<Doc<'knowledge'>, 'title' | 'body'>[]
     now: number
 }) {
@@ -56,7 +60,7 @@ export function systemPrompt(args: {
 }
 
 // Conversation history as model turns: must open with the contact, and same-speaker runs are merged
-export function toTurns(messages: Pick<Doc<'messages'>, 'from' | 'body'>[]): Turn[] {
+export function toTurns(messages: PromptMessage[]): Turn[] {
     const turns: Turn[] = []
     for (const m of messages) {
         const role = m.from === 'contact' ? 'user' : 'assistant'

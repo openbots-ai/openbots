@@ -2,6 +2,7 @@ import path from 'node:path'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
+import { configDefaults } from 'vitest/config'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
@@ -17,4 +18,6 @@ export default defineConfig({
       '@convex': path.resolve(__dirname, './convex'),
     },
   },
+  // Agent worktrees under .claude/ carry their own copies of the tests
+  test: { exclude: [...configDefaults.exclude, '.claude/**'] },
 })

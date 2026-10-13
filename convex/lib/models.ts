@@ -1,8 +1,9 @@
 // Every part of an agent ("slot") can run on a different model. This is the single list of slots and the
 // models offered for each, shared by the backend (to validate choices) and the UI (to show them).
-// Model names are display labels for the picker; nothing here calls a provider yet.
+// Model names are display labels for the picker; your agent (runner/) is what calls the providers.
 
-export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
+// 'local' is any OpenAI-compatible server the agent can reach (Ollama, LM Studio, vLLM…), so nothing leaves your machines
+export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
 
 // `api` is the provider's own model name, for the slots that call a provider (Brain and Backup today)
 export type ModelOption = { id: string; label: string; provider: Provider; api?: string }
@@ -29,6 +30,8 @@ export const BRAIN_MODELS: ModelOption[] = [
     { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5', provider: 'anthropic', api: 'claude-haiku-4-5' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google', api: 'gemini-2.5-flash' },
     { id: 'grok-4', label: 'Grok 4', provider: 'xai', api: 'grok-4' },
+    // The agent's OPENBOTS_LOCAL_MODEL decides which model this is
+    { id: 'local', label: 'Local model', provider: 'local', api: 'local' },
 ]
 
 const brain = (...ids: string[]) => BRAIN_MODELS.filter((m) => ids.includes(m.id))
@@ -112,7 +115,7 @@ export const SLOTS: Slot[] = [
         id: 'backup',
         label: 'Backup',
         blurb: 'Takes over if a provider is down, so your agent never goes quiet.',
-        options: [...brain('claude-sonnet-5.5', 'gpt-5.1', 'gemini-2.5-flash'), { id: NONE, label: 'None', provider: 'none' }],
+        options: [...brain('claude-sonnet-5.5', 'gpt-5.1', 'gemini-2.5-flash', 'local'), { id: NONE, label: 'None', provider: 'none' }],
         default: 'claude-sonnet-5.5',
         runs: true,
     },

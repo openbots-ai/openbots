@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, query } from './lib/auth'
 import { handleKey, handleKind } from './lib/handles'
 
 export const list = query({
@@ -25,9 +25,5 @@ export const assign = mutation({
 
 export const remove = mutation({
     args: { id: v.id('numbers') },
-    handler: async (ctx, { id }) => {
-        // Conversations keep working; replies fall back to the agent's other number
-        for await (const c of ctx.db.query('conversations')) if (c.numberId === id) await ctx.db.patch('conversations', c._id, { numberId: undefined })
-        await ctx.db.delete('numbers', id)
-    },
+    handler: (ctx, { id }) => ctx.db.delete('numbers', id),
 })

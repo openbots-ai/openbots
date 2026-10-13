@@ -1,0 +1,77 @@
+# Publishes the agent when you push a tag like runner-v0.1.0. Both artifacts are built here, in public, so anyone
+# can check that what they install came from this repository:
+#   npm:    published with provenance (npm audit signatures, or the "Provenance" badge on npmjs.com)
+#   Docker: signed with cosign (keyless) and given a build attestation (see runner/README.md to verify)
+name: Release agent
+
+on:
+  push:
+    tags: ['runner-v*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npx tsc -p runner
+      - name: Tag matches runner/package.json
+        run: test "runner-v$(node -p "require('./runner/package.json').version")" = "$GITHUB_REF_NAME"
+
+  npm:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci --ignore-scripts
+      - run: node runner/build.mjs
+      - run: npm publish --provenance --access public
+        working-directory: runner
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/openbots-runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: version
+        run: echo "version=${GITHUB_REF_NAME#runner-v}" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runner/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+      - uses: sigstore/cosign-installer@v3
+      - run: cosign sign --yes "$IMAGE@${{ steps.build.outputs.digest }}"
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

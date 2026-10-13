@@ -1,3 +1,4 @@
+import { authTables } from '@convex-dev/auth/server'
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
@@ -26,7 +27,8 @@ export const agentFields = {
 export const workspaceSettings = {
     // Workspace-wide model per slot (slot id → model id); see convex/lib/models.ts
     models: v.optional(v.record(v.string(), v.string())),
-    ownerEmail: v.optional(v.string()),
+    // Where the agent texts handoff alerts (the owner's own phone or Apple ID email)
+    ownerHandle: v.optional(v.string()),
     timezone: v.optional(v.string()),
     defaultAgentId: v.optional(v.id('agents')),
     quietEnabled: v.optional(v.boolean()),
@@ -38,20 +40,25 @@ export const workspaceSettings = {
     newContactTag: v.optional(v.string()),
     notifyNewContact: v.optional(v.boolean()),
     notifyHandoff: v.optional(v.boolean()),
-    notifyDigest: v.optional(v.boolean()),
     // Usage budget in credits (see convex/lib/usage.ts). Agents stop replying once one is used up; unset means no cap.
     dailyBudget: v.optional(v.number()),
     weeklyBudget: v.optional(v.number()),
 }
 
-export const messageFrom = v.union(v.literal('contact'), v.literal('agent'))
-
-// What happened to an agent message on its way out: queued for the relay, accepted by it, or failed.
-// Messages written before delivery existed have none.
-export const deliveryStatus = v.union(v.literal('queued'), v.literal('sent'), v.literal('failed'))
-
 export default defineSchema({
-    workspace: defineTable({ name: v.string(), ownerName: v.string(), ...workspaceSettings, lastDigestDay: v.optional(v.string()) }),
+    // users, sessions and accounts for Convex Auth
+    ...authTables,
+    // ownerId is the only account that can use the dashboard; optional for workspaces made before sign-in existed
+    workspace: defineTable({
+        name: v.string(),
+        ownerName: v.string(),
+        ownerId: v.optional(v.id('users')),
+        ...workspaceSettings,
+        // Left over from before the agent ran on your own machine; migrations:purgeLegacy clears them
+        ownerEmail: v.optional(v.string()),
+        notifyDigest: v.optional(v.boolean()),
+        lastDigestDay: v.optional(v.string()),
+    }),
     agents: defineTable({ ...agentFields, updatedAt: v.number() }).index('by_updatedAt', ['updatedAt']),
     numbers: defineTable({
         handle: v.string(),
@@ -62,47 +69,6 @@ export default defineSchema({
     })
         .index('by_key', ['key'])
         .index('by_agent', ['agentId']),
-    contacts: defineTable({
-        name: v.string(),
-        handle: v.string(),
-        key: v.optional(v.string()),
-        tags: v.array(v.string()),
-        notes: v.string(),
-        agentId: v.optional(v.id('agents')),
-        lastSeenAt: v.optional(v.number()),
-    })
-        .index('by_name', ['name'])
-        .index('by_key', ['key'])
-        .index('by_agent', ['agentId']),
-    conversations: defineTable({
-        contactId: v.id('contacts'),
-        agentId: v.id('agents'),
-        // The iMessage number the contact texted, so replies go out from the same one
-        numberId: v.optional(v.id('numbers')),
-        lastMessage: v.string(),
-        lastAt: v.number(),
-        // Set when the agent handed the conversation to you or couldn't reply; cleared when you answer
-        needsYou: v.optional(v.boolean()),
-        // Why the agent stopped, in plain words (missing API key, agent paused, provider error)
-        problem: v.optional(v.string()),
-        // True while a reply is scheduled or being written, for the typing indicator
-        replying: v.optional(v.boolean()),
-    })
-        .index('by_lastAt', ['lastAt'])
-        .index('by_contact_and_agent', ['contactId', 'agentId'])
-        .index('by_agent', ['agentId'])
-        .index('by_needsYou_and_lastAt', ['needsYou', 'lastAt']),
-    messages: defineTable({
-        conversationId: v.id('conversations'),
-        from: messageFrom,
-        body: v.string(),
-        at: v.number(),
-        // Agent messages only: who wrote it (the model, or you from the dashboard) and which model
-        by: v.optional(v.union(v.literal('ai'), v.literal('you'))),
-        model: v.optional(v.string()),
-        delivery: v.optional(deliveryStatus),
-        deliveryError: v.optional(v.string()),
-    }).index('by_conversation', ['conversationId', 'at']),
     // Work done per agent, model slot and day; feeds Analytics. One row per (agent, slot, model, day).
     usage: defineTable({
         agentId: v.id('agents'),
@@ -121,15 +87,29 @@ export default defineSchema({
     })
         .index('by_updatedAt', ['updatedAt'])
         .index('by_agent', ['agentId']),
-    // In-app inbox: new contacts, handoffs and the daily digest (also emailed when email is set up)
-    notifications: defineTable({
-        kind: v.union(v.literal('new_contact'), v.literal('handoff'), v.literal('digest')),
-        title: v.string(),
-        body: v.string(),
-        at: v.number(),
-        read: v.boolean(),
-        conversationId: v.optional(v.id('conversations')),
+    // Agents the owner runs on their own machines. Messages, contacts and provider keys stay there; Convex only
+    // ever sees the agent's token hash, its version, which provider keys it has, and the counts below.
+    runners: defineTable({
+        name: v.string(),
+        // SHA-256 of the token, hex. The token itself is made in the owner's browser and never sent here.
+        tokenHash: v.string(),
+        lastSeenAt: v.optional(v.number()),
+        version: v.optional(v.string()),
+        transport: v.optional(v.string()),
+        // Provider → whether the agent has its key (never the key)
+        providers: v.optional(v.record(v.string(), v.boolean())),
+        demo: v.optional(v.boolean()),
+    }).index('by_tokenHash', ['tokenHash']),
+    // Anonymous daily counts per agent for Analytics; no names, numbers or message content
+    activity: defineTable({
+        agentId: v.id('agents'),
+        day: v.string(),
+        conversations: v.number(),
+        newContacts: v.number(),
+        messagesIn: v.number(),
+        messagesOut: v.number(),
+        handoffs: v.number(),
     })
-        .index('by_at', ['at'])
-        .index('by_read_and_at', ['read', 'at']),
+        .index('by_day', ['day'])
+        .index('by_agent_and_day', ['agentId', 'day']),
 })

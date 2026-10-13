@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { handleKind } from '@convex/lib/handles'
-import { bucketByDay } from '@convex/lib/stats'
 import { blankAgent } from './draft'
 import { isCrmPath } from './route'
 import { matches, parseTags } from './text'
@@ -30,7 +29,7 @@ describe('parseView / viewHref', () => {
     })
     it('round-trips through viewHref and stays on /dashboard', () => {
         expect(viewHref('agents')).toBe('/dashboard')
-        expect(viewHref('contacts')).toBe('/dashboard?view=contacts')
+        expect(viewHref('analytics')).toBe('/dashboard?view=analytics')
         const href = viewHref('agents', 'k57 x&y')
         expect(href.startsWith('/dashboard?')).toBe(true)
         expect(parseView(href.slice('/dashboard'.length))).toEqual({ view: 'agents', id: 'k57 x&y' })
@@ -70,14 +69,5 @@ describe('time helpers', () => {
         expect(relativeTime(now - 5 * 60_000, now)).toBe('5m ago')
         expect(relativeTime(now - 3 * 3_600_000, now)).toBe('3h ago')
         expect(relativeTime(now - 2 * 86_400_000, now)).toBe('2d ago')
-    })
-    it('buckets by UTC day, ignoring out-of-range times', () => {
-        const day = 86_400_000
-        const out = bucketByDay([now, now - 1000, now - day, now - 20 * day, now + 2 * day], 3, now)
-        expect(out).toEqual([
-            { day: '2026-10-04', count: 0 },
-            { day: '2026-10-05', count: 1 },
-            { day: '2026-10-06', count: 2 },
-        ])
     })
 })

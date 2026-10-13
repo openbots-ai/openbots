@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, CircleDashed, Pause, Play, Settings2 } from 'lucide-react'
+import { Check, CircleDashed, HardDrive, Pause, Play, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -12,7 +12,7 @@ import { INHERIT, type ModelOption, type Slot } from '@convex/lib/models'
 import { DEFAULT_CONFIG, LANGUAGES, MODELS, REPLY_LENGTHS, VOICES, languageOf, modelOf, voiceOf, type Provider, type ReplyLength } from '@/lib/agent-options'
 
 // Real provider logos, sourced online (LobeHub's open AI-logo set, Simple Icons, and the providers' own sites)
-const LOGOS: Record<Exclude<Provider, 'none'>, string> = {
+const LOGOS: Record<Exclude<Provider, 'none' | 'local'>, string> = {
     openai: '/logos/openai.svg',
     anthropic: '/logos/claude.svg',
     google: '/logos/gemini.svg',
@@ -26,6 +26,8 @@ const LOGOS: Record<Exclude<Provider, 'none'>, string> = {
 export function ProviderMark({ provider, className }: { provider: Provider; className?: string }) {
     // "Off" and "Same as Brain" have no provider
     if (provider === 'none') return <CircleDashed className={cn('size-4 shrink-0 text-neutral-400', className)} />
+    // A model on your own hardware has no brand to show
+    if (provider === 'local') return <HardDrive className={cn('size-4 shrink-0 text-neutral-600', className)} />
     return <img src={LOGOS[provider]} alt="" className={cn('size-4 shrink-0 rounded-[3px] object-contain', className)} />
 }
 

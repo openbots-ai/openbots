@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
-import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { ConvexReactClient } from 'convex/react'
 import { Shell } from './shell'
+import { AuthGate } from './sign-in'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -37,11 +39,13 @@ export default function CrmApp() {
     }
 
     return (
-        <ConvexProvider client={client}>
+        <ConvexAuthProvider client={client}>
             <TooltipProvider>
-                <Shell />
+                <AuthGate>
+                    <Shell />
+                </AuthGate>
                 <Toaster position="bottom-right" />
             </TooltipProvider>
-        </ConvexProvider>
+        </ConvexAuthProvider>
     )
 }
