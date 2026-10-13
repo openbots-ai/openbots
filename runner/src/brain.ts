@@ -1,28 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { env } from '../_generated/server'
-import { demoReply } from './demo'
-import type { ModelOption, Provider } from './models'
+import { demoReply } from '../../convex/lib/demo'
+import type { ModelOption, Provider } from '../../convex/lib/models'
+import type { Turn } from '../../convex/lib/prompt'
 
-export type Turn = { role: 'user' | 'assistant'; content: string }
 export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
 
-// The env var that unlocks each provider that writes text
-export const PROVIDER_KEYS: Partial<Record<Provider, 'ANTHROPIC_API_KEY' | 'OPENAI_API_KEY' | 'GEMINI_API_KEY' | 'XAI_API_KEY'>> = {
+// The env var that unlocks each cloud provider that writes text. Keys live only on the agent.
+export const PROVIDER_KEYS = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
     google: 'GEMINI_API_KEY',
     xai: 'XAI_API_KEY',
+} as const satisfies Partial<Record<Provider, string>>
+
+// What the agent was started with (see config.ts)
+export type Brains = {
+    keys: Partial<Record<keyof typeof PROVIDER_KEYS, string>>
+    // An OpenAI-compatible server for the "Local model" option, e.g. Ollama at http://localhost:11434/v1
+    local?: { url: string; model: string; key?: string }
+    // Answer with sample replies when a provider isn't set up, so a demo works with no keys
+    demo: boolean
 }
 
-export const keyFor = (provider: Provider) => {
-    const name = PROVIDER_KEYS[provider]
-    return name ? env[name] || undefined : undefined
-}
-
-// Demo deployments answer with sample replies when a provider has no key (see convex.config.ts)
-export const demoMode = () => env.DEMO_MODE === 'true'
-
-// A failure worth showing the operator as-is ("OPENAI_API_KEY isn't set")
+// A failure worth showing the owner as-is ("OPENAI_API_KEY isn't set on your agent")
 export class ReplyError extends Error {}
 
 // Claude 5.x models reject sampling parameters and take effort instead
@@ -72,14 +72,24 @@ async function gemini(model: string, key: string, p: Prompt) {
     return (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join('')
 }
 
-// Writes one reply with the given model. Throws ReplyError for problems the operator should fix.
-export async function complete(option: ModelOption, p: Prompt): Promise<string> {
-    const keyName = PROVIDER_KEYS[option.provider]
+// Writes one reply with the given model. Throws ReplyError for problems the owner should fix.
+export async function complete(brains: Brains, option: ModelOption, p: Prompt): Promise<string> {
+    const demo = () => demoReply(p.turns.at(-1)?.content ?? '')
+    if (option.provider === 'local') {
+        if (!brains.local) {
+            if (brains.demo) return demo()
+            throw new ReplyError("OPENBOTS_LOCAL_URL and OPENBOTS_LOCAL_MODEL aren't set on your agent, so the local model can't reply")
+        }
+        const text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, brains.local.model, brains.local.key ?? 'local', p)
+        if (!text.trim()) throw new Error('The model sent back an empty reply')
+        return text.trim()
+    }
+    const keyName = option.provider in PROVIDER_KEYS ? PROVIDER_KEYS[option.provider as keyof typeof PROVIDER_KEYS] : undefined
     if (!keyName || !option.api) throw new ReplyError(`${option.label} can't write replies`)
-    const key = keyFor(option.provider)
+    const key = brains.keys[option.provider as keyof typeof PROVIDER_KEYS]
     if (!key) {
-        if (demoMode()) return demoReply(p.turns.at(-1)?.content ?? '')
-        throw new ReplyError(`${keyName} isn't set on the Convex deployment, so ${option.label} can't reply`)
+        if (brains.demo) return demo()
+        throw new ReplyError(`${keyName} isn't set on your agent, so ${option.label} can't reply`)
     }
     let text: string
     switch (option.provider) {

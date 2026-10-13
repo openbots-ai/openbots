@@ -1,6 +1,5 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
-import { deleteConversation } from './lib/cascade'
+import { mutation, query } from './lib/auth'
 import { isValidChoice } from './lib/models'
 import { agentFields } from './schema'
 
@@ -45,9 +44,7 @@ export const remove = mutation({
     args: { id: v.id('agents') },
     handler: async (ctx, { id }) => {
         for await (const n of ctx.db.query('numbers').withIndex('by_agent', (q) => q.eq('agentId', id))) await ctx.db.patch('numbers', n._id, { agentId: undefined })
-        for await (const c of ctx.db.query('contacts').withIndex('by_agent', (q) => q.eq('agentId', id))) await ctx.db.patch('contacts', c._id, { agentId: undefined })
         for await (const k of ctx.db.query('knowledge').withIndex('by_agent', (q) => q.eq('agentId', id))) await ctx.db.patch('knowledge', k._id, { agentId: undefined })
-        for (const c of await ctx.db.query('conversations').withIndex('by_agent', (q) => q.eq('agentId', id)).collect()) await deleteConversation(ctx, c._id)
         const ws = await ctx.db.query('workspace').first()
         if (ws?.defaultAgentId === id) await ctx.db.patch('workspace', ws._id, { defaultAgentId: undefined })
         await ctx.db.delete('agents', id)

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Hand, MessagesSquare, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
@@ -21,7 +21,6 @@ import { useNow } from '../use-now'
 
 type Row = { agentId: Id<'agents'>; slot: string; model: string; day: string; count: number }
 
-const count = (c: { n: number; more: boolean }) => `${compact(c.n)}${c.more ? '+' : ''}`
 const compact = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
 const credits = (r: Row) => creditsFor(r.slot, r.count)
 const sum = (rows: Row[], f: (r: Row) => number = (r) => r.count) => rows.reduce((s, r) => s + f(r), 0)
@@ -91,8 +90,8 @@ export function AnalyticsView() {
     const rows = useQuery(api.usage.summary, { today }) as Row[] | undefined
     const agents = useQuery(api.agents.list)
     const workspace = useQuery(api.workspace.get)
-    const [since] = useState(() => Date.now() - 30 * 86_400_000)
-    const overview = useQuery(api.usage.overview, { since })
+    // Daily totals your agents report; the conversations themselves stay on your agent
+    const activity = useQuery(api.usage.activity, { since: addDays(today, -29) })
     const all = rows ?? []
 
     // Windows like Claude Code's: today, and the week that started on Monday
@@ -118,9 +117,9 @@ export function AnalyticsView() {
                 <div className="space-y-4 p-4">
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                         <Tile icon={SLOT_ICONS.brain} label="Replies written" value={rows && compact(sum(replies))} note={topModel ? <>mostly <ProviderMark provider={topModel.provider} className="size-3" /> {topModel.label}</> : 'By your agents, last 30 days'} />
-                        <Tile icon={MessagesSquare} label="Conversations" value={overview && count(overview.active)} note="Active in the last 30 days" onClick={() => go('conversations')} />
-                        <Tile icon={Hand} label="Waiting on you" value={overview && count(overview.waiting)} note="Handed off or couldn't reply" onClick={() => go('conversations')} />
-                        <Tile icon={Users} label="Contacts" value={overview && count(overview.contacts)} note={overview ? `${count(overview.newContacts)} new in the last 30 days` : 'Last 30 days'} onClick={() => go('contacts')} />
+                        <Tile icon={MessagesSquare} label="Conversation days" value={activity && compact(activity.conversations)} note={activity ? `${compact(activity.messagesIn)} texts in, ${compact(activity.messagesOut)} out` : 'Last 30 days'} />
+                        <Tile icon={Hand} label="Handoffs" value={activity && compact(activity.handoffs)} note="Texted to you, last 30 days" />
+                        <Tile icon={Users} label="New contacts" value={activity && compact(activity.newContacts)} note="First texts, last 30 days" />
                     </div>
 
                     <Section title="Usage budget" aside="Set your budget in Settings">

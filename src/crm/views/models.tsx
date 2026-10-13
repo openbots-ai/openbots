@@ -17,6 +17,7 @@ const PROVIDER_NAMES: Record<Provider, string> = {
     anthropic: 'Anthropic',
     google: 'Google',
     xai: 'xAI',
+    local: 'Your machine',
     elevenlabs: 'ElevenLabs',
     deepgram: 'Deepgram',
     cartesia: 'Cartesia',

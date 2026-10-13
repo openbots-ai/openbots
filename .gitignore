@@ -30,3 +30,7 @@ dist-ssr
 
 # Local Convex backend state (npx convex dev --local)
 .convex
+
+# OpenBots agent: its local config and data never belong in git
+runner/.env
+.openbots

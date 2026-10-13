@@ -1,0 +1,25 @@
+{
+  "name": "openbots-runner",
+  "version": "0.1.0",
+  "description": "The OpenBots agent: answers your iMessages with the model you choose, on a machine you control. Messages never leave it.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "openbots-runner": "dist/main.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shidhartha-sen/opendots.git",
+    "directory": "runner"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "convex": "^1.46.0"
+  }
+}

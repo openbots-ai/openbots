@@ -1,19 +1,18 @@
 import type { MouseEvent } from 'react'
 import { useQuery } from 'convex/react'
-import { BookOpen, Bot, ChartLine, CircleHelp, Contact, Cpu, Gauge, MessageCircle, MessagesSquare, Radio, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { useAuthActions } from '@convex-dev/auth/react'
+import { BookOpen, Bot, ChartLine, CircleHelp, Cpu, Gauge, LogOut, MessageCircle, Settings, Sparkles, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc } from '@convex/_generated/dataModel'
 import { creditsFor, dayKey, weekStart } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { CONTACT_EMAIL } from '@/lib/site'
 import { viewHref, type View } from './lib/view'
 import { useNav } from './nav'
-import { Notifications } from './notifications'
 import { useNow } from './use-now'
 
 const GROUPS: { label?: string; items: { view: View; label: string; icon: LucideIcon }[] }[] = [
@@ -27,22 +26,15 @@ const GROUPS: { label?: string; items: { view: View; label: string; icon: Lucide
         ],
     },
     {
-        label: 'Data',
-        items: [
-            { view: 'conversations', label: 'Conversations', icon: MessagesSquare },
-            { view: 'contacts', label: 'Contacts', icon: Contact },
-            { view: 'analytics', label: 'Analytics', icon: ChartLine },
-            { view: 'live', label: 'Live', icon: Radio },
-        ],
+        label: 'Insights',
+        items: [{ view: 'analytics', label: 'Analytics', icon: ChartLine }],
     },
     { label: 'System', items: [{ view: 'settings', label: 'Settings', icon: Settings }] },
 ]
 
-const capped = (n: number) => (n > 99 ? '99+' : String(n))
-
 export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace?: Doc<'workspace'> | null; onNavigate?: () => void }) {
     const go = useNav()
-    const waiting = useQuery(api.conversations.needsYouCount)
+    const { signOut } = useAuthActions()
 
     // Real hrefs so cmd-click opens a tab; plain clicks stay in-app
     const link = (target: View) => (e: MouseEvent) => {
@@ -69,7 +61,6 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                         <span className="block truncate text-[13px] font-semibold">{workspace?.name ?? '…'}</span>
                     </span>
                 </Card>
-                <Notifications onNavigate={onNavigate} />
             </div>
 
             <nav className="-mx-1 flex-1 space-y-4 overflow-y-auto px-1">
@@ -91,11 +82,6 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                                     >
                                         <item.icon />
                                         {item.label}
-                                        {item.view === 'conversations' && !!waiting && (
-                                            <Badge className="ml-auto h-4.5 min-w-4.5 px-1 text-[10px]" aria-label={`${waiting} waiting on you`}>
-                                                {capped(waiting)}
-                                            </Badge>
-                                        )}
                                     </Button>
                                 </li>
                             ))}
@@ -110,7 +96,10 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                     <Avatar className="size-5">
                         <AvatarFallback className="bg-emerald-600 text-[10px] font-semibold text-white">{workspace?.ownerName.slice(0, 1).toUpperCase() ?? ''}</AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{workspace?.ownerName ?? '…'}</span>
+                    <span className="flex-1 truncate">{workspace?.ownerName ?? '…'}</span>
+                    <Button variant="ghost" size="icon-xs" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} className="-mr-1 rounded-md text-neutral-500 hover:text-neutral-900">
+                        <LogOut />
+                    </Button>
                 </Card>
                 <div className="flex justify-between px-1 pt-1 text-[12px] text-neutral-500">
                     <Button variant="link" size="xs" nativeButton={false} render={<a href={`mailto:${CONTACT_EMAIL}`} />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
