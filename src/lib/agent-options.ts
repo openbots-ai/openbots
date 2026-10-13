@@ -1,5 +1,5 @@
 // Model, voice and language choices for an agent, shared by the CRM editor and the landing demo
-import { BRAIN_MODELS, type Provider } from '@convex/lib/models'
+import { AI_PROVIDERS, BRAIN_MODELS, modelLabel, parseModel, PROVIDER_NAMES, type ModelOption, type Provider } from '@convex/lib/models'
 
 export type { Provider }
 
@@ -43,3 +43,17 @@ export const DEFAULT_CONFIG = { model: 'gpt-5.1', voice: 'susan', language: 'en-
 export const modelOf = (id?: string) => MODELS.find((m) => m.id === id) ?? MODELS[0]
 export const voiceOf = (id?: string) => VOICES.find((v) => v.id === id) ?? VOICES[0]
 export const languageOf = (id?: string) => LANGUAGES.find((l) => l.id === id) ?? LANGUAGES[0]
+
+// Model options grouped under their provider's name, in the pickers' provider order; options with no provider
+// (None) come last, ungrouped
+export function groupOptions(options: ModelOption[]) {
+    const groups = AI_PROVIDERS.map((p) => ({ label: p === 'local' ? 'Local models' : PROVIDER_NAMES[p], options: options.filter((o) => o.provider === p) })).filter((g) => g.options.length)
+    const rest = options.filter((o) => !(AI_PROVIDERS as readonly string[]).includes(o.provider))
+    return rest.length ? [...groups, { label: '', options: rest }] : groups
+}
+
+// The option for a "provider:model" id when a list doesn't have it (a saved choice the keys no longer offer)
+export const optionFromId = (id: string): ModelOption | undefined => {
+    const parsed = parseModel(id)
+    return parsed ? { id: `${parsed.provider}:${parsed.model}`, label: modelLabel(id), provider: parsed.provider, api: parsed.model } : undefined
+}

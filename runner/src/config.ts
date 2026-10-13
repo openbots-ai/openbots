@@ -1,56 +1,75 @@
 import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
 import { PROVIDER_KEYS, type Brains } from './brain'
+import type { Credentials } from './providers'
 
-// Everything the agent needs comes from environment variables (or a .env file you pass with node --env-file).
-// Keys and history stay on this machine; see runner/README.md.
+// Everything the agent needs comes from environment variables (or a .env file passed with node --env-file).
+// Keys, account logins and history stay on this machine; see runner/README.md.
 export type Settings = {
     convexUrl: string
     token: string
     dataDir: string
-    transport: 'mac' | 'relay'
-    relay?: { host: string; port: number; inboundSecret: string; relayUrl: string; relaySecret?: string }
+    // The agent's web server, for your relay and your accounts' webhooks
+    host: string
+    port: number
+    // How the internet (Twilio, Sendblue) or your Mac (BlueBubbles) reaches that server
+    publicUrl?: string
+    mac: boolean
+    relay?: { inboundSecret: string; relayUrl: string; relaySecret?: string }
+    twilio?: Credentials['twilio']
+    sendblue?: Credentials['sendblue']
+    bluebubbles?: Credentials['bluebubbles']
+    resend?: Credentials['resend']
     brains: Brains
 }
 
 export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
+    const get = (name: string) => env[name]?.trim() || undefined
     const missing: string[] = []
     const need = (name: string) => {
-        const value = env[name]?.trim()
+        const value = get(name)
         if (!value) missing.push(name)
         return value ?? ''
     }
+    // Both or neither: a half-set account is a mistake worth pointing out
+    const pair = <A extends string, B extends string>(a: string, b: string, as: [A, B]) => {
+        const [x, y] = [get(a), get(b)]
+        if (!x && !y) return undefined
+        if (!x || !y) missing.push(x ? b : a)
+        return { [as[0]]: x ?? '', [as[1]]: y ?? '' } as Record<A | B, string>
+    }
+
     const convexUrl = need('OPENBOTS_CONVEX_URL')
     const token = need('OPENBOTS_TOKEN')
-    const transport = (env.OPENBOTS_TRANSPORT?.trim() || (platform() === 'darwin' ? 'mac' : 'relay')) as Settings['transport']
-    if (transport !== 'mac' && transport !== 'relay') throw new Error('OPENBOTS_TRANSPORT must be "mac" or "relay"')
-
-    const relay =
-        transport === 'relay'
-            ? {
-                  host: env.OPENBOTS_RELAY_HOST?.trim() || '127.0.0.1',
-                  port: Number(env.OPENBOTS_RELAY_PORT || 8787),
-                  inboundSecret: need('OPENBOTS_INBOUND_SECRET'),
-                  relayUrl: need('OPENBOTS_RELAY_URL'),
-                  relaySecret: env.OPENBOTS_RELAY_SECRET?.trim() || undefined,
-              }
-            : undefined
+    const relay = get('OPENBOTS_INBOUND_SECRET') || get('OPENBOTS_RELAY_URL') ? { inboundSecret: need('OPENBOTS_INBOUND_SECRET'), relayUrl: need('OPENBOTS_RELAY_URL'), relaySecret: get('OPENBOTS_RELAY_SECRET') } : undefined
+    const twilio = pair('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', ['accountSid', 'authToken'])
+    const sendblue = pair('SENDBLUE_API_KEY_ID', 'SENDBLUE_API_SECRET', ['keyId', 'secret'])
+    const bluebubbles = pair('BLUEBUBBLES_URL', 'BLUEBUBBLES_PASSWORD', ['serverUrl', 'password'])
+    const resend = pair('RESEND_API_KEY', 'RESEND_FROM', ['apiKey', 'from'])
+    const publicUrl = get('OPENBOTS_PUBLIC_URL')?.replace(/\/+$/, '')
+    if ((twilio || sendblue || bluebubbles) && !publicUrl) missing.push('OPENBOTS_PUBLIC_URL (where Twilio, Sendblue or BlueBubbles reach this agent)')
     if (relay && relay.inboundSecret && relay.inboundSecret.length < 16) throw new Error('OPENBOTS_INBOUND_SECRET should be at least 16 characters')
     if (missing.length) throw new Error(`Set ${missing.join(', ')} (see runner/README.md)`)
 
-    const keys = Object.fromEntries(Object.entries(PROVIDER_KEYS).flatMap(([provider, name]) => (env[name]?.trim() ? [[provider, env[name]!.trim()]] : [])))
-    const localUrl = env.OPENBOTS_LOCAL_URL?.trim()
-    const localModel = env.OPENBOTS_LOCAL_MODEL?.trim()
+    // Messages on this Mac: on by default on macOS when no other channel is set up
+    const macSetting = get('OPENBOTS_MAC')
+    const mac = macSetting ? macSetting === 'true' : platform() === 'darwin' && !relay && !twilio && !sendblue && !bluebubbles
+
+    const keys = Object.fromEntries(Object.entries(PROVIDER_KEYS).flatMap(([provider, name]) => (get(name) ? [[provider, get(name)!]] : [])))
+    const localUrl = get('OPENBOTS_LOCAL_URL')
     return {
         convexUrl,
         token,
-        dataDir: env.OPENBOTS_DATA_DIR?.trim() || join(homedir(), '.openbots'),
-        transport,
+        dataDir: get('OPENBOTS_DATA_DIR') || join(homedir(), '.openbots'),
+        host: get('OPENBOTS_HOST') || '127.0.0.1',
+        port: Number(get('OPENBOTS_PORT') || 8787),
+        publicUrl,
+        mac,
         relay,
-        brains: {
-            keys,
-            local: localUrl && localModel ? { url: localUrl, model: localModel, key: env.OPENBOTS_LOCAL_KEY?.trim() || undefined } : undefined,
-            demo: env.OPENBOTS_DEMO === 'true',
-        },
+        twilio,
+        sendblue,
+        bluebubbles,
+        resend,
+        brains: { keys, local: localUrl ? { url: localUrl, key: get('OPENBOTS_LOCAL_KEY') } : undefined, demo: get('OPENBOTS_DEMO') === 'true' },
     }
 }

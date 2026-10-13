@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Cpu, MessageCircle, Plus, Search, Settings, Tag, X } from 'lucide-react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
-import { SectionHeading } from '@/components/landing/section-heading'
-import { Reveal } from '@/components/landing/motion'
+import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { useCases } from '@/lib/assistant-examples'
 import { AgentConfigBar, MenuPicture, ProviderMark } from '@/components/agent-config-bar'
@@ -69,10 +68,12 @@ type FlowId = 'build' | 'models' | 'analytics'
 // The agent every flow follows
 const AGENT = useCases.find((u) => u.agent === 'Mochi')!
 
-const FLOWS: { id: FlowId; title: string; icon: typeof Bot; hue: number }[] = [
-    { id: 'build', title: `build ${AGENT.agent.toLowerCase()}`, icon: Bot, hue: 205 },
-    { id: 'models', title: 'pick the models', icon: Cpu, hue: 262 },
-    { id: 'analytics', title: 'track costs', icon: ChartLine, hue: 160 },
+// In the hero these read as "how it works": numbered steps with a one-line explainer (hidden on phones)
+// `short` replaces the title on phones, where three steps share one row
+const FLOWS: { id: FlowId; title: string; short: string; detail: string; hue: number }[] = [
+    { id: 'build', title: 'Create an agent', short: 'Create', detail: 'give it a name, a job and a personality', hue: 205 },
+    { id: 'models', title: 'Pick its models', short: 'Models', detail: 'a different model for every part', hue: 262 },
+    { id: 'analytics', title: 'See what it did', short: 'Results', detail: 'every task and cost, per model', hue: 160 },
 ]
 
 // Stretches every beat so each step has time to land
@@ -742,68 +743,70 @@ export default function CreateAgentDemo() {
 
     const select = (i: number) => setClock({ index: i, elapsed: 0 })
 
+    // Sits in the hero under the call to action, so it's the first thing people see
     return (
-        <section
-            id="create-agent"
-            className="px-3 pt-44 pb-16 md:px-6 md:pt-72 md:pb-24">
-            <SectionHeading
-                title="give it a name. make it your kind of helpful."
-                description="pick the model, voice, personality and rules for every part. no code, no one-size-fits-all. (these are examples, not live assistants yet.)"
-            />
-
-            <Reveal className="mt-12 flex justify-center">
-                <div
-                    role="tablist"
-                    aria-label="Flows"
-                    className="flex max-w-full gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.18)] ring-1 ring-black/6 [scrollbar-width:none] dark:bg-white/5 dark:ring-white/10">
-                    {FLOWS.map((f, i) => {
-                        const selected = i === index
-                        return (
-                            <button
-                                key={f.id}
-                                role="tab"
-                                aria-selected={selected}
-                                aria-controls="create-agent-panel"
-                                onClick={() => select(i)}
-                                className={cn(
-                                    'relative flex shrink-0 cursor-pointer items-center gap-2 rounded-full py-1.5 pr-4 pl-1.5 text-[14px] transition-colors',
-                                    selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-                                )}>
-                                {selected && (
-                                    <motion.span
-                                        layoutId="create-agent-tab"
-                                        transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-                                        className="absolute inset-0 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10">
-                                        {/* Fills as the flow plays, like a story progress bar */}
-                                        {!reduced && (
-                                            <span
-                                                className="absolute inset-y-0 left-0 bg-black/4 dark:bg-white/6"
-                                                style={{ width: `${Math.min(100, (elapsed / total) * 100)}%` }}
-                                            />
-                                        )}
-                                    </motion.span>
-                                )}
-                                <span className="relative grid size-6 place-items-center rounded-full bg-white shadow-xs ring-1 ring-black/8 dark:bg-white/10">
-                                    <f.icon className="size-3.5" />
-                                </span>
-                                <span className="relative font-medium">{f.title}</span>
-                            </button>
-                        )
-                    })}
-                </div>
-            </Reveal>
-
-            <Reveal className="mt-8">
+        // Plays in on load, not on scroll: in the hero most of the window starts below the fold
+        <Stagger
+            onMount
+            gap={0.12}>
+            <StaggerItem>
                 {/* Desktop "wallpaper" tinted per flow, with the CRM window floating on it */}
                 <div
                     id="create-agent-panel"
-                    role="tabpanel"
-                    aria-label={`The CRM: ${current.title}`}
+                    aria-label={`The dashboard: ${current.title}`}
                     className="relative overflow-hidden rounded-2xl p-3 shadow-[0_32px_44px_-26px_rgba(0,0,0,0.4)] ring-1 ring-black/8 transition-[background] duration-700 sm:p-8 md:p-14 dark:ring-white/10"
                     style={{
                         background: `radial-gradient(120% 90% at 20% 0%, hsl(${current.hue} 80% 78%), transparent 60%), radial-gradient(100% 80% at 100% 100%, hsl(${(current.hue + 40) % 360} 70% 62%), transparent 65%), hsl(${current.hue} 35% 22%)`,
                     }}>
-                    <div className="overflow-hidden rounded-xl bg-white shadow-[0_30px_60px_-20px_rgba(0,0,0,0.5)] ring-1 ring-black/10">
+                    {/* The steps sit on the window's backdrop, so they read as captions for the demo, not page navigation */}
+                    <div
+                        role="tablist"
+                        aria-label="How it works"
+                        className="mb-3 grid grid-cols-3 gap-1.5 sm:mb-5 sm:gap-3">
+                        {FLOWS.map((f, i) => {
+                            const selected = i === index
+                            return (
+                                <button
+                                    key={f.id}
+                                    role="tab"
+                                    aria-selected={selected}
+                                    aria-controls="create-agent-window"
+                                    onClick={() => select(i)}
+                                    className={cn(
+                                        'relative flex cursor-pointer flex-col overflow-hidden rounded-xl px-2.5 py-2 text-left backdrop-blur-sm transition-colors sm:px-4 sm:py-3',
+                                        selected ? 'bg-white/90 text-neutral-900 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)]' : 'bg-white/12 text-white/85 hover:bg-white/20',
+                                    )}>
+                                    <span className="flex items-center gap-2">
+                                        <span
+                                            className={cn(
+                                                'grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums',
+                                                selected ? 'bg-neutral-900 text-white' : 'bg-white/20 text-white',
+                                            )}>
+                                            {i + 1}
+                                        </span>
+                                        <span className="truncate text-[12px] font-semibold sm:text-[14px]">
+                                            <span className="sm:hidden">{f.short}</span>
+                                            <span className="max-sm:hidden">{f.title}</span>
+                                        </span>
+                                    </span>
+                                    <span className={cn('mt-1 hidden truncate text-[12px] md:block', selected ? 'text-neutral-500' : 'text-white/60')}>{f.detail}</span>
+                                    {/* Fills as the step plays, like a story progress bar */}
+                                    <span className={cn('absolute inset-x-0 bottom-0 h-0.5', selected ? 'bg-neutral-900/8' : 'bg-transparent')}>
+                                        {selected && !reduced && (
+                                            <span
+                                                className="block h-full bg-neutral-900/70"
+                                                style={{ width: `${Math.min(100, (elapsed / total) * 100)}%` }}
+                                            />
+                                        )}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                    <div
+                        id="create-agent-window"
+                        role="tabpanel"
+                        className="overflow-hidden rounded-xl bg-white shadow-[0_30px_60px_-20px_rgba(0,0,0,0.5)] ring-1 ring-black/10">
                         <div className="flex items-center gap-3 border-b border-black/6 bg-neutral-50 px-4 py-2.5">
                             <div className="flex gap-1.5">
                                 <span className="size-2.5 rounded-full bg-[#FF5F57]" />
@@ -834,7 +837,7 @@ export default function CreateAgentDemo() {
                         </div>
                     </div>
                 </div>
-            </Reveal>
-        </section>
+            </StaggerItem>
+        </Stagger>
     )
 }

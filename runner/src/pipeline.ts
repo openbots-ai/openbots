@@ -1,16 +1,16 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { handleKey } from '../../convex/lib/handles'
-import { NONE, resolveModels, type ModelOption } from '../../convex/lib/models'
+import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from '../../convex/lib/models'
 import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, type Brains, type Prompt } from './brain'
 import type { Conversation, Store } from './store'
-import type { Incoming, Transport } from './transports/types'
+import type { Channel, Incoming, Transport } from './transports/types'
 
 // What the agent reads from Convex: your settings, agents, numbers and knowledge (see convex/runner.ts:config)
 export type Config = {
-    workspace: Omit<Doc<'workspace'>, 'ownerId' | 'ownerEmail' | 'notifyDigest' | 'lastDigestDay'>
+    workspace: Omit<Doc<'workspace'>, 'userId' | 'notifyDigest' | 'lastDigestDay'>
     agents: Doc<'agents'>[]
     numbers: Doc<'numbers'>[]
     knowledge: Doc<'knowledge'>[]
@@ -29,8 +29,13 @@ export interface Link {
 export type Deps = {
     store: Store
     link: Link
-    transport: Transport
+    // The channels this agent has set up, by name
+    transports: Partial<Record<Channel, Transport>>
     brains: Brains
+    // The models this agent's AI keys can use (see models.ts:checkKeys)
+    models: () => KeyModel[]
+    // Emails you, when the agent has Resend set up
+    email?: (to: string, subject: string, text: string) => Promise<void>
     complete?: typeof completeWith
     now?: () => number
     log?: (line: string) => void
@@ -38,11 +43,12 @@ export type Deps = {
 
 // How much history the model sees
 const HISTORY = 40
-// After a handoff the agent stays out of the conversation this long, so you can answer in Messages
+// After a handoff the agent stays out of the conversation this long, so you can answer yourself
 export const PAUSE_MS = 24 * 3_600_000
 const TYPING_LEAD_MS = 2_000
 
 const describe = (e: unknown) => (e instanceof ReplyError ? e.message : `${e instanceof Error ? e.message : String(e)}`.slice(0, 200))
+const named = (name: string, text: string) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
 
 export class Pipeline {
     private timers = new Map<number, NodeJS.Timeout[]>()
@@ -72,19 +78,21 @@ export class Pipeline {
         this.timers.clear()
     }
 
-    // A text arrived on one of your numbers. Stores it, counts it, and queues the agent's reply.
+    // A text arrived on one of your channels. Stores it, counts it, and queues the agent's reply. In a group chat the
+    // agent only answers when someone uses its name.
     async receive(text: Incoming): Promise<{ markRead: boolean }> {
         const { store, link } = this.deps
         const { workspace: ws, numbers, agents } = this.config
         const body = text.body.trim()
         if (!body) throw new Error('Message is empty')
-        const numberKey = handleKey(text.to)
         const fromKey = handleKey(text.from)
-        if (!numberKey || !fromKey) throw new Error("That text didn't come from or to a phone number or email")
+        if (!fromKey) throw new Error("That text didn't come from a phone number or email")
         // Your own replies to handoff alerts aren't conversations
         if (ws.ownerHandle && handleKey(ws.ownerHandle) === fromKey) return { markRead: true }
-        const number = numbers.find((n) => n.key === numberKey)
-        if (!number) throw new Error(`${text.to} isn't one of your iMessage numbers`)
+        // The number it was sent to, or for a channel with one address (BlueBubbles) that channel's number
+        const toKey = text.to ? handleKey(text.to) : null
+        const number = toKey ? numbers.find((n) => n.key === toKey) : numbers.find((n) => n.channel === text.channel)
+        if (!number) throw new Error(text.to ? `${text.to} isn't one of your numbers` : `Add your ${text.channel} number in Numbers`)
         const agent = agents.find((a) => a._id === (number.agentId ?? ws.defaultAgentId))
         if (!agent) throw new Error(`${number.handle} isn't assigned to an agent`)
 
@@ -94,25 +102,25 @@ export class Pipeline {
             name: text.name?.trim() || text.from.trim(),
             tags: ws.newContactTag ? [ws.newContactTag] : [],
         }))
-        const { conversation } = store.conversation(contact.id, agent._id, number.handle, at)
-        const messageId = store.addMessage(conversation.id, 'contact', body, at)
-        store.updateConversation(conversation.id, { lastAt: at, number: number.handle })
+        const { conversation } = store.conversation({ contactId: contact.id, agentId: agent._id, number: number.handle, channel: number.channel, at, thread: text.thread })
+        const messageId = store.addMessage(conversation.id, 'contact', body, at, { senderId: contact.id })
+        store.updateConversation(conversation.id, { lastAt: at, number: number.handle, channel: number.channel })
 
         const counted = store.countOnce(dayKey(at), conversation.id)
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
-        if (newContact && ws.notifyNewContact !== false) await this.alertOwner(number.handle, `${contact.name} texted ${agent.name} for the first time.`)
+        if (newContact && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
-        await this.queue(store.getConversation(conversation.id)!, messageId, agent)
-        return { markRead: ws.readReceipts !== false }
+        if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
+        return { markRead: true }
     }
 
-    // Queues the reply to the newest contact message, honouring pauses, the reply delay and quiet hours
+    // Queues the reply to the newest message, honouring pauses, the reply delay and quiet hours
     private async queue(conversation: Conversation, messageId: number, agent: Doc<'agents'>) {
         const { store } = this.deps
         const ws = this.config.workspace
         if (conversation.pausedUntil && conversation.pausedUntil > this.now()) return
         if (agent.status !== 'live') {
-            if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer in Messages.`)
+            if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer yourself.`)
             return
         }
         const now = this.now()
@@ -125,22 +133,36 @@ export class Pipeline {
     private schedule(conversationId: number, messageId: number, delay: number) {
         for (const t of this.timers.get(conversationId) ?? []) clearTimeout(t)
         const timers = [setTimeout(() => void this.reply(conversationId, messageId).catch((e) => this.log(`Reply failed: ${describe(e)}`)), delay)]
-        const { transport } = this.deps
-        if (transport.typing && this.deps.link.config()?.workspace.typingIndicator !== false) {
+        const c = this.deps.store.getConversation(conversationId)
+        const transport = c && this.deps.transports[c.channel]
+        // The typing bubble, one-to-one chats only
+        if (c && !c.threadKey && transport?.typing) {
             timers.push(
                 setTimeout(() => {
-                    const c = this.deps.store.getConversation(conversationId)
-                    const contact = c && this.deps.store.getContact(c.contactId)
-                    if (c && contact) void transport.typing!({ from: c.number, to: contact.handle })
+                    const contact = this.deps.store.getContact(c.contactId)
+                    if (contact) void transport.typing!({ from: c.number, to: contact.handle })
                 }, Math.max(0, delay - TYPING_LEAD_MS)),
             )
         }
         this.timers.set(conversationId, timers)
     }
 
+    // The conversation as model turns; in a group each message starts with who sent it
+    private turns(conversation: Conversation) {
+        const { store } = this.deps
+        const names = new Map<number, string>()
+        const nameOf = (id?: number) => {
+            if (id === undefined) return 'Someone'
+            if (!names.has(id)) names.set(id, store.getContact(id)?.name ?? 'Someone')
+            return names.get(id)!
+        }
+        const history = store.history(conversation.id, HISTORY)
+        return toTurns(conversation.threadKey ? history.map((m) => (m.from === 'contact' ? { ...m, body: `${nameOf(m.senderId)}: ${m.body}` } : m)) : history)
+    }
+
     // Writes and sends the reply, unless a newer text has its own reply queued or the agent stopped
     async reply(conversationId: number, messageId: number) {
-        const { store, link, transport, brains } = this.deps
+        const { store, link, brains } = this.deps
         const conversation = store.getConversation(conversationId)
         if (!conversation || conversation.pendingId !== messageId) return
         store.updateConversation(conversationId, { pendingId: null, dueAt: null })
@@ -151,12 +173,19 @@ export class Pipeline {
 
         const now = this.now()
         const blocked = await link.budget(dayKey(now))
-        if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer in Messages.`)
+        if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
 
-        const models = resolveModels(ws.models, agent.models, agent.model)
+        const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
         const prompt: Prompt = {
-            system: systemPrompt({ agent, workspace: ws, contact, knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100), now }),
-            turns: toTurns(store.history(conversationId, HISTORY)),
+            system: systemPrompt({
+                agent,
+                workspace: ws,
+                contact,
+                knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+                now,
+                group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
+            }),
+            turns: this.turns(conversation),
             temperature: agent.temperature,
             maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
         }
@@ -185,33 +214,43 @@ export class Pipeline {
         // A reply that was only the marker still hands off, without sending an empty text
         if (body) {
             try {
-                await transport.send({ from: conversation.number, to: contact.handle, body })
+                await this.send(conversation, contact.handle, body)
             } catch (e) {
                 return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`)
             }
             const at = this.now()
-            store.addMessage(conversationId, 'agent', body, at, result.option.id)
+            store.addMessage(conversationId, 'agent', body, at, { model: result.option.id })
             store.updateConversation(conversationId, { lastAt: at })
             void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         }
         if (handoff) await this.handoff(conversation, agent, `${agent.name} asked you to step in.`)
     }
 
-    // Steps the agent out of a conversation for a day and texts you why. The alert names the contact but never
-    // quotes what they wrote; you read that in Messages.
+    // Sends through the channel the conversation came in on (to the group, for a group chat)
+    private async send(conversation: Conversation, to: string, body: string) {
+        const transport = this.deps.transports[conversation.channel]
+        if (!transport) throw new Error(`this agent doesn't have ${conversation.channel} set up`)
+        await transport.send({ from: conversation.number, to, body, threadKey: conversation.threadKey })
+    }
+
+    // Steps the agent out of a conversation for a day and tells you why. The alert names the contact but never quotes
+    // what they wrote; you read that on your phone.
     private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string) {
         const { store, link } = this.deps
         store.updateConversation(conversation.id, { needsYou: true, pausedUntil: this.now() + PAUSE_MS, pendingId: null, dueAt: null })
         void link.record(agent._id, { activity: { handoffs: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         if (this.config.workspace.notifyHandoff === false) return
-        const contact = store.getContact(conversation.contactId)
-        await this.alertOwner(conversation.number, `${contact?.name ?? 'Someone'} needs you (${agent.name}). ${reason} ${agent.name} stays out of that chat for 24 hours.`)
+        const who = conversation.title ?? store.getContact(conversation.contactId)?.name ?? 'Someone'
+        await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason} ${agent.name} stays out of that chat for 24 hours.`)
     }
 
-    // Texts the owner's own phone, from the agent's number
-    private async alertOwner(from: string, body: string) {
-        const to = this.config.workspace.ownerHandle
-        if (!to) return this.log('Add your phone under Settings → General to get handoff texts')
-        await this.deps.transport.send({ from, to, body }).catch((e) => this.log(`Couldn't text you: ${describe(e)}`))
+    // Texts your own phone from the conversation's number, and emails you when the agent has Resend set up
+    private async alertOwner(conversation: Conversation, body: string) {
+        const ws = this.config.workspace
+        if (ws.ownerEmail && this.deps.email) await this.deps.email(ws.ownerEmail, body.split('. ')[0], body).catch((e) => this.log(`Couldn't email you: ${describe(e)}`))
+        if (!ws.ownerHandle) return this.log('Add your phone under Settings → General to get handoff texts')
+        const transport = this.deps.transports[conversation.channel]
+        if (!transport) return
+        await transport.send({ from: conversation.number, to: ws.ownerHandle, body }).catch((e) => this.log(`Couldn't text you: ${describe(e)}`))
     }
 }

@@ -1,42 +1,42 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { demoReply } from '../../convex/lib/demo'
-import type { ModelOption, Provider } from '../../convex/lib/models'
+import { PROVIDER_NAMES, type AiProvider, type ModelOption } from '../../convex/lib/models'
 import type { Turn } from '../../convex/lib/prompt'
+import { demoReply } from './demo'
 
 export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
 
 // The env var that unlocks each cloud provider that writes text. Keys live only on the agent.
 export const PROVIDER_KEYS = {
-    anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
+    anthropic: 'ANTHROPIC_API_KEY',
     google: 'GEMINI_API_KEY',
     xai: 'XAI_API_KEY',
-} as const satisfies Partial<Record<Provider, string>>
+} as const satisfies Partial<Record<AiProvider, string>>
+export type CloudProvider = keyof typeof PROVIDER_KEYS
 
 // What the agent was started with (see config.ts)
 export type Brains = {
-    keys: Partial<Record<keyof typeof PROVIDER_KEYS, string>>
-    // An OpenAI-compatible server for the "Local model" option, e.g. Ollama at http://localhost:11434/v1
-    local?: { url: string; model: string; key?: string }
-    // Answer with sample replies when a provider isn't set up, so a demo works with no keys
+    keys: Partial<Record<CloudProvider, string>>
+    // An OpenAI-compatible model server (Ollama, LM Studio, vLLM…), e.g. http://localhost:11434/v1
+    local?: { url: string; key?: string }
+    // Answer with sample replies when no AI key is set up, so a demo works without one
     demo: boolean
 }
 
-// A failure worth showing the owner as-is ("OPENAI_API_KEY isn't set on your agent")
+// A failure worth showing the owner as-is ("Add your OpenAI key to your agent …")
 export class ReplyError extends Error {}
 
-// Claude 5.x models reject sampling parameters and take effort instead
-const CLAUDE_5 = new Set(['claude-sonnet-5-5'])
+// Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
+const isClaude5 = (model: string) => /^claude-[a-z]+-5/.test(model)
 
 async function anthropic(model: string, key: string, p: Prompt) {
     const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 60_000 })
-    const modern = CLAUDE_5.has(model)
     const res = await client.beta.messages.create({
         model,
         max_tokens: p.maxTokens,
         system: p.system,
         messages: p.turns,
-        ...(modern
+        ...(isClaude5(model)
             ? // Short chat replies: low effort; on a safety decline the API re-runs the request on a fallback model
               { output_config: { effort: 'low' as const }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
             : { temperature: p.temperature }),
@@ -45,7 +45,7 @@ async function anthropic(model: string, key: string, p: Prompt) {
     return res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
 }
 
-// OpenAI and xAI share the chat completions shape
+// OpenAI, xAI and local model servers share the chat completions shape
 async function chatCompletions(url: string, model: string, key: string, p: Prompt) {
     const res = await fetch(url, {
         method: 'POST',
@@ -72,38 +72,31 @@ async function gemini(model: string, key: string, p: Prompt) {
     return (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join('')
 }
 
-// Writes one reply with the given model. Throws ReplyError for problems the owner should fix.
+// Writes one reply with the given model and this agent's own key for it. Throws ReplyError for problems the owner
+// should fix.
 export async function complete(brains: Brains, option: ModelOption, p: Prompt): Promise<string> {
     const demo = () => demoReply(p.turns.at(-1)?.content ?? '')
-    if (option.provider === 'local') {
-        if (!brains.local) {
-            if (brains.demo) return demo()
-            throw new ReplyError("OPENBOTS_LOCAL_URL and OPENBOTS_LOCAL_MODEL aren't set on your agent, so the local model can't reply")
-        }
-        const text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, brains.local.model, brains.local.key ?? 'local', p)
-        if (!text.trim()) throw new Error('The model sent back an empty reply')
-        return text.trim()
-    }
-    const keyName = option.provider in PROVIDER_KEYS ? PROVIDER_KEYS[option.provider as keyof typeof PROVIDER_KEYS] : undefined
-    if (!keyName || !option.api) throw new ReplyError(`${option.label} can't write replies`)
-    const key = brains.keys[option.provider as keyof typeof PROVIDER_KEYS]
-    if (!key) {
+    if (option.provider === 'none') {
         if (brains.demo) return demo()
-        throw new ReplyError(`${keyName} isn't set on your agent, so ${option.label} can't reply`)
+        throw new ReplyError('Add an AI key to your agent, then pick a model on the Models page')
     }
+    if (!option.api) throw new ReplyError(`${option.label} can't write replies`)
     let text: string
-    switch (option.provider) {
-        case 'anthropic':
-            text = await anthropic(option.api, key, p)
-            break
-        case 'openai':
-            text = await chatCompletions('https://api.openai.com/v1/chat/completions', option.api, key, p)
-            break
-        case 'xai':
-            text = await chatCompletions('https://api.x.ai/v1/chat/completions', option.api, key, p)
-            break
-        default:
-            text = await gemini(option.api, key, p)
+    if (option.provider === 'local') {
+        if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL on your agent so ${option.label} can reply`)
+        text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, option.api, brains.local.key ?? 'local', p)
+    } else {
+        if (!(option.provider in PROVIDER_KEYS)) throw new ReplyError(`${option.label} can't write replies`)
+        const provider = option.provider as CloudProvider
+        const key = brains.keys[provider]
+        if (!key) {
+            if (brains.demo) return demo()
+            throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key to your agent so ${option.label} can reply`)
+        }
+        if (provider === 'anthropic') text = await anthropic(option.api, key, p)
+        else if (provider === 'openai') text = await chatCompletions('https://api.openai.com/v1/chat/completions', option.api, key, p)
+        else if (provider === 'xai') text = await chatCompletions('https://api.x.ai/v1/chat/completions', option.api, key, p)
+        else text = await gemini(option.api, key, p)
     }
     if (!text.trim()) throw new Error('The model sent back an empty reply')
     return text.trim()
