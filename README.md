@@ -46,15 +46,20 @@ npm test                # unit tests and the Convex pipeline tests (convex-test)
 
 Set `VITE_CONVEX_URL` (production deployment URL) in Vercel.
 
-### Deployment settings (once, by whoever hosts OpenBots)
+### Server secrets (once, by whoever hosts OpenBots)
 
-Set with `npx convex env set NAME value`:
+```sh
+npm run setup             # the dev deployment
+npm run setup -- --prod   # production
+```
 
-| Variable | What it is |
-| --- | --- |
-| `ENCRYPTION_KEY` | 32 random bytes, base64 (`openssl rand -base64 32`). Encrypts the keys people connect. Never change it once set, or stored connections can't be read. |
-| `JWT_PRIVATE_KEY`, `JWKS` | Sign-in keys for [Convex Auth](https://labs.convex.dev/auth/setup/manual). Generate them with the script on that page. |
-| `SITE_URL` | The site's URL, e.g. `https://openbots.app`. |
+This generates the server's own secrets and stores them on the Convex deployment, the way Vercel keeps
+environment variables on its side: nothing secret goes in a file or the repo. It sets `ENCRYPTION_KEY`, which
+encrypts every key people connect, and the sign-in key pair (`JWT_PRIVATE_KEY`, `JWKS`). Running it again only
+fills in what's missing; it never replaces `ENCRYPTION_KEY`, since stored connections can't be read without it.
+Until it has run, the dashboard shows a setup screen instead of the sign-in page.
+
+`.env.local` only holds the deployment's address (written by `npx convex dev`). None of the values in it are secret.
 
 The schema now scopes everything to a signed-in user's workspace. A deployment holding data from before
 sign-in existed won't accept the new schema; clear its tables (Convex dashboard → Data) before deploying.

@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
-import { Authenticated, AuthLoading, ConvexReactClient, Unauthenticated } from 'convex/react'
+import { useEffect, type ReactNode } from 'react'
+import { Authenticated, AuthLoading, ConvexReactClient, Unauthenticated, useQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
 import { ConvexAuthProvider } from '@convex-dev/auth/react'
 import { Shell } from './shell'
 import { SignIn } from './sign-in'
@@ -41,17 +42,45 @@ export default function CrmApp() {
     return (
         <ConvexAuthProvider client={client}>
             <TooltipProvider>
-                <AuthLoading>
-                    <div className="min-h-dvh bg-[#f5f5f7]" />
-                </AuthLoading>
-                <Unauthenticated>
-                    <SignIn />
-                </Unauthenticated>
-                <Authenticated>
-                    <Shell />
-                </Authenticated>
+                <Ready>
+                    <AuthLoading>
+                        <div className="min-h-dvh bg-[#f5f5f7]" />
+                    </AuthLoading>
+                    <Unauthenticated>
+                        <SignIn />
+                    </Unauthenticated>
+                    <Authenticated>
+                        <Shell />
+                    </Authenticated>
+                </Ready>
                 <Toaster position="bottom-right" />
             </TooltipProvider>
         </ConvexAuthProvider>
+    )
+}
+
+// Holds the app back until the server has its own secrets, so a fresh deployment explains itself instead of
+// failing at sign-in
+function Ready({ children }: { children: ReactNode }) {
+    const status = useQuery(api.platform.status)
+    if (!status) return <div className="min-h-dvh bg-[#f5f5f7]" />
+    if (status.ready) return children
+    return (
+        <div className="grid min-h-dvh place-items-center bg-[#f5f5f7] p-6">
+            <Card className="max-w-md">
+                <CardHeader>
+                    <CardTitle>Finish setting up this server</CardTitle>
+                    <CardDescription>It's missing {status.missing.join(' and ')}.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-[14px] text-neutral-600">
+                    <p>
+                        Whoever hosts OpenBots runs <code className="rounded bg-neutral-100 px-1">npm run setup</code> once (add{' '}
+                        <code className="rounded bg-neutral-100 px-1">-- --prod</code> for production). It generates the server's secrets and stores them on the
+                        Convex deployment, then this page signs you in.
+                    </p>
+                    <p>Your own AI keys and texting accounts aren't set here: you add them in the dashboard, under Connections.</p>
+                </CardContent>
+            </Card>
+        </div>
     )
 }

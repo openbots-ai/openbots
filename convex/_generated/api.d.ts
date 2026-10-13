@@ -34,6 +34,7 @@ import type * as lib_stats from "../lib/stats.js";
 import type * as lib_usage from "../lib/usage.js";
 import type * as notifications from "../notifications.js";
 import type * as numbers from "../numbers.js";
+import type * as platform from "../platform.js";
 import type * as replies from "../replies.js";
 import type * as usage from "../usage.js";
 import type * as workspace from "../workspace.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "lib/usage": typeof lib_usage;
   notifications: typeof notifications;
   numbers: typeof numbers;
+  platform: typeof platform;
   replies: typeof replies;
   usage: typeof usage;
   workspace: typeof workspace;
