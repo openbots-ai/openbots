@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { ArrowLeft, BookOpen, MessageCircle, Monitor } from 'lucide-react'
+import { ArrowLeft, Bell, BookOpen, MessageCircle, Monitor } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import { DEFAULT_CONFIG } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
 import { useNav } from '../nav'
 import { useKeyModels, withKeyOptions } from '../lib/key-models'
+import { CheckIns } from '../check-ins'
 import { ComputerSelect } from '../computer-select'
 import { NoKeyNote } from '../slot-select'
 import { useRun } from '../use-run'
@@ -43,6 +44,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const workspace = useQuery(api.workspace.get)
     const computers = useQuery(api.runners.list)
     const setComputer = useMutation(api.agents.setComputer)
+    const jobs = (computers ?? []).flatMap((r) => r.jobs ?? []).filter((j) => j.agentId === agent._id).reduce((sum, j) => ({ reminders: sum.reminders + j.reminders, watches: sum.watches + j.watches }), { reminders: 0, watches: 0 })
     const [form, setForm] = useState(() => pickAgentFields(agent))
 
     const set = <K extends keyof AgentFields>(key: K, value: AgentFields[K]) => setForm((f) => ({ ...f, [key]: value }))
@@ -190,6 +192,16 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                     </div>
 
                     <div className="space-y-4">
+                        <section className="rounded-lg border border-neutral-200 p-4">
+                            <h2 className="mb-1 flex items-center gap-2 text-[13px] font-medium"><Bell className="size-4 text-neutral-500" />Check-ins</h2>
+                            <p className="mb-2 text-[12px] text-neutral-500">Texts {agent.name} sends you on a schedule, in your timezone.</p>
+                            <CheckIns agent={agent} />
+                            {(jobs.reminders > 0 || jobs.watches > 0) && (
+                                <p className="mt-3 text-[12px] text-neutral-500">
+                                    {jobs.reminders} reminder{jobs.reminders === 1 ? '' : 's'} and {jobs.watches} watch{jobs.watches === 1 ? '' : 'es'} active. Text {agent.name} to list or cancel them.
+                                </p>
+                            )}
+                        </section>
                         <section className="rounded-lg border border-neutral-200 p-4">
                             <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium"><Monitor className="size-4 text-neutral-500" />Computer</h2>
                             <p className="mb-2 text-[12px] text-neutral-500">Where this agent does computer use. Saved right away.</p>
