@@ -45,7 +45,10 @@ for people already comfortable running their own server.
 **Engine key pair.** On first run the engine makes an RSA-OAEP (SHA-256, 3072-bit) key pair and keeps the private
 key in its data directory next to the existing `key` file (mode 0600). It sends the public key with its heartbeat;
 Convex stores it on the engine's `runners` row. The engine prints the key's short fingerprint at startup, and
-Connections shows the same fingerprint, so a careful user can check they match.
+Connections shows the same fingerprint, so a careful user can check they match. The first public key is pinned: a
+heartbeat with a different one is refused (so a stolen token can't swap in its own key), and only the owner's
+**Reset key** in Connections clears the saved key and that engine's locked values, after which its next heartbeat
+registers the new key.
 
 **Locking (browser, Web Crypto).** Saving a service: for each engine in the workspace that has a public key, make a
 random AES-256-GCM key, encrypt the service's fields as JSON with it, using `workspaceId:runnerId:service` as

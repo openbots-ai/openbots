@@ -22,10 +22,10 @@ database backup) cannot read messages, because they never receive them, not even
 | The OpenBots backend / developers / Convex | **No** | **No** | Daily counts only | Yes, plus the owner's own numbers and which models their keys can use |
 | Another OpenBots user | No | No | No | No: every function checks the signed-in user's workspace |
 | Someone holding the engine's database file but not its key | No | No | No | n/a |
-| Someone holding an engine token | No | No | No | That workspace's, read-only; can add to counts and answer its Twilio requests |
+| Someone holding an engine token | No | No | No | That workspace's, read-only; can add to counts and answer its Twilio requests. Can register the engine's key only if none is saved yet; changing it needs the owner's **Reset key** in Connections |
 | Twilio, Sendblue, BlueBubbles (whichever the owner uses) | Yes, they carry the texts | Yes | Yes | No |
 
-Keys entered in the dashboard: stored in Convex locked for your engine; only the engine can open them.
+Keys entered in the dashboard: stored in Convex locked for your engine; only whoever holds that engine's private key file (in its data directory) can open them.
 
 Between the engine's machine and the person texting, iMessage provides Apple's end-to-end encryption.
 

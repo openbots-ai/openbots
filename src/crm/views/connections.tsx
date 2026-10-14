@@ -363,6 +363,7 @@ function PublicUrl({ runner }: { runner: Runner }) {
 function Engines({ runners }: { runners?: Runner[] }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
+    const resetKey = useMutation(api.runners.resetKey)
     const run = useRun()
     const now = useNow(30_000)
     const [name, setName] = useState('')
@@ -381,7 +382,7 @@ function Engines({ runners }: { runners?: Runner[] }) {
         <section className="space-y-3">
             <div>
                 <h2 className="text-[14px] font-semibold">Your engine</h2>
-                <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages, contacts and keys stay on it; this dashboard never sees them.</p>
+                <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages and contacts stay on it. Keys you enter below are locked so only it can read them.</p>
             </div>
             <Card className="divide-y divide-neutral-100 rounded-lg p-0">
                 {runners === undefined ? (
@@ -407,9 +408,13 @@ function Engines({ runners }: { runners?: Runner[] }) {
                                             : 'Never connected. Start it with the token you copied.'}
                                     </p>
                                     {r.publicKey && <Fingerprint publicKey={r.publicKey} />}
+                                    {r.publicKey && r.lastSeenAt && !online && <p className="text-[12px] text-neutral-500">Reset its data? Click Reset key, then enter your keys again.</p>}
                                     <PublicUrl runner={r} />
                                 </div>
-                                <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
+                                <div className="flex shrink-0 gap-2">
+                                    {r.publicKey && <ConfirmDelete label="Reset key" what={`${r.name}'s key and the keys saved for it`} onConfirm={() => void run(resetKey({ id: r._id }))} />}
+                                    <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
+                                </div>
                             </div>
                         )
                     })

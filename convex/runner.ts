@@ -73,9 +73,10 @@ export const heartbeat = mutation({
         const runner = await runnerFor(ctx, token)
         if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10) throw new Error('Too much to report')
         if (publicKey !== undefined && (publicKey.length > 1_000 || !/^[A-Za-z0-9+/=]+$/.test(publicKey))) throw new Error('Unreadable public key')
-        // A new key pair (the engine's data folder was wiped) can't open values locked for the old one
+        // The first key sent is kept. A different one could be someone with a stolen token, so only the owner's
+        // Reset key in Connections clears it.
         if (publicKey && runner.publicKey && publicKey !== runner.publicKey) {
-            for (const row of await ctx.db.query('secrets').withIndex('by_runnerId', (q) => q.eq('runnerId', runner._id)).take(100)) await ctx.db.delete('secrets', row._id)
+            throw new Error("This engine's key doesn't match the one saved for it. If you reset this engine's data, click Reset key for it in Connections.")
         }
         await ctx.db.patch('runners', runner._id, { ...status, ...(publicKey ? { publicKey } : {}), lastSeenAt: Date.now() })
     },
