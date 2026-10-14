@@ -115,6 +115,8 @@ export class Pipeline {
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
+        // Who and which agent, never what they wrote
+        this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? ' (you)' : ''}`)
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
         return { markRead: true }
     }
@@ -136,7 +138,7 @@ export class Pipeline {
         const { store } = this.deps
         const ws = this.config.workspace
         const owner = this.isOwner(store.getContact(conversation.contactId)?.handle ?? '')
-        if (!owner && conversation.pausedUntil && conversation.pausedUntil > this.now()) return
+        if (!owner && conversation.pausedUntil && conversation.pausedUntil > this.now()) return this.log(`${agent.name} is staying out of that chat for now (it was handed to you)`)
         if (!owner && agent.status !== 'live') {
             // Not a request for help, so no 24-hour pause: once the agent is live it answers the next text
             if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer yourself.`, { pause: false })
@@ -244,6 +246,7 @@ export class Pipeline {
             }
             const at = this.now()
             store.addMessage(conversationId, 'agent', body, at, { model: result.option.id })
+            this.log(`${agent.name} replied to …${handleKey(contact.handle)?.slice(-4)} (${result.option.label})`)
             store.updateConversation(conversationId, { lastAt: at })
             void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         }
