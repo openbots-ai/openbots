@@ -47,6 +47,9 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
                 setError(null)
                 setOpen(false)
             }
+        } catch {
+            // Keep the message plain: nothing from the key or the failure goes on screen
+            setError('Couldn’t lock this key for your engine. Reload the page and try again.')
         } finally {
             setSaving(false)
         }
@@ -89,10 +92,14 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
                     ))}
                     {error && <p className="text-[12px] text-destructive">{error}</p>}
                     <div className="flex gap-2">
-                        <Btn type="submit" variant="primary" disabled={saving}>
+                        <Btn type="submit" variant="primary" disabled={saving || !ws}>
                             {saving ? 'Saving…' : 'Save'}
                         </Btn>
-                        <Btn type="button" variant="ghost" onClick={() => setOpen(false)}>
+                        <Btn type="button" variant="ghost" onClick={() => {
+                                setValues({})
+                                setError(null)
+                                setOpen(false)
+                            }}>
                             Cancel
                         </Btn>
                     </div>
