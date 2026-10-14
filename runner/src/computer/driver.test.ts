@@ -35,9 +35,24 @@ describe('key names', () => {
         expect(() => parseCombo('ctrl+')).toThrow(/key/)
     })
 
+    it('reads a literal plus, xdotool modifiers and punctuation names', () => {
+        expect(parseCombo('+')).toEqual({ mods: [], key: '+' })
+        expect(parseCombo('ctrl++')).toEqual({ mods: ['ctrl'], key: '+' })
+        expect(parseCombo('Control_L+c')).toEqual({ mods: ['ctrl'], key: 'c' })
+        expect(parseCombo('Super_R+Shift_L+e')).toEqual({ mods: ['super', 'shift'], key: 'e' })
+        expect(parseCombo('Super_L')).toEqual({ mods: [], key: 'super' })
+        expect(parseCombo('ctrl+equal')).toEqual({ mods: ['ctrl'], key: '=' })
+        expect(parseCombo('backslash')).toEqual({ mods: [], key: '\\' })
+        expect(parseCombo('grave')).toEqual({ mods: [], key: '`' })
+        expect(parseCombo('Insert')).toEqual({ mods: [], key: 'insert' })
+        expect(parseCombo('ISO_Left_Tab')).toEqual({ mods: ['shift'], key: 'tab' })
+        expect(() => parseCombo('bogus+s')).toThrow('Unknown key "bogus"')
+    })
+
     it('reads modifiers held during a click', () => {
         expect(parseMods(undefined)).toEqual([])
         expect(parseMods('shift')).toEqual(['shift'])
         expect(parseMods('ctrl+shift')).toEqual(['ctrl', 'shift'])
+        expect(() => parseMods('ctrl+bogus')).toThrow('Unknown key "bogus"')
     })
 })
