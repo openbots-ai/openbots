@@ -64,6 +64,10 @@ The schema scopes everything to a signed-in user's workspace. A deployment holdi
 accept it; export what you want to keep (`npx convex export`) and clear its tables before deploying. A deployment
 that stored conversations or connected accounts in Convex: run `npx convex run migrations:purgeLegacy` once.
 
+If a push fails because older rows don't match (a workspace owned through `ownerId`, numbers without a
+`channel`), make those fields optional in `convex/schema.ts`, push, run `npx convex run migrations:upgradeLegacy`,
+then put the schema back and push again.
+
 ### The agent (`runner/`)
 
 Each person runs the agent on a machine they choose: the Mac signed in to iMessage, a VM, a server at home. They
