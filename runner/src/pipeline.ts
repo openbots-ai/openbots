@@ -62,6 +62,11 @@ export class Pipeline {
         this.log = deps.log ?? console.log
     }
 
+    // New channels, keys or email after a change in the dashboard; texts already queued use them when they go out
+    update(parts: Partial<Pick<Deps, 'transports' | 'brains' | 'email'>>) {
+        Object.assign(this.deps, parts)
+    }
+
     private get config() {
         const config = this.deps.link.config()
         if (!config) throw new Error('Not connected to your workspace yet')

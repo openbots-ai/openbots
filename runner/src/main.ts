@@ -1,19 +1,17 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
-import { loadSettings } from './config'
+import { fingerprint, type SealedService } from '../../convex/lib/sealed'
+import { loadSettings, openDashboard, withDashboard, type Settings } from './config'
 import { Vault } from './crypto'
+import { loadEngineKeys } from './identity'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
 import { check, ConnectError, sendEmail, type Credentials } from './providers'
 import { Server } from './server'
+import { buildServices, type Services } from './services'
 import { Store } from './store'
 import { ConvexLink, type Status, type Task, type TaskResult } from './sync'
-import { BlueBubblesTransport } from './transports/bluebubbles'
-import { MacTransport } from './transports/mac'
-import { RelayTransport } from './transports/relay'
-import { SendblueTransport } from './transports/sendblue'
-import { TwilioTransport } from './transports/twilio'
-import type { Channel, Transport } from './transports/types'
+import type { Channel } from './transports/types'
 
 // Set at build time from runner/package.json
 declare const __VERSION__: string
@@ -25,38 +23,51 @@ const CHECK_MS = 6 * 3_600_000
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 async function main() {
-    const settings = loadSettings()
-    const store = new Store(join(settings.dataDir, 'openbots.db'), Vault.open(settings.dataDir))
-    const link = new ConvexLink(settings.convexUrl, settings.token)
+    const base = loadSettings()
+    const store = new Store(join(base.dataDir, 'openbots.db'), Vault.open(base.dataDir))
+    const engineKeys = await loadEngineKeys(base.dataDir)
+    const link = new ConvexLink(base.convexUrl, base.token)
 
-    console.log(`OpenBots agent ${VERSION}: connecting to your workspace…`)
+    console.log(`OpenBots engine ${VERSION}: connecting to your workspace…`)
+    console.log(`Engine key ${await fingerprint(engineKeys.publicKey)} (Connections shows the same for this engine)`)
     await link.connect((m) => console.error(m))
 
     // Webhook paths carry a random secret, made once, so only your accounts know where to post
     const secret = store.getMeta('hooks.secret') ?? randomBytes(18).toString('base64url')
     store.setMeta('hooks.secret', secret)
-    const hook = (channel: Channel) => `${settings.publicUrl}/hooks/${channel}/${secret}`
+    const server = new Server({ host: base.host, port: base.port })
 
-    const server = new Server({ host: settings.host, port: settings.port })
-    const transports: Partial<Record<Channel, Transport>> = {}
-    if (settings.mac) transports.mac = new MacTransport(store)
-    if (settings.relay) transports.relay = new RelayTransport(server, settings.relay)
-    const twilio = settings.twilio ? new TwilioTransport(server, settings.twilio, hook('twilio')) : undefined
-    if (twilio) transports.twilio = twilio
-    if (settings.sendblue) transports.sendblue = new SendblueTransport(server, settings.sendblue, hook('sendblue'))
-    if (settings.bluebubbles) transports.bluebubbles = new BlueBubblesTransport(server, settings.bluebubbles, hook('bluebubbles'))
-    if (!Object.keys(transports).length) throw new Error('Set up at least one way to text: Messages on a Mac, a relay, Twilio, Sendblue or BlueBubbles (see runner/README.md)')
+    let settings = withDashboard(base, { secrets: {} })
+    let services: Services = { transports: {}, problems: [] }
+    let keyProblems: { service: SealedService; error: string }[] = []
+    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, publicKey: engineKeys.publicKey }
+    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
 
-    const resend = settings.resend
-    let status: Status = { version: VERSION, services: [], models: [], channels: Object.keys(transports) as Channel[], lines: [], demo: settings.brains.demo }
-    const pipeline = new Pipeline({
-        store,
-        link,
-        transports,
-        brains: settings.brains,
-        models: () => status.models,
-        email: resend ? (to, subject, text) => sendEmail(resend, to, subject, text) : undefined,
-    })
+    // Stops the channels, rebuilds them from the new settings and starts them again. A channel that won't stop or
+    // start is logged and reported for its service, and the rest keep running.
+    const apply = async (next: Settings) => {
+        for (const t of Object.values(services.transports)) await t.stop().catch((e) => console.error(`Couldn't stop ${t.channel}: ${message(e)}`))
+        server.clearRoutes()
+        settings = next
+        services = buildServices(settings, { server, store, secret })
+        const resend = settings.resend
+        pipeline.update({ transports: services.transports, brains: settings.brains, email: resend ? (to, subject, text) => sendEmail(resend, to, subject, text) : undefined })
+        for (const t of Object.values(services.transports)) {
+            try {
+                await t.start((text) => pipeline.receive(text))
+            } catch (e) {
+                const error = `Couldn't start: ${message(e)}`
+                console.error(`${t.channel}: ${error}`)
+                if (t.channel !== 'mac' && t.channel !== 'relay') services.problems.push({ service: t.channel, error })
+                delete services.transports[t.channel]
+                await t.stop().catch(() => {})
+            }
+        }
+        if (server.hasRoutes) await server.start()
+        status = { ...status, channels: Object.keys(services.transports) as Channel[] }
+        const channels = Object.keys(services.transports)
+        console.log(channels.length ? `Answering through ${channels.join(', ')}${server.hasRoutes ? ` (listening on ${base.host}:${base.port})` : ''}.` : 'No way to text is set up yet. Add one in Connections, or set it on this engine. Waiting…')
+    }
 
     // What's set up, checked with each provider: the models each AI key can use, and whether each account works
     const checkAll = async () => {
@@ -72,18 +83,51 @@ async function main() {
                 }
             }),
         )
-        const lines = (await Promise.all(Object.values(transports).map((t) => t.lines?.().catch(() => []) ?? []))).flat()
+        const lines = (await Promise.all(Object.values(services.transports).map((t) => t.lines?.().catch(() => []) ?? []))).flat()
         status = {
             ...status,
             models: keys.models,
             lines,
-            services: [...keys.results.map((r) => ({ service: r.provider, label: r.error ? undefined : `${r.count} models`, error: r.error })), ...checked],
+            services: [
+                ...keys.results.map((r) => ({ service: r.provider, label: r.error ? undefined : `${r.count} models`, error: r.error })),
+                ...checked,
+                ...services.problems,
+                ...keyProblems,
+            ],
         }
         for (const s of status.services) if (s.error) console.error(`${s.service}: ${s.error}`)
     }
-    await checkAll()
     const beat = () => link.heartbeat(status).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
-    await beat()
+    // Each change from the dashboard is applied in turn, and only when it changes what this engine runs
+    let applied = ''
+    let chain = Promise.resolve()
+    let resumed = false
+    const ready = new Promise<void>((resolve) => {
+        link.onDashboard((doc) => {
+            chain = chain
+                .then(async () => {
+                    const opened = await openDashboard(engineKeys.privateKey, doc)
+                    keyProblems = opened.problems
+                    const next = withDashboard(base, opened.values)
+                    const fingerprintOf = JSON.stringify(next)
+                    if (fingerprintOf !== applied) {
+                        await apply(next)
+                        applied = fingerprintOf
+                    }
+                    await checkAll()
+                    await beat()
+                })
+                .catch((e) => console.error(`Couldn't apply your dashboard keys: ${message(e)}`))
+                // Even if the first change failed, queued replies go out with whatever is running
+                .then(() => {
+                    if (resumed) return
+                    resumed = true
+                    pipeline.resume()
+                    resolve()
+                })
+        })
+    })
+    await ready
     const timers = [setInterval(beat, HEARTBEAT_MS), setInterval(() => void checkAll().then(beat), CHECK_MS)]
 
     // Requests from the dashboard: check keys again, or anything that needs your Twilio login
@@ -97,7 +141,8 @@ async function main() {
             return
         }
         try {
-            if (!twilio) throw new ConnectError("Twilio isn't set up on this agent")
+            const twilio = services.twilio
+            if (!twilio) throw new ConnectError("Twilio isn't set up on this engine")
             const numbers = (list: { sid?: string; phoneNumber: string; friendlyName: string; locality?: string; region?: string }[]) => ({
                 numbers: list.map(({ sid, phoneNumber, friendlyName, locality, region }) => ({ sid, phoneNumber, friendlyName, locality, region })),
             })
@@ -113,15 +158,10 @@ async function main() {
     }
     link.onTasks((task) => void run(task))
 
-    pipeline.resume()
-    for (const t of Object.values(transports)) await t.start((text) => pipeline.receive(text))
-    if (server.hasRoutes) await server.start()
-    console.log(`Answering through ${Object.keys(transports).join(', ')}${server.hasRoutes ? ` (listening on ${settings.host}:${settings.port})` : ''}.`)
-
     const shutdown = async () => {
         timers.forEach(clearInterval)
         pipeline.stop()
-        for (const t of Object.values(transports)) await t.stop()
+        for (const t of Object.values(services.transports)) await t.stop().catch(() => {})
         await server.stop()
         await link.close()
         store.close()
