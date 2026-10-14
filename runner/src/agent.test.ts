@@ -375,6 +375,49 @@ describe('agent', () => {
         expect(transport.sent).toHaveLength(sent)
     })
 
+    it('sends a check-in at its time in your timezone, once a day, and not on other days', async () => {
+        const complete = model(async () => 'Sunny, 12°C today')
+        const checkIns = [{ id: 'a', days: [3], time: '08:00', what: 'Weather in Saskatoon', on: true }]
+        const { pipeline, transport } = setup(config({ workspace: { timezone: 'America/Regina' }, agent: { checkIns } }), complete)
+        // Wednesday 2026-10-14, 07:59 in Regina (UTC-6)
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T13:59:00Z'))
+        expect(transport.sent).toHaveLength(0)
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T14:00:30Z'))
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T14:01:00Z'))
+        expect(transport.sent.map((m) => [m.to, m.body])).toEqual([[OWNER, 'Sunny, 12°C today']])
+        // Thursday: not a check-in day
+        await pipeline.fireCheckIns(Date.parse('2026-10-15T14:00:30Z'))
+        expect(transport.sent).toHaveLength(1)
+    })
+
+    it('holds a check-in through quiet hours, then sends it once when they end', async () => {
+        const checkIns = [{ id: 'a', days: [3], time: '07:00', what: 'Weather in Saskatoon', on: true }]
+        const ws = { timezone: 'America/Regina', quietEnabled: true, quietStart: '22:00', quietEnd: '08:00' }
+        const { pipeline, transport } = setup(config({ workspace: ws, agent: { checkIns } }), model(async () => 'Sunny'))
+        // 07:30 in Regina: due, but quiet
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T13:30:00Z'))
+        expect(transport.sent).toHaveLength(0)
+        // 08:00 and 08:01: quiet hours are over
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T14:00:00Z'))
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T14:01:00Z'))
+        expect(transport.sent.map((m) => m.body)).toEqual(['Sunny'])
+    })
+
+    it('keeps going when one check-in fails, sends nothing for an empty reply, and doesn’t retry either', async () => {
+        const complete = model(async (_b, _o, p) => {
+            const asked = p.turns.at(-1)!.content
+            if (asked.includes('broken')) throw new Error('model down')
+            return asked.includes('blank') ? '  ' : 'All good'
+        })
+        const checkIns = ['broken', 'blank', 'fine'].map((what) => ({ id: what, days: [3], time: '08:00', what, on: true }))
+        const { pipeline, transport } = setup(config({ agent: { checkIns } }), complete)
+        // Wednesday 08:00 UTC
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T08:00:00Z'))
+        expect(transport.sent.map((m) => m.body)).toEqual(["Pip's check-in couldn't be sent: model down", 'All good'])
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T08:01:00Z'))
+        expect(complete).toHaveBeenCalledTimes(3)
+    })
+
     it("refuses texts to numbers that aren't yours", async () => {
         const { pipeline } = setup()
         await expect(pipeline.receive({ channel: 'relay', to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)

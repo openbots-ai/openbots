@@ -4,7 +4,7 @@ import { currentWorkspace, owned, requireWorkspace } from './lib/access'
 import { canComputerUse, NO_COMPUTER_USE } from './lib/computers'
 import { requireKeyOffers } from './lib/keyModels'
 import { isValidChoice } from './lib/models'
-import { agentFields } from './schema'
+import { agentFields, checkIn } from './schema'
 import type { Doc } from './_generated/dataModel'
 
 export const list = query({
@@ -69,6 +69,23 @@ export const setComputer = mutation({
         await owned(ctx, ws, 'agents', id)
         if (computerId && !canComputerUse(await owned(ctx, ws, 'runners', computerId))) throw new Error(NO_COMPUTER_USE)
         await ctx.db.patch('agents', id, { computerId })
+    },
+})
+
+// The agent's scheduled check-ins (agent page). Times are in the workspace's timezone; days are 0 = Sunday … 6.
+export const setCheckIns = mutation({
+    args: { id: v.id('agents'), checkIns: v.array(checkIn) },
+    handler: async (ctx, { id, checkIns }) => {
+        const ws = await requireWorkspace(ctx)
+        await owned(ctx, ws, 'agents', id)
+        if (checkIns.length > 5) throw new Error('An agent can have up to 5 check-ins')
+        if (new Set(checkIns.map((c) => c.id)).size !== checkIns.length) throw new Error('Each check-in needs its own id')
+        for (const c of checkIns) {
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(c.time)) throw new Error('Give the time as HH:MM, e.g. 08:00')
+            if (!c.days.length || c.days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) throw new Error('Pick at least one day')
+            if (!c.what.trim() || c.what.length > 500) throw new Error('Say what to send, in up to 500 characters')
+        }
+        await ctx.db.patch('agents', id, { checkIns: checkIns.map((c) => ({ ...c, what: c.what.trim() })) })
     },
 })
 

@@ -287,6 +287,50 @@ export class Pipeline {
         return { outcome: 'sent', result }
     }
 
+    // Check-ins due now: the right weekday and time in your timezone, not sent yet today, up to 6 hours late (an engine
+    // that was off sends a missed one once), held through quiet hours
+    async fireCheckIns(now: number) {
+        const { store } = this.deps
+        const ws = this.config.workspace
+        if (!ws.ownerHandle) return
+        const tz = ws.timezone ?? 'UTC'
+        const parts = Object.fromEntries(
+            new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23' })
+                .formatToParts(now)
+                .map((p) => [p.type, p.value]),
+        )
+        const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday)
+        const minutes = Number(parts.hour) * 60 + Number(parts.minute)
+        const date = `${parts.year}-${parts.month}-${parts.day}`
+        const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(now, tz, ws.quietStart, ws.quietEnd) : 0
+        for (const agent of this.config.agents) {
+            for (const c of agent.checkIns ?? []) {
+                const [h, m] = c.time.split(':').map(Number)
+                const late = minutes - (h * 60 + m)
+                const key = `checkin:${agent._id}:${c.id}:${date}`
+                if (!c.on || !c.days.includes(day) || late < 0 || late > 360 || store.getMeta(key) || quiet > 0) continue
+                const number = this.config.numbers.find((n) => n.agentId === agent._id)
+                const transport = number && this.deps.transports[number.channel]
+                if (!number || !transport) continue
+                // Marked before thinking, so a failing model can't send it again every tick
+                store.setMeta(key, '1')
+                // One check-in going wrong must not stop the others (nothing it says is logged)
+                try {
+                    const body = await this.think(agent, `It's time for your scheduled check-in with ${ws.ownerName}. Send them: ${c.what}`)
+                    if (!body) {
+                        this.log(`${agent.name}'s check-in got no reply, so nothing was sent`)
+                        continue
+                    }
+                    await transport.send({ from: number.handle, to: ws.ownerHandle, body })
+                    this.log(`${agent.name} sent a check-in`)
+                } catch (e) {
+                    this.log(`${agent.name}'s check-in failed: ${describe(e)}`)
+                    await transport.send({ from: number.handle, to: ws.ownerHandle, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
+                }
+            }
+        }
+    }
+
     // One reply from the agent's Brain to an instruction from the engine, for watches and check-ins
     private async think(agent: Doc<'agents'>, instruction: string) {
         const { brains, link } = this.deps

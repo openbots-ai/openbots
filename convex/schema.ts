@@ -105,6 +105,9 @@ export const taskRequest = v.union(
 // What the engine sends back: numbers found, or the number now in use
 export const taskResult = v.union(v.object({ numbers: v.array(twilioNumber) }), v.object({ phoneNumber: v.string(), sid: v.string() }), v.object({ sentTo: v.string() }))
 
+// A text an agent sends its owner on a schedule. `time` is HH:MM in the workspace's timezone; days are 0 = Sunday … 6.
+export const checkIn = v.object({ id: v.string(), days: v.array(v.number()), time: v.string(), what: v.string(), on: v.boolean() })
+
 const ws = { workspaceId: v.id('workspace') }
 
 export default defineSchema({
@@ -122,7 +125,14 @@ export default defineSchema({
         lastDigestDay: v.optional(v.string()),
     }).index('by_user', ['userId']),
     // `computerId` overrides the workspace's computer for this agent; set by agents.setComputer, not the edit form
-    agents: defineTable({ ...ws, ...agentFields, computerId: v.optional(v.id('runners')), updatedAt: v.number() }).index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt']),
+    agents: defineTable({
+        ...ws,
+        ...agentFields,
+        computerId: v.optional(v.id('runners')),
+        // Texts the agent sends its owner on a schedule (agent page); set by agents.setCheckIns
+        checkIns: v.optional(v.array(checkIn)),
+        updatedAt: v.number(),
+    }).index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt']),
     numbers: defineTable({
         ...ws,
         handle: v.string(),
