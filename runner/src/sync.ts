@@ -16,6 +16,7 @@ export type Status = {
     lines: Line[]
     demo: boolean
     tunnelUrl?: string
+    os?: 'windows' | 'mac' | 'linux' | 'other'
 }
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }
 export type TaskResult = NonNullable<Doc<'tasks'>['result']>

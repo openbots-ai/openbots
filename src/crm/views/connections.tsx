@@ -407,6 +407,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                               : 'Never connected. Start it with the token you copied.'}
                                     </p>
                                     {r.tunnelUrl && <p className="truncate font-mono text-[11px] text-neutral-500">Public address {r.tunnelUrl}</p>}
+                                    {!onOrgo && r.os === 'linux' && <p className="text-[12px] text-amber-700">Texting only: computer use isn’t supported on Linux.</p>}
                                     {onOrgo ? <OrgoControls runner={r} /> : !r.tunnelUrl && <PublicUrl runner={r} />}
                                 </div>
                                 {!onOrgo && (
@@ -444,7 +445,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                             e.preventDefault()
                             void add()
                         }}>
-                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Name it to get its token:</span>
+                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Computer use works on Windows and Mac; Linux computers (like Fedora) answer texts only. Name it to get its token:</span>
                         <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
                         <Btn type="submit" variant="primary" disabled={!name.trim()}>
                             Add computer

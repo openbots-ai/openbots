@@ -70,6 +70,7 @@ export const heartbeat = mutation({
         demo: v.boolean(),
         // The address of the engine's own tunnel, when it runs one
         tunnelUrl: v.optional(v.string()),
+        os: v.optional(v.union(v.literal('windows'), v.literal('mac'), v.literal('linux'), v.literal('other'))),
     },
     handler: async (ctx, { token, ...status }) => {
         const runner = await runnerFor(ctx, token)

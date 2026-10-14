@@ -79,7 +79,8 @@ to get one, both under **Connections → Computer use**:
   computer on that Orgo account (Orgo bills it), installs Node.js, `cloudflared` and the engine (served by this site at
   `/engine/openbots-engine.mjs`, built with every deploy), and keeps it running. Incoming texts reach it through
   Cloudflare's quick tunnel, so it needs no open ports.
-- **Your own computer:** a laptop, a server or any VM. Add it to get a token and run the command shown.
+- **Your own computer:** a laptop, a server or any VM. Add it to get a token and run the command shown. Computer use
+  works on Windows and Mac; a Linux computer (like Fedora) answers texts but can't be picked for computer use.
 
 Either way they save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
 that machine. It keeps contacts, conversations and messages in a local encrypted SQLite file. Setup, settings and

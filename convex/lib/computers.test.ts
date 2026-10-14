@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { kindOf, resolveComputer } from './computers'
+import { canComputerUse, kindOf, resolveComputer } from './computers'
 
 const laptop = { _id: 'r1' }
 const vm = { _id: 'r2', orgo: { computerId: 'c1', workspaceId: 'w1' } }
@@ -18,6 +18,16 @@ describe('which computer an agent uses', () => {
 
     it('skips a pick whose computer was deleted', () => {
         expect(resolveComputer([vm], 'gone', 'also-gone')).toEqual({ computer: vm, inherited: true })
+    })
+
+    it('leaves your own Linux computers out of computer use, but not Orgo ones', () => {
+        const fedora = { _id: 'r4', os: 'linux' }
+        expect(canComputerUse(fedora)).toBe(false)
+        expect(canComputerUse({ _id: 'r5', os: 'windows' })).toBe(true)
+        expect(canComputerUse({ ...vm, os: 'linux' })).toBe(true)
+        // A Linux computer is never the automatic default, nor a pick
+        expect(resolveComputer([fedora]).computer).toBeUndefined()
+        expect(resolveComputer([fedora, laptop], 'r4').computer).toBe(laptop)
     })
 
     it('tells your own computers from cloud ones', () => {

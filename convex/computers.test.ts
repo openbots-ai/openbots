@@ -34,6 +34,17 @@ describe('choosing the computer agents use', () => {
         expect((await owner.query(api.agents.get, { id: pip }))?.computerId).toBeUndefined()
     })
 
+    it('refuses your own Linux computer for computer use', async () => {
+        const base = convexTest(schema, modules)
+        const owner = await user(base)
+        const token = newToken()
+        const fedora = await owner.mutation(api.runners.create, { name: 'Fedora', tokenHash: await hashToken(token) })
+        await base.mutation(api.runner.heartbeat, { token, version: '0.2.0', services: [], models: [], channels: [], lines: [], demo: false, os: 'linux' })
+        const pip = await agent(owner)
+        await expect(owner.mutation(api.workspace.setComputer, { computerId: fedora })).rejects.toThrow(/isn’t supported on Linux/)
+        await expect(owner.mutation(api.agents.setComputer, { id: pip, computerId: fedora })).rejects.toThrow(/isn’t supported on Linux/)
+    })
+
     it("refuses another account's computer or agent", async () => {
         const base = convexTest(schema, modules)
         const owner = await user(base)

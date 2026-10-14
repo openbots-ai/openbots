@@ -1,6 +1,6 @@
 import { Cloud, Monitor } from 'lucide-react'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { kindOf } from '@convex/lib/computers'
+import { canComputerUse, kindOf } from '@convex/lib/computers'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useNav } from './nav'
@@ -74,11 +74,21 @@ export function ComputerSelect({
                 {groups.map((g) => (
                     <SelectGroup key={g.label}>
                         <SelectLabel>{g.label}</SelectLabel>
-                        {g.items.map((c) => (
-                            <SelectItem key={c._id} value={c._id}>
-                                <Choice computer={c} />
-                            </SelectItem>
-                        ))}
+                        {g.items.map((c) =>
+                            canComputerUse(c) ? (
+                                <SelectItem key={c._id} value={c._id}>
+                                    <Choice computer={c} />
+                                </SelectItem>
+                            ) : (
+                                // Own Linux computers answer texts but can't do computer use
+                                <SelectItem key={c._id} value={c._id} disabled>
+                                    <span className="flex min-w-0 items-center gap-2 text-neutral-400">
+                                        <span className="truncate">{c.name}</span>
+                                        <span className="shrink-0 text-[11px]">Linux · no computer use</span>
+                                    </span>
+                                </SelectItem>
+                            ),
+                        )}
                         {!g.items.length && (
                             <SelectItem value={ADD}>
                                 <span className="text-neutral-500">{g.label === 'Cloud · Orgo' ? 'Create on Orgo…' : 'Add your computer…'}</span>
