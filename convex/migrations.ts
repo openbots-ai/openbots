@@ -1,10 +1,58 @@
 import { internal } from './_generated/api'
+import type { Id } from './_generated/dataModel'
 import { internalMutation } from './_generated/server'
 
 // Tables from before messages, contacts and credentials moved onto your agent. They're no longer in the schema,
 // so they're named loosely.
 const LEGACY = ['messages', 'conversations', 'contacts', 'notifications', 'connections'] as const
 type Loose = { query: (t: string) => { take: (n: number) => Promise<{ _id: string }[]> }; delete: (id: string) => Promise<void> }
+
+type LegacyWorkspace = { _id: Id<'workspace'>; userId?: Id<'users'>; ownerId?: Id<'users'> }
+const WORKSPACE_TABLES = ['agents', 'numbers', 'knowledge', 'usage', 'activity', 'runners', 'tasks'] as const
+
+// Brings rows from before sign-in and agent channels up to the current schema: a workspace still owned through
+// `ownerId` moves to `userId` (replacing an empty workspace made for that user at sign-up), retired workspace
+// settings go, and numbers without a channel become `relay`. npx convex run migrations:upgradeLegacy
+export const upgradeLegacy = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const done: string[] = []
+        const removed = new Set<string>()
+        for (const ws of (await ctx.db.query('workspace').take(1000)) as unknown as LegacyWorkspace[]) {
+            if (removed.has(ws._id)) continue
+            const patch: Record<string, undefined | Id<'users'>> = { ownerId: undefined, readReceipts: undefined, typingIndicator: undefined }
+            if (!ws.userId) {
+                if (!ws.ownerId) throw new Error(`Workspace ${ws._id} has no owner; delete it or set userId by hand`)
+                const fresh = await ctx.db
+                    .query('workspace')
+                    .withIndex('by_user', (q) => q.eq('userId', ws.ownerId!))
+                    .unique()
+                if (fresh) {
+                    for (const table of WORKSPACE_TABLES) {
+                        const used = await (ctx.db as unknown as Loose).query(table).take(1000)
+                        if (used.some((doc) => (doc as unknown as { workspaceId: string }).workspaceId === fresh._id))
+                            throw new Error(`User ${ws.ownerId} has two workspaces with data (${ws._id}, ${fresh._id}); merge them by hand`)
+                    }
+                    await ctx.db.delete('workspace', fresh._id)
+                    removed.add(fresh._id)
+                    done.push(`removed empty workspace ${fresh._id}`)
+                }
+                patch.userId = ws.ownerId
+                done.push(`workspace ${ws._id} now belongs to ${ws.ownerId}`)
+            }
+            await ctx.db.patch('workspace', ws._id, patch as never)
+        }
+        let numbers = 0
+        for (const n of await ctx.db.query('numbers').take(5000)) {
+            if (!n.channel) {
+                await ctx.db.patch('numbers', n._id, { channel: 'relay' })
+                numbers++
+            }
+        }
+        done.push(`${numbers} numbers set to relay`)
+        return done.join('; ')
+    },
+})
 
 // Deletes message history, contacts, notifications and stored credentials left in Convex, and the workspace fields
 // that went with them. Runs in batches until nothing is left: npx convex run migrations:purgeLegacy
