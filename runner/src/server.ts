@@ -21,11 +21,17 @@ export class Server {
         this.routes.set(path, handler)
     }
 
+    // Before the channels are rebuilt with new settings; each new one adds its route again
+    clearRoutes() {
+        this.routes.clear()
+    }
+
     get hasRoutes() {
         return this.routes.size > 0
     }
 
     async start() {
+        if (this.server) return
         this.server = createServer(async (req, res) => {
             const send = ({ status = 200, body, type = 'text/plain' }: Response) => {
                 res.writeHead(status, { 'Content-Type': type })

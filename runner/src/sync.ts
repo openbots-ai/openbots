@@ -4,6 +4,7 @@ import type { Infer } from 'convex/values'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { KeyModel } from '../../convex/lib/models'
 import type { service } from '../../convex/schema'
+import type { DashboardDoc } from './config'
 import type { Activity, Config, Link } from './pipeline'
 import type { Channel, Line } from './transports/types'
 
@@ -14,6 +15,7 @@ export type Status = {
     channels: Channel[]
     lines: Line[]
     demo: boolean
+    publicKey?: string
 }
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }
 export type TaskResult = NonNullable<Doc<'tasks'>['result']>
@@ -64,6 +66,12 @@ export class ConvexLink implements Link {
                 onTask(t)
             }
         })
+        this.unsubscribers.push(() => sub.unsubscribe())
+    }
+
+    // Keys entered in the dashboard (locked for this engine) and its public URL, now and whenever they change
+    onDashboard(onChange: (doc: DashboardDoc) => void) {
+        const sub = this.client.onUpdate(api.runner.dashboard, { token: this.token }, onChange, (error) => console.error(`Couldn't read your keys from the dashboard: ${reason(error)}`))
         this.unsubscribers.push(() => sub.unsubscribe())
     }
 

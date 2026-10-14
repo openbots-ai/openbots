@@ -227,6 +227,14 @@ describe('agent', () => {
         await expect(pipeline.receive({ channel: 'relay', to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)
     })
 
+    it('uses new keys after an update', async () => {
+        const { pipeline, complete, text } = setup()
+        pipeline.update({ brains: { keys: { anthropic: 'sk-new' }, demo: false } })
+        await text('hello')
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls.at(-1)?.[0]).toMatchObject({ keys: { anthropic: 'sk-new' } })
+    })
+
     it('picks queued replies back up after a restart', async () => {
         const first = setup(config({ workspace: { replyDelaySec: 30 } }))
         await first.text('still there?')
