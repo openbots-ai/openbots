@@ -11,8 +11,9 @@ export const WATCH_DAYS = 30
 export const WATCH_FAILURES = 3
 // A reminder whose send failed tries again this much later
 export const RETRY_MS = 5 * 60_000
-// A job that hasn't finished by then counts as failed, so one stuck call can't hold up the rest
-export const FIRE_DEADLINE_MS = 2 * 60_000
+// A job that hasn't finished by then counts as failed, so one stuck call can't hold up the rest. Longer than the slowest
+// model call (Anthropic: 90s, retried once) plus a send, so a slow answer isn't counted as failed and sent again
+export const FIRE_DEADLINE_MS = 4 * 60_000
 
 type Deps = {
     store: Store
