@@ -1,3 +1,4 @@
+import { localTime } from '../../convex/lib/prompt'
 import type { Tool } from './brain'
 import type { Store } from './store'
 import type { Channel } from './transports/types'
@@ -8,7 +9,8 @@ import type { Channel } from './transports/types'
 export const LIMITS = { reminders: 50, watches: 10 }
 export const MIN_WATCH_MINUTES = 30
 
-type Ctx = { store: Store; agentId: string; owner: string; number: string; channel: Channel; now: () => number }
+// `timeZone` is the owner's, so confirmations read in their local time
+type Ctx = { store: Store; agentId: string; owner: string; number: string; channel: Channel; now: () => number; timeZone: string }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() && Number.isFinite(Number(v)) ? Number(v) : undefined)
@@ -36,7 +38,7 @@ export function schedulingTools(ctx: Ctx): Tool[] {
                 if (at <= ctx.now()) throw new Error('That time has already passed')
                 if (count(ctx, 'reminder') >= LIMITS.reminders) throw new Error(`There are already ${LIMITS.reminders} reminders; cancel some first`)
                 const id = ctx.store.addJob({ ...base, kind: 'reminder', dueAt: at, everyMin: null, until: null, text })
-                return `Reminder set (#${id}) for ${new Date(at).toISOString()}`
+                return `Reminder set (#${id}) for ${localTime(at, ctx.timeZone)}`
             },
         },
         {
@@ -51,7 +53,7 @@ export function schedulingTools(ctx: Ctx): Tool[] {
                 if (until !== null && until <= ctx.now()) throw new Error('That end time has already passed')
                 if (count(ctx, 'watch') >= LIMITS.watches) throw new Error(`There are already ${LIMITS.watches} watches; cancel one first`)
                 const id = ctx.store.addJob({ ...base, kind: 'watch', dueAt: ctx.now(), everyMin: every, until, text: what })
-                return `Watching (#${id}), checking every ${every} minutes`
+                return `Watching (#${id}), checking every ${every} minutes${until !== null ? ` until ${localTime(until, ctx.timeZone)}` : ''}`
             },
         },
         {
@@ -61,7 +63,7 @@ export function schedulingTools(ctx: Ctx): Tool[] {
             run: async () => {
                 const jobs = ctx.store.jobsFor(ctx.agentId)
                 if (!jobs.length) return 'Nothing scheduled'
-                return jobs.map((j) => (j.kind === 'reminder' ? `#${j.id} reminder at ${new Date(j.dueAt).toISOString()}: ${j.text}` : `#${j.id} watching every ${j.everyMin} min: ${j.text}`)).join('\n')
+                return jobs.map((j) => (j.kind === 'reminder' ? `#${j.id} reminder at ${localTime(j.dueAt, ctx.timeZone)}: ${j.text}` : `#${j.id} watching every ${j.everyMin} min${j.until !== null ? ` until ${localTime(j.until, ctx.timeZone)}` : ''}: ${j.text}`)).join('\n')
             },
         },
         {

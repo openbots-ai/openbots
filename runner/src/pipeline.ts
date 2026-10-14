@@ -52,6 +52,8 @@ const TYPING_LEAD_MS = 2_000
 const HOLD_MS = 60 * 60_000
 // How late a check-in may still go out
 const LATE_MS = 6 * 3_600_000
+// A reminder or watch whose channel isn't running checks again this much later
+const WAIT_MS = 5 * 60_000
 
 // The calendar date at `ms` in `timeZone`
 function localDate(ms: number, timeZone: string) {
@@ -233,9 +235,10 @@ export class Pipeline {
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
         const turns = this.turns(conversation)
-        // Each model gets its own prompt: scheduling tools only in your own chat, and only for a model that can run them
+        // Each model gets its own prompt: scheduling tools only in your own one-to-one chat (in a group the chat's
+        // first sender may not be you), and only for a model that can run them
         const promptFor = (option: ModelOption): Prompt => {
-            const scheduling = owner && TOOL_PROVIDERS.includes(option.provider)
+            const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
             return {
                 system: systemPrompt({
                     agent,
@@ -252,7 +255,7 @@ export class Pipeline {
                 turns,
                 temperature: agent.temperature,
                 maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
-                tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now }) : undefined,
+                tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now, timeZone: ws.timezone ?? 'UTC' }) : undefined,
             }
         }
 
@@ -302,9 +305,14 @@ export class Pipeline {
         const agent = this.config.agents.find((a) => a._id === job.agentId)
         if (!agent) return { outcome: 'failed' }
         const transport = this.deps.transports[job.channel]
-        if (!transport) return { outcome: 'failed' }
+        // The channel isn't running (yet): wait for it, and the heartbeat reports the waiting job
+        if (!transport) {
+            this.log(`${agent.name} has a ${job.kind} waiting for ${job.channel}, which isn't running`)
+            return { outcome: 'later', inMs: WAIT_MS }
+        }
         const text = (body: string) => transport.send({ from: job.number, to: job.to, body })
         if (job.kind === 'reminder') {
+            // A send that throws is retried by the scheduler, a few minutes later
             await text(`Reminder: ${job.text}`)
             this.log(`${agent.name} sent a reminder to …${handleKey(job.to)?.slice(-4)}`)
             return { outcome: 'sent' }
@@ -353,10 +361,16 @@ export class Pipeline {
         if (!due.length) return
         // Checked before anything is marked sent, so check-ins still go out later today if you raise the cap
         if (await this.deps.link.budget(dayKey(now))) return
+        const waiting: string[] = []
         for (const { agent, what, key } of due) {
-            const number = this.config.numbers.find((n) => n.agentId === agent._id)
+            // The agent's number, including one that answers for the default agent (as in receive)
+            const number = this.config.numbers.find((n) => (n.agentId ?? ws.defaultAgentId) === agent._id)
             const transport = number && this.deps.transports[number.channel]
-            if (!number || !transport) continue
+            // Not marked sent, so it still goes out if the number or channel comes back within its window
+            if (!number || !transport) {
+                if (!waiting.includes(agent.name)) waiting.push(agent.name)
+                continue
+            }
             // Marked before thinking, so a failing model can't send it again every tick
             store.setMeta(key, '1')
             // One check-in going wrong must not stop the others (nothing it says is logged)
@@ -373,6 +387,8 @@ export class Pipeline {
                 await transport.send({ from: number.handle, to: ws.ownerHandle, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
             }
         }
+        // One line a tick at most
+        if (waiting.length) this.log(`Check-ins waiting for a number or channel that isn't running: ${waiting.join(', ')}`)
     }
 
     // One reply from the agent's Brain to an instruction from the engine, for watches and check-ins

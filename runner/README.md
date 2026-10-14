@@ -95,8 +95,10 @@ Text your agent from your own phone (Settings → General): "remind me at 5 to c
 gets moved", "what do I have scheduled?", "cancel 2". Up to 50 reminders and 10 watches per agent; a watch checks
 at most every 30 minutes, texts you only when the answer changes, and stops after 30 days or 3 failed checks.
 Check-ins are set on the agent's page and go out at their time in your timezone. Quiet hours hold check-ins and watch
-alerts; reminders go out at the time you asked for. All of it needs the agent's Brain to be an OpenAI or Anthropic
-model, and it's kept in the engine's sealed database: back it up with your history.
+alerts; reminders go out at the time you asked for. A reminder or watch whose channel isn't running waits for it
+(the dashboard shows the problem), and a reminder that fails to send is tried up to 3 times. Setting reminders and
+watches by text needs the agent's Brain to be an OpenAI or Anthropic model; check-ins and watch checks work with any
+Brain. Reminders and watches are kept in the engine's sealed database: back it up with your history.
 
 ## Back up your history
 

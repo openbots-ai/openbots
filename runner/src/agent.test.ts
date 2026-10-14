@@ -10,6 +10,7 @@ import { complete as realComplete, ReplyError, type Brains, type complete } from
 import { listModels } from './models'
 import { Vault } from './crypto'
 import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Link } from './pipeline'
+import { RETRY_MS, Scheduler } from './scheduler'
 import { Store } from './store'
 import { MacTransport, textFromAttributedBody } from './transports/mac'
 import type { Channel, Outgoing, Transport } from './transports/types'
@@ -277,7 +278,8 @@ describe('agent', () => {
         await vi.runAllTimersAsync()
         const [job] = store.jobsFor(AGENT)
         expect(job).toMatchObject({ kind: 'reminder', text: 'call mom', dueAt: Date.parse('2026-10-14T23:00:00Z') })
-        expect(transport.sent.at(-1)?.body).toMatch(/Reminder set/)
+        // Confirmed in your timezone, not UTC
+        expect(transport.sent.at(-1)?.body).toBe(`Reminder set (#${job.id}) for Wed, Oct 14, 5:00 PM (UTC-06:00)`)
     })
 
     it('refuses a reminder in the past or without text, and stores nothing', async () => {
@@ -338,6 +340,18 @@ describe('agent', () => {
         await text('remind me tomorrow', '+1 212 555 0187')
         await vi.runAllTimersAsync()
         expect(transport.sent.at(-1)?.body).toBe('no tools')
+    })
+
+    it('gives no scheduling tools in a group chat, even one you started', async () => {
+        const complete = model(async (_b, _o, p) => (p.tools?.length || /set reminders/.test(p.system) ? 'had tools' : 'no tools'))
+        const { bubbles, pipeline } = setup(config(), complete)
+        const group = (from: string, body: string, name: string) => pipeline.receive({ channel: 'bluebubbles', from, body, name, thread: { key: 'iMessage;+;chat7', title: 'Plans' } })
+        await group(OWNER, 'Pip, remind me at 5 to call mom', 'Sam')
+        await vi.runAllTimersAsync()
+        await group('+1 212 555 0187', 'Pip, remind everyone tomorrow', 'Dana')
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(2)
+        expect(bubbles.sent.filter((m) => m.threadKey).map((m) => m.body)).toEqual(['no tools', 'no tools'])
     })
 
     it('offers no scheduling tools when your Brain can’t run them', async () => {
@@ -474,6 +488,92 @@ describe('agent', () => {
         expect(await over.pipeline.fireJob(add(over.store, 'watch'))).toEqual({ outcome: 'later', inMs: 3_600_000 })
         expect(await over.pipeline.fireJob(add(over.store, 'reminder'))).toEqual({ outcome: 'sent' })
         expect(over.complete).not.toHaveBeenCalled()
+    })
+
+    it('holds a reminder while its channel isn’t running, and sends it once the channel is back', async () => {
+        const { pipeline, store } = setup()
+        vi.setSystemTime(Date.parse('2026-10-14T12:00:00Z'))
+        const id = store.addJob({ kind: 'reminder', agentId: AGENT, to: OWNER, number: '+1 306 555 0199', channel: 'twilio', dueAt: Date.now(), everyMin: null, until: null, text: 'stretch' })
+        const scheduler = new Scheduler({ store, now: Date.now, fire: (job) => pipeline.fireJob(job), tellOwner: async () => {}, checkIns: async () => {}, log: () => {} })
+        expect(await pipeline.fireJob(store.jobsFor(AGENT)[0])).toEqual({ outcome: 'later', inMs: 5 * 60_000 })
+        await scheduler.tick()
+        expect(store.jobsFor(AGENT)).toEqual([expect.objectContaining({ id, dueAt: Date.now() + 5 * 60_000 })])
+
+        const twilio = new FakeTransport('twilio')
+        pipeline.update({ transports: { twilio } })
+        vi.setSystemTime(Date.now() + 5 * 60_000)
+        await scheduler.tick()
+        await scheduler.tick()
+        expect(twilio.sent).toEqual([{ from: '+1 306 555 0199', to: OWNER, body: 'Reminder: stretch' }])
+        expect(store.jobsFor(AGENT)).toEqual([])
+    })
+
+    it('retries a reminder whose send fails, and drops it after 3 failed sends', async () => {
+        const { pipeline, store, transport } = setup()
+        vi.setSystemTime(Date.parse('2026-10-14T12:00:00Z'))
+        const lines: string[] = []
+        store.addJob({ kind: 'reminder', agentId: AGENT, to: OWNER, number: '+1 (415) 555-0101', channel: 'relay', dueAt: Date.now(), everyMin: null, until: null, text: 'stretch' })
+        const fire = vi.fn((job: Parameters<Pipeline['fireJob']>[0]) => pipeline.fireJob(job))
+        const scheduler = new Scheduler({ store, now: Date.now, fire, tellOwner: async () => {}, checkIns: async () => {}, log: (l) => void lines.push(l) })
+        transport.fail = true
+        await scheduler.tick()
+        expect(store.jobsFor(AGENT)[0]).toMatchObject({ failures: 1, dueAt: Date.now() + RETRY_MS })
+        for (let i = 0; i < 3; i++) {
+            vi.setSystemTime(Date.now() + RETRY_MS)
+            await scheduler.tick()
+        }
+        expect(fire).toHaveBeenCalledTimes(3)
+        expect(store.jobsFor(AGENT)).toEqual([])
+        expect(transport.sent).toEqual([])
+        // Logged without the reminder's text
+        expect(lines.join('\n')).not.toContain('stretch')
+        expect(lines.at(-1)).toMatch(/dropped after 3 failed sends/)
+    })
+
+    it('sends a check-in from a number that answers for the default agent', async () => {
+        const checkIns = [{ id: 'a', days: [3], time: '08:00', what: 'Weather', on: true }]
+        const cfg = config({ workspace: { defaultAgentId: AGENT }, agent: { checkIns } })
+        cfg.numbers = cfg.numbers.map((n) => ({ ...n, agentId: undefined }))
+        const { pipeline, transport } = setup(cfg, model(async () => 'Sunny'))
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T08:00:00Z'))
+        expect(transport.sent.map((m) => [m.from, m.to, m.body])).toEqual([['+1 (415) 555-0101', OWNER, 'Sunny']])
+    })
+
+    it('holds a check-in while its channel isn’t running, and sends it when the channel is back that morning', async () => {
+        const checkIns = [{ id: 'a', days: [3], time: '08:00', what: 'Weather', on: true }]
+        const { pipeline, transport, complete } = setup(config({ agent: { checkIns } }), model(async () => 'Sunny'))
+        pipeline.update({ transports: {} })
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T08:00:00Z'))
+        expect(complete).not.toHaveBeenCalled()
+        pipeline.update({ transports: { relay: transport } })
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T09:00:00Z'))
+        expect(transport.sent.map((m) => m.body)).toEqual(['Sunny'])
+    })
+
+    it('sends a reminder set by text exactly once after the engine restarts', async () => {
+        vi.setSystemTime(Date.parse('2026-10-14T20:00:00Z'))
+        const complete = model(async (_b, _o, p) => {
+            const remind = p.tools?.find((t) => t.name === 'set_reminder')
+            return remind ? await remind.run({ in_minutes: 10, text: 'stretch' }) : 'no tools'
+        })
+        const cfg = config({ workspace: { timezone: 'America/Regina' } })
+        const first = setup(cfg, complete)
+        await first.text('remind me in 10 minutes to stretch', OWNER)
+        await vi.runAllTimersAsync()
+        expect(first.transport.sent.at(-1)?.body).toMatch(/^Reminder set/)
+        first.pipeline.stop()
+        first.store.close()
+
+        // A new engine on the same data folder and key
+        const second = setup(cfg, complete)
+        const scheduler = new Scheduler({ store: second.store, now: Date.now, fire: (job) => second.pipeline.fireJob(job), tellOwner: async () => {}, checkIns: (now) => second.pipeline.fireCheckIns(now), log: () => {} })
+        scheduler.start()
+        await vi.advanceTimersByTimeAsync(9 * 60_000)
+        expect(second.transport.sent).toEqual([])
+        await vi.advanceTimersByTimeAsync(5 * 60_000)
+        scheduler.stop()
+        expect(second.transport.sent).toEqual([{ from: '+1 (415) 555-0101', to: OWNER, body: 'Reminder: stretch' }])
+        expect(second.store.jobsFor(AGENT)).toEqual([])
     })
 
     it("refuses texts to numbers that aren't yours", async () => {

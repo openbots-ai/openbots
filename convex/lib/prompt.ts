@@ -28,6 +28,26 @@ const LANGUAGE_NAMES: Record<string, string> = {
     'ja-JP': 'Japanese',
 }
 
+// The offset from UTC in `timeZone` at `ms`, e.g. "UTC-06:00", from Intl's long offset name ("GMT-06:00", or "GMT" for zero)
+export function utcOffset(ms: number, timeZone: string) {
+    try {
+        const name = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(ms).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT'
+        return name === 'GMT' ? 'UTC+00:00' : name.replace('GMT', 'UTC')
+    } catch {
+        return 'UTC+00:00'
+    }
+}
+
+// A moment as the owner reads it, e.g. "Wed, Oct 14, 5:00 PM (UTC-06:00)"
+export function localTime(ms: number, timeZone: string) {
+    try {
+        const when = new Date(ms).toLocaleString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+        return `${when} (${utcOffset(ms, timeZone)})`
+    } catch {
+        return new Date(ms).toISOString()
+    }
+}
+
 export function systemPrompt(args: {
     agent: Doc<'agents'>
     workspace: Pick<Doc<'workspace'>, 'ownerName' | 'timezone'> | null
@@ -49,8 +69,10 @@ export function systemPrompt(args: {
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
+    let zone = timeZone
     try {
         date = new Date(now).toLocaleString('en-US', { timeZone, dateStyle: 'full', timeStyle: 'short' })
+        zone = `${timeZone}, ${utcOffset(now, timeZone)}`
     } catch {
         date = new Date(now).toUTCString()
     }
@@ -65,11 +87,11 @@ export function systemPrompt(args: {
             ? `You're in a group chat (${group}). Each message starts with who sent it. Reply to the group, briefly, and only about what you were asked.`
             : `You're texting ${contact.name} (${contact.handle}).${contact.tags.length ? ` Tags: ${contact.tags.join(', ')}.` : ''}${contact.notes.trim() ? ` Notes from ${owner}: ${contact.notes.trim()}` : ''}`,
         knowledge.length && `What you know:\n${knowledge.map((k) => `## ${k.title}\n${k.body.trim()}`).join('\n\n')}`,
-        `It is ${date} (${timeZone}).`,
+        `It is ${date} (${zone}).`,
         canSearch &&
             'You can search the web for current information such as weather, news, opening hours and prices. Use it when a question needs something current, and give the answer itself, not a list of links.',
         canSchedule &&
-            `You have tools to set reminders, watch something for changes, and list or cancel what you've scheduled. Times are in ${timeZone}; give tools times as ISO 8601 with the offset.`,
+            `You have tools to set reminders, watch something for changes, and list or cancel what you've scheduled. Times are in ${timeZone}; give tools times as ISO 8601 with the UTC offset that applies on that date (it can differ from today's across daylight saving).`,
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',

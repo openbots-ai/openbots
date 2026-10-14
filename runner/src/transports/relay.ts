@@ -51,6 +51,8 @@ export class RelayTransport implements Transport {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(relaySecret ? { Authorization: `Bearer ${relaySecret}` } : {}) },
             body: JSON.stringify(data),
+            // A relay that never answers must not hold up the reply or the scheduler
+            signal: AbortSignal.timeout(60_000),
         })
         if (!res.ok) throw new Error(`Relay answered ${res.status}`)
     }
