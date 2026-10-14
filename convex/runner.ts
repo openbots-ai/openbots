@@ -6,7 +6,8 @@ import { creditsFor, dayKey, weekStart } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
 
 // The API your agent (runner/) calls. Every function takes the agent's token, checks it, and stays inside that
-// agent's workspace. None of them accepts or returns message text, contact details or credentials.
+// agent's workspace. None of them accepts or returns message text, contact details or readable credentials;
+// `dashboard` returns keys locked for this engine only.
 
 async function runnerFor(ctx: QueryCtx, token: string) {
     const tokenHash = await hashToken(token)
@@ -66,11 +67,30 @@ export const heartbeat = mutation({
         channels: v.array(channel),
         lines: v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) })),
         demo: v.boolean(),
+        publicKey: v.optional(v.string()),
     },
-    handler: async (ctx, { token, ...status }) => {
+    handler: async (ctx, { token, publicKey, ...status }) => {
         const runner = await runnerFor(ctx, token)
         if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10) throw new Error('Too much to report')
-        await ctx.db.patch('runners', runner._id, { ...status, lastSeenAt: Date.now() })
+        if (publicKey !== undefined && (publicKey.length > 1_000 || !/^[A-Za-z0-9+/=]+$/.test(publicKey))) throw new Error('Unreadable public key')
+        // A new key pair (the engine's data folder was wiped) can't open values locked for the old one
+        if (publicKey && runner.publicKey && publicKey !== runner.publicKey) {
+            for (const row of await ctx.db.query('secrets').withIndex('by_runnerId', (q) => q.eq('runnerId', runner._id)).take(100)) await ctx.db.delete('secrets', row._id)
+        }
+        await ctx.db.patch('runners', runner._id, { ...status, ...(publicKey ? { publicKey } : {}), lastSeenAt: Date.now() })
+    },
+})
+
+// The keys entered in the dashboard, locked for this engine, plus its public URL (reactive)
+export const dashboard = query({
+    args: { token: v.string() },
+    handler: async (ctx, { token }) => {
+        const runner = await runnerFor(ctx, token)
+        const rows = await ctx.db
+            .query('secrets')
+            .withIndex('by_runnerId', (q) => q.eq('runnerId', runner._id))
+            .take(50)
+        return { workspaceId: runner.workspaceId, runnerId: runner._id, publicUrl: runner.publicUrl, secrets: rows.map(({ service, sealed }) => ({ service, sealed })) }
     },
 })
 

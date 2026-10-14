@@ -66,6 +66,18 @@ export const service = v.union(
 )
 
 // A model a connected key can use, as the agent found it
+// The services whose keys can be entered in the dashboard (see convex/lib/sealed.ts)
+export const sealedService = v.union(
+    v.literal('openai'),
+    v.literal('anthropic'),
+    v.literal('google'),
+    v.literal('xai'),
+    v.literal('local'),
+    v.literal('twilio'),
+    v.literal('sendblue'),
+    v.literal('bluebubbles'),
+    v.literal('resend'),
+)
 export const keyModel = v.object({ provider: v.string(), id: v.string(), label: v.string() })
 
 // A Twilio number: one for sale, or one already on the account
@@ -169,6 +181,10 @@ export default defineSchema({
         // The addresses its texting channels answer on, to offer when adding a number
         lines: v.optional(v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) }))),
         demo: v.optional(v.boolean()),
+        // Public half of the engine's own key pair: the dashboard locks your keys with it
+        publicKey: v.optional(v.string()),
+        // Where Twilio, Sendblue or BlueBubbles reach this engine, set in Connections (not secret)
+        publicUrl: v.optional(v.string()),
     })
         .index('by_workspace', ['workspaceId'])
         .index('by_tokenHash', ['tokenHash']),
@@ -180,4 +196,14 @@ export default defineSchema({
         result: v.optional(taskResult),
         error: v.optional(v.string()),
     }).index('by_workspace_and_status', ['workspaceId', 'status']),
+    // Keys entered in the dashboard, locked in the browser for one engine; Convex can't open them
+    secrets: defineTable({
+        ...ws,
+        runnerId: v.id('runners'),
+        service: sealedService,
+        sealed: v.string(),
+        updatedAt: v.number(),
+    })
+        .index('by_workspace_and_service', ['workspaceId', 'service'])
+        .index('by_runnerId', ['runnerId']),
 })
