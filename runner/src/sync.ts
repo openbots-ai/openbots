@@ -15,6 +15,7 @@ export type Status = {
     channels: Channel[]
     lines: Line[]
     demo: boolean
+    tunnelUrl?: string
 }
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }
 export type TaskResult = NonNullable<Doc<'tasks'>['result']>

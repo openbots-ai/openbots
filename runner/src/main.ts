@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { SealedService } from '../../convex/lib/sealed'
-import { fromDashboard, loadSettings, withDashboard, type Settings } from './config'
+import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
+import { startTunnel } from './tunnel'
 import { Vault } from './crypto'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
@@ -22,7 +23,9 @@ const CHECK_MS = 6 * 3_600_000
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 async function main() {
-    const base = loadSettings()
+    let base = loadSettings()
+    // The Public URL set on this machine; without one, the tunnel's address is used
+    const envPublicUrl = base.publicUrl
     const store = new Store(join(base.dataDir, 'openbots.db'), Vault.open(base.dataDir))
     const link = new ConvexLink(base.convexUrl, base.token)
 
@@ -36,7 +39,9 @@ async function main() {
 
     let settings = withDashboard(base, { secrets: {} })
     let services: Services = { transports: {}, twilio: undefined, problems: [] }
-    let keyProblems: { service: SealedService; error: string }[] = []
+    // The Orgo key stays with the backend, so its service never appears here
+    type EngineService = Exclude<SealedService, 'orgo'>
+    let keyProblems: { service: EngineService; error: string }[] = []
     let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
 
@@ -66,10 +71,21 @@ async function main() {
                 await t.stop().catch(() => {})
             }
         }
-        if (server.hasRoutes) await server.start()
+        if (server.hasRoutes || base.tunnel) await server.start()
+        await repointTwilio()
         status = { ...status, channels: Object.keys(services.transports) as Channel[] }
         const channels = Object.keys(services.transports)
         console.log(channels.length ? `Answering through ${channels.join(', ')}${server.hasRoutes ? ` (listening on ${base.host}:${base.port})` : ''}.` : 'No way to text is set up yet. Add one in Connections, or set it on this engine. Waiting…')
+    }
+
+    // Twilio numbers point at this engine's address; when that changes (a new tunnel address), point them again
+    const repointTwilio = async () => {
+        const twilio = services.twilio
+        if (!twilio) return
+        for (const n of link.config()?.numbers ?? []) {
+            if (n.channel !== 'twilio' || !n.externalId) continue
+            await twilio.use(n.externalId, n.handle).catch((e) => console.error(`Couldn't point ${n.handle} at this engine: ${message(e)}`))
+        }
     }
 
     // What's set up, checked with each provider: the models each AI key can use, and whether each account works
@@ -112,13 +128,15 @@ async function main() {
     let applied = ''
     let chain = Promise.resolve()
     let resumed = false
+    let lastDoc: DashboardDoc | undefined
+    let stopTunnel = () => {}
     const ready = new Promise<void>((resolve) => {
-        link.onDashboard(
-            (doc) => {
+        const handle = (doc: DashboardDoc) => {
+                lastDoc = doc
                 chain = chain
                     .then(async () => {
                         const opened = fromDashboard(doc)
-                        keyProblems = opened.problems
+                        keyProblems = opened.problems.filter((p): p is { service: EngineService; error: string } => p.service !== 'orgo')
                         const next = withDashboard(base, opened.values)
                         const wanted = channelSettings(next)
                         if (wanted !== applied) {
@@ -136,7 +154,18 @@ async function main() {
                         pipeline.resume()
                         resolve()
                     })
-            },
+        }
+        // A new tunnel address is the engine's public address unless one is set; apply it like any other change
+        if (base.tunnel) {
+            stopTunnel = startTunnel(base.tunnel.bin, base.port, (url) => {
+                console.log(`Public address: ${url}`)
+                status = { ...status, tunnelUrl: url }
+                base = { ...base, publicUrl: envPublicUrl ?? url }
+                if (lastDoc) handle(lastDoc)
+            }, (line) => console.error(line))
+        }
+        link.onDashboard(
+            handle,
             // Before the first read nothing is running yet, so stop instead of waiting forever
             (error) => {
                 console.error(`Couldn't read your keys from the dashboard: ${error}`)
@@ -177,6 +206,7 @@ async function main() {
 
     const shutdown = async () => {
         timers.forEach(clearInterval)
+        stopTunnel()
         pipeline.stop()
         for (const t of Object.values(services.transports)) await t.stop().catch(() => {})
         await server.stop()

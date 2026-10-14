@@ -67,6 +67,8 @@ Use **Re-check** in Connections after you get access to a new model.
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the engine does it. |
 | `SENDBLUE_API_KEY_ID`, `SENDBLUE_API_SECRET` | iMessage through your Sendblue line. |
 | `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD` | iMessage through BlueBubbles Server on your Mac, with group chats. |
+| `OPENBOTS_TUNNEL` | `true` to get a public HTTPS address from Cloudflare's quick tunnel (no open ports, no account). The engine uses it as its public URL when none is set and re-points Sendblue and Twilio when it changes. Orgo computers use this. |
+| `OPENBOTS_CLOUDFLARED` | Path to the `cloudflared` binary for the tunnel (default: `cloudflared` on the PATH). |
 | `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; can also be set per engine in Connections. |
 | `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
 | `OPENBOTS_INBOUND_SECRET`, `OPENBOTS_RELAY_URL`, `OPENBOTS_RELAY_SECRET` | Your own relay (protocol below). |

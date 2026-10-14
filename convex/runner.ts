@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { env, mutation, query, type QueryCtx } from './_generated/server'
-import { checkFields, decryptSecret, secretContext } from './lib/sealed'
+import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/sealed'
 import { insertNumber } from './lib/numbers'
 import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart } from './lib/usage'
@@ -68,10 +68,13 @@ export const heartbeat = mutation({
         channels: v.array(channel),
         lines: v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) })),
         demo: v.boolean(),
+        // The address of the engine's own tunnel, when it runs one
+        tunnelUrl: v.optional(v.string()),
     },
     handler: async (ctx, { token, ...status }) => {
         const runner = await runnerFor(ctx, token)
         if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10) throw new Error('Too much to report')
+        if (status.tunnelUrl !== undefined && (status.tunnelUrl.length > 200 || !/^https:\/\/[^\s/]+$/.test(status.tunnelUrl))) throw new Error('Unreadable tunnel address')
         await ctx.db.patch('runners', runner._id, { ...status, lastSeenAt: Date.now() })
     },
 })
@@ -89,6 +92,8 @@ export const dashboard = query({
         const secrets: { service: (typeof rows)[number]['service']; fields: Record<string, string> }[] = []
         const problems: { service: (typeof rows)[number]['service']; error: string }[] = []
         for (const { service, sealed } of rows) {
+            // The Orgo key is the backend's, to create computers; the engine never needs it
+            if (BACKEND_ONLY.includes(service)) continue
             try {
                 if (!env.ENCRYPTION_KEY) throw new Error('no ENCRYPTION_KEY')
                 secrets.push({ service, fields: checkFields(service, await decryptSecret(env.ENCRYPTION_KEY, secretContext(runner.workspaceId, service), sealed)) })

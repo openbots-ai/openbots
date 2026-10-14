@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ProviderMark } from '@/components/agent-config-bar'
 import runner from '../../../runner/package.json'
 import { KeyForm, type Saved } from '../key-form'
+import { OrgoControls, OrgoCreate } from '../orgo'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
@@ -196,7 +197,7 @@ export function ConnectionsView() {
             </Toolbar>
             <Scroll>
                 <div className="mx-auto w-full max-w-5xl space-y-8 p-4 pb-16">
-                    <Engines runners={runners} />
+                    <Engines runners={runners} orgoKey={saved?.find((s) => s.service === 'orgo')} />
                     {runners && runners.length > 0 && !hasAi && (
                         <Card className="flex flex-row items-start gap-3 rounded-lg border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -352,13 +353,15 @@ function PublicUrl({ runner }: { runner: Runner }) {
 }
 
 // The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
-function Engines({ runners }: { runners?: Runner[] }) {
+function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
     const run = useRun()
     const now = useNow(30_000)
     const [name, setName] = useState('')
     const [token, setToken] = useState<string | null>(null)
+    // How the next computer is added: on Orgo, or one the user runs themselves
+    const [where, setWhere] = useState<'orgo' | 'own'>('orgo')
 
     const add = async () => {
         const fresh = newToken()
@@ -383,6 +386,8 @@ function Engines({ runners }: { runners?: Runner[] }) {
                 ) : (
                     runners.map((r) => {
                         const online = !!r.lastSeenAt && now - r.lastSeenAt < ONLINE_MS
+                        // Made through Create on Orgo, even if Orgo refused before the computer existed
+                        const onOrgo = !!(r.orgo || r.setup)
                         return (
                             <div key={r._id} className="flex items-center gap-3 px-4 py-3">
                                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-neutral-100 text-neutral-700">
@@ -392,33 +397,60 @@ function Engines({ runners }: { runners?: Runner[] }) {
                                     <p className="flex items-center gap-2 text-[13px] font-medium">
                                         <span className={cn('size-2 rounded-full', online ? 'bg-emerald-500' : 'bg-neutral-300')} aria-hidden />
                                         {r.name}
+                                        {onOrgo && <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px] font-normal">Orgo</Badge>}
                                     </p>
                                     <p className="truncate text-[12px] text-neutral-500">
                                         {r.lastSeenAt
                                             ? `${online ? 'Online' : `Offline, last seen ${relativeTime(r.lastSeenAt, now)}`} · v${r.version}${r.channels?.length ? ` · texts through ${r.channels.join(', ')}` : ''}${r.demo ? ' · demo replies' : ''}`
-                                            : 'Never connected. Start it with the token you copied.'}
+                                            : onOrgo
+                                              ? 'Not connected yet.'
+                                              : 'Never connected. Start it with the token you copied.'}
                                     </p>
-                                    <PublicUrl runner={r} />
+                                    {r.tunnelUrl && <p className="truncate font-mono text-[11px] text-neutral-500">Public address {r.tunnelUrl}</p>}
+                                    {onOrgo ? <OrgoControls runner={r} /> : !r.tunnelUrl && <PublicUrl runner={r} />}
                                 </div>
-                                <div className="flex shrink-0 gap-2">
-                                    <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
-                                </div>
+                                {!onOrgo && (
+                                    <div className="flex shrink-0 gap-2">
+                                        <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
+                                    </div>
+                                )}
                             </div>
                         )
                     })
                 )}
-                <form
-                    className="flex flex-wrap items-center gap-2 px-4 py-3"
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        void add()
-                    }}>
-                    <span className="min-w-0 flex-1 text-[12px] text-neutral-500">{runners?.length ? 'Add another computer:' : 'Name the computer to get its token:'}</span>
-                    <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
-                    <Btn type="submit" variant="primary" disabled={!name.trim()}>
-                        Add computer
-                    </Btn>
-                </form>
+                <div className="space-y-3 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[12px] text-neutral-500">{runners?.length ? 'Add another computer:' : 'Add a computer:'}</span>
+                        <div role="tablist" className="inline-flex rounded-md bg-neutral-100 p-0.5 text-[12px]">
+                            {(['orgo', 'own'] as const).map((w) => (
+                                <button
+                                    key={w}
+                                    role="tab"
+                                    type="button"
+                                    aria-selected={where === w}
+                                    onClick={() => setWhere(w)}
+                                    className={cn('rounded px-2.5 py-1 font-medium', where === w ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-800')}>
+                                    {w === 'orgo' ? 'On Orgo' : 'Your own computer'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {where === 'orgo' && <OrgoCreate saved={orgoKey} />}
+                </div>
+                {where === 'own' && (
+                    <form
+                        className="flex flex-wrap items-center gap-2 px-4 py-3"
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            void add()
+                        }}>
+                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Name it to get its token:</span>
+                        <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
+                        <Btn type="submit" variant="primary" disabled={!name.trim()}>
+                            Add computer
+                        </Btn>
+                    </form>
+                )}
                 {token && <Setup token={token} onDone={() => setToken(null)} />}
             </Card>
         </section>
