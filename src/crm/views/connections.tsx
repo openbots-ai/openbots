@@ -255,7 +255,6 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                     {ai && status.ok && <p className="text-[12px] text-neutral-500">{count} model{count === 1 ? '' : 's'} this key can use. Re-check after you get access to a new one.</p>}
                 </div>
             )}
-            {sealed && <KeyForm service={id as SealedService} saved={saved} />}
             {sealed ? (
                 <div className="space-y-1">
                     <p className="text-[12px] text-neutral-400">Or set on your engine:</p>
@@ -278,7 +277,7 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                 )
             )}
 
-            <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+            <div className={cn('flex flex-wrap items-center gap-2', !sealed && 'mt-auto pt-1')}>
                 {status?.ok && info.next && (
                     <Btn variant="primary" onClick={() => go(info.next!.view)}>
                         {info.next.label}
@@ -292,6 +291,12 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                     </a>
                 )}
             </div>
+            {/* The key controls sit at the bottom of every card, full width, so they line up across a row */}
+            {sealed && (
+                <div className="mt-auto pt-1">
+                    <KeyForm service={id as SealedService} saved={saved} />
+                </div>
+            )}
         </Card>
     )
 }
