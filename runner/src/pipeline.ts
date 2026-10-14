@@ -244,6 +244,8 @@ export class Pipeline {
     // Flags the chat for you and alerts you. By default the agent then stays out of it for 24 hours so you can answer.
     private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string, { pause = true } = {}) {
         const { store, link } = this.deps
+        // Logged here too, so the reason is visible even when the alert can't be delivered (no phone in Settings)
+        this.log(`${agent.name} handed a chat to you: ${reason}`)
         store.updateConversation(conversation.id, { needsYou: true, pausedUntil: pause ? this.now() + PAUSE_MS : null, pendingId: null, dueAt: null })
         void link.record(agent._id, { activity: { handoffs: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         if (this.config.workspace.notifyHandoff === false) return
