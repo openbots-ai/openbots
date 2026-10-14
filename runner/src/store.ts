@@ -28,8 +28,8 @@ export type Conversation = {
 export type Message = { id: number; conversationId: number; from: 'contact' | 'agent'; senderId?: number; body: string; at: number; model?: string }
 
 // A reminder or watch the owner asked for by text. `to` is the owner's handle; `number`/`channel` are what to text from.
-export type Job = { id: number; kind: 'reminder' | 'watch'; agentId: string; to: string; number: string; channel: Channel; dueAt: number; everyMin: number | null; until: number | null; text: string; last: string | null; failures: number }
-type JobRow = { id: number; kind: Job['kind']; agent_id: string; recipient: string; number: string; channel: Channel; due_at: number; every_min: number | null; until: number | null; text: string; last: string | null; failures: number }
+export type Job = { id: number; kind: 'reminder' | 'watch'; agentId: string; to: string; number: string; channel: Channel; dueAt: number; everyMin: number | null; until: number | null; text: string; last: string | null; failures: number; createdAt: number }
+type JobRow = { id: number; kind: Job['kind']; agent_id: string; recipient: string; number: string; channel: Channel; due_at: number; every_min: number | null; until: number | null; text: string; last: string | null; failures: number; created_at: number }
 
 type ConversationRow = {
     id: number
@@ -195,13 +195,15 @@ export class Store {
         this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value)
     }
 
-    addJob(j: Omit<Job, 'id' | 'last' | 'failures'>) {
+    // Watches check at most every 30 minutes. The row stays inactive until its text is sealed, so a crash can't leave a blank job running.
+    addJob(j: Omit<Job, 'id' | 'last' | 'failures' | 'createdAt'>) {
+        const everyMin = j.kind === 'watch' && j.everyMin !== null ? Math.max(j.everyMin, 30) : j.everyMin
         const id = Number(
             this.db
-                .prepare('INSERT INTO jobs (kind, agent_id, recipient, number, channel, due_at, every_min, until, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                .run(j.kind, j.agentId, '', j.number, j.channel, j.dueAt, j.everyMin, j.until, '', Date.now()).lastInsertRowid,
+                .prepare('INSERT INTO jobs (kind, agent_id, recipient, number, channel, due_at, every_min, until, text, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)')
+                .run(j.kind, j.agentId, '', j.number, j.channel, j.dueAt, everyMin, j.until, '', Date.now()).lastInsertRowid,
         )
-        this.db.prepare('UPDATE jobs SET recipient = ?, text = ? WHERE id = ?').run(this.vault.seal(j.to, `job:${id}:to`), this.vault.seal(j.text, `job:${id}:text`), id)
+        this.db.prepare('UPDATE jobs SET recipient = ?, text = ?, active = 1 WHERE id = ?').run(this.vault.seal(j.to, `job:${id}:to`), this.vault.seal(j.text, `job:${id}:text`), id)
         return id
     }
 
@@ -219,15 +221,29 @@ export class Store {
             text: this.vault.open(r.text, `job:${r.id}:text`),
             last: r.last ? this.vault.open(r.last, `job:${r.id}:last`) : null,
             failures: r.failures,
+            createdAt: r.created_at,
         }
     }
 
+    // A row that can't be opened is skipped (and noted by id only) so one bad job can't block the rest
+    private openJobs(rows: JobRow[]): Job[] {
+        const jobs: Job[] = []
+        for (const r of rows) {
+            try {
+                jobs.push(this.toJob(r))
+            } catch {
+                console.error(`Skipping job ${r.id}: it could not be opened`)
+            }
+        }
+        return jobs
+    }
+
     dueJobs(now: number): Job[] {
-        return (this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND due_at <= ? ORDER BY due_at LIMIT 20').all(now) as JobRow[]).map((r) => this.toJob(r))
+        return this.openJobs(this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND due_at <= ? ORDER BY due_at LIMIT 20').all(now) as JobRow[])
     }
 
     jobsFor(agentId: string): Job[] {
-        return (this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND agent_id = ? ORDER BY due_at').all(agentId) as JobRow[]).map((r) => this.toJob(r))
+        return this.openJobs(this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND agent_id = ? ORDER BY due_at').all(agentId) as JobRow[])
     }
 
     updateJob(id: number, patch: { dueAt?: number; last?: string; failures?: number; active?: boolean }) {
