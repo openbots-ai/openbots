@@ -42,8 +42,10 @@ export function systemPrompt(args: {
     sms?: boolean
     // The model writing the reply can search the web (OpenAI, Anthropic and Gemini models can; see runner/src/brain.ts)
     canSearch?: boolean
+    // Owner chats get tools to set reminders and watches (see runner/src/tools.ts)
+    canSchedule?: boolean
 }) {
-    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch, canSchedule } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -66,6 +68,8 @@ export function systemPrompt(args: {
         `It is ${date} (${timeZone}).`,
         canSearch &&
             'You can search the web for current information such as weather, news, opening hours and prices. Use it when a question needs something current, and give the answer itself, not a list of links.',
+        canSchedule &&
+            `You have tools to set reminders, watch something for changes, and list or cancel what you've scheduled. Times are in ${timeZone}; give tools times as ISO 8601 with the offset.`,
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',

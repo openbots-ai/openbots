@@ -4,8 +4,10 @@ import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from 
 import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey } from '../../convex/lib/usage'
-import { complete as completeWith, ReplyError, SEARCHES, type Brains, type Prompt } from './brain'
-import type { Conversation, Store } from './store'
+import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
+import type { Fired } from './scheduler'
+import type { Conversation, Job, Store } from './store'
+import { schedulingTools } from './tools'
 import type { Channel, Incoming, Transport } from './transports/types'
 
 // What the engine reads from Convex: your settings, agents, numbers and knowledge (see convex/runner.ts:config)
@@ -199,6 +201,8 @@ export class Pipeline {
         if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
+        // Scheduling tools only in your own chat, and only when the Brain can run tools
+        const scheduling = owner && TOOL_PROVIDERS.includes(models.brain.option.provider)
         const prompt: Prompt = {
             system: systemPrompt({
                 agent,
@@ -210,10 +214,12 @@ export class Pipeline {
                 withOwner: owner,
                 sms: conversation.channel === 'twilio',
                 canSearch: SEARCHES.includes(models.brain.option.provider),
+                canSchedule: scheduling,
             }),
             turns: this.turns(conversation),
             temperature: agent.temperature,
             maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
+            tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now }) : undefined,
         }
 
         const brain = models.brain.option
@@ -253,6 +259,48 @@ export class Pipeline {
             void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         }
         if (handoff && !owner) await this.handoff(conversation, agent, `${agent.name} asked you to step in.`)
+    }
+
+    // A reminder or watch that came due (see scheduler.ts). Watches hold their alerts through quiet hours.
+    async fireJob(job: Job): Promise<Fired> {
+        const ws = this.config.workspace
+        const agent = this.config.agents.find((a) => a._id === job.agentId)
+        if (!agent) return { outcome: 'failed' }
+        const transport = this.deps.transports[job.channel]
+        if (!transport) return { outcome: 'failed' }
+        const text = (body: string) => transport.send({ from: job.number, to: job.to, body })
+        if (job.kind === 'reminder') {
+            await text(`Reminder: ${job.text}`)
+            this.log(`${agent.name} sent a reminder to …${handleKey(job.to)?.slice(-4)}`)
+            return { outcome: 'sent' }
+        }
+        const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(this.now(), ws.timezone ?? 'UTC', ws.quietStart, ws.quietEnd) : 0
+        if (quiet > 0) return { outcome: 'later', inMs: quiet }
+        const result = await this.think(agent, `Check this for ${ws.ownerName}: ${job.text}. ${job.last ? `Last time: ${job.last}` : 'This is the first check.'} If nothing that matters changed since last time, reply only [[no-change]]. Otherwise reply with a short text saying what changed.`)
+        if (result.includes('[[no-change]]')) return { outcome: 'unchanged' }
+        await text(result)
+        this.log(`${agent.name} sent a watch update to …${handleKey(job.to)?.slice(-4)}`)
+        return { outcome: 'sent', result }
+    }
+
+    // One reply from the agent's Brain to an instruction from the engine, for watches and check-ins
+    private async think(agent: Doc<'agents'>, instruction: string) {
+        const { brains, link } = this.deps
+        const ws = this.config.workspace
+        const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
+        const system = systemPrompt({
+            agent,
+            workspace: ws,
+            contact: { name: ws.ownerName, handle: ws.ownerHandle ?? '', tags: [], notes: '' },
+            knowledge: this.config.knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+            now: this.now(),
+            withOwner: true,
+            sms: true,
+            canSearch: SEARCHES.includes(models.brain.option.provider),
+        })
+        const text = await this.complete(brains, models.brain.option, { system, turns: [{ role: 'user', content: instruction }], temperature: agent.temperature, maxTokens: MAX_TOKENS.short })
+        void link.record(agent._id, { usage: { slot: 'brain', model: models.brain.option.id } }).catch(() => {})
+        return text.trim()
     }
 
     // Sends through the channel the conversation came in on (to the group, for a group chat)
