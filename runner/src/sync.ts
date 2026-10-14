@@ -70,8 +70,8 @@ export class ConvexLink implements Link {
     }
 
     // Keys entered in the dashboard (locked for this engine) and its public URL, now and whenever they change
-    onDashboard(onChange: (doc: DashboardDoc) => void) {
-        const sub = this.client.onUpdate(api.runner.dashboard, { token: this.token }, onChange, (error) => console.error(`Couldn't read your keys from the dashboard: ${reason(error)}`))
+    onDashboard(onChange: (doc: DashboardDoc) => void, onError: (message: string) => void = (m) => console.error(`Couldn't read your keys from the dashboard: ${m}`)) {
+        const sub = this.client.onUpdate(api.runner.dashboard, { token: this.token }, onChange, (error) => onError(reason(error)))
         this.unsubscribers.push(() => sub.unsubscribe())
     }
 
@@ -91,8 +91,11 @@ export class ConvexLink implements Link {
         await this.client.mutation(api.runner.record, { token: this.token, agentId, ...data })
     }
 
+    // Fails with a plain reason, e.g. when this engine's key doesn't match the one saved for it
     heartbeat(status: Status) {
-        return this.client.mutation(api.runner.heartbeat, { token: this.token, ...status })
+        return this.client.mutation(api.runner.heartbeat, { token: this.token, ...status }).catch((error: Error) => {
+            throw new Error(reason(error))
+        })
     }
 
     async close() {

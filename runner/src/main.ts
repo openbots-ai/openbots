@@ -38,7 +38,7 @@ async function main() {
     const server = new Server({ host: base.host, port: base.port })
 
     let settings = withDashboard(base, { secrets: {} })
-    let services: Services = { transports: {}, problems: [] }
+    let services: Services = { transports: {}, twilio: undefined, problems: [] }
     let keyProblems: { service: SealedService; error: string }[] = []
     let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, publicKey: engineKeys.publicKey }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
@@ -103,36 +103,49 @@ async function main() {
         }
         for (const s of status.services) if (s.error) console.error(`${s.service}: ${s.error}`)
     }
-    const beat = () => link.heartbeat(status).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
+    // One line per service, so the report stays under Convex's cap; a problem beats an OK check for the same service
+    const perService = (list: Status['services']) => {
+        const seen = new Map<string, Status['services'][number]>()
+        for (const s of list) if (!seen.has(s.service) || (s.error && !seen.get(s.service)!.error)) seen.set(s.service, s)
+        return [...seen.values()]
+    }
+    const beat = () => link.heartbeat({ ...status, services: perService(status.services) }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
     // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
     const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
     let applied = ''
     let chain = Promise.resolve()
     let resumed = false
     const ready = new Promise<void>((resolve) => {
-        link.onDashboard((doc) => {
-            chain = chain
-                .then(async () => {
-                    const opened = await openDashboard(engineKeys.privateKey, doc)
-                    keyProblems = opened.problems
-                    const next = withDashboard(base, opened.values)
-                    const wanted = channelSettings(next)
-                    if (wanted !== applied) {
-                        await apply(next)
-                        applied = wanted
-                    } else takeKeys(next)
-                    await checkAll()
-                    await beat()
-                })
-                .catch((e) => console.error(`Couldn't apply your dashboard keys: ${message(e)}`))
-                // Even if the first change failed, queued replies go out with whatever is running
-                .then(() => {
-                    if (resumed) return
-                    resumed = true
-                    pipeline.resume()
-                    resolve()
-                })
-        })
+        link.onDashboard(
+            (doc) => {
+                chain = chain
+                    .then(async () => {
+                        const opened = await openDashboard(engineKeys.privateKey, doc)
+                        keyProblems = opened.problems
+                        const next = withDashboard(base, opened.values)
+                        const wanted = channelSettings(next)
+                        if (wanted !== applied) {
+                            await apply(next)
+                            applied = wanted
+                        } else takeKeys(next)
+                        await checkAll()
+                        await beat()
+                    })
+                    .catch((e) => console.error(`Couldn't apply your dashboard keys: ${message(e)}`))
+                    // Even if the first change failed, queued replies go out with whatever is running
+                    .then(() => {
+                        if (resumed) return
+                        resumed = true
+                        pipeline.resume()
+                        resolve()
+                    })
+            },
+            // Before the first read nothing is running yet, so stop instead of waiting forever
+            (error) => {
+                console.error(`Couldn't read your keys from the dashboard: ${error}`)
+                if (!resumed) process.exit(1)
+            },
+        )
     })
     await ready
     const timers = [setInterval(beat, HEARTBEAT_MS), setInterval(() => void checkAll().then(beat), CHECK_MS)]

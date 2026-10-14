@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { newEngineKeys, seal, sealContext } from '../../convex/lib/sealed'
-import { loadSettings, openDashboard, withDashboard } from './config'
+import { loadSettings, openDashboard, resolveMac, withDashboard } from './config'
 import { loadEngineKeys } from './identity'
 
 const ENV = { OPENBOTS_CONVEX_URL: 'https://x.convex.cloud', OPENBOTS_TOKEN: 'obr_x', OPENAI_API_KEY: 'sk-env', OPENBOTS_MAC: 'false' }
@@ -25,6 +25,15 @@ describe('keys from the dashboard', () => {
         const base = loadSettings({ ...ENV, TWILIO_ACCOUNT_SID: 'AC1', TWILIO_AUTH_TOKEN: 't' })
         expect(base.publicUrl).toBeUndefined()
         expect(base.twilio).toBeDefined()
+    })
+
+    it('keeps Messages on for a Mac until another way to text can actually start', () => {
+        const twilio = { accountSid: 'AC1', authToken: 't' }
+        expect(resolveMac({ twilio }, 'darwin')).toBe(true) // no public URL: Twilio can't start
+        expect(resolveMac({ twilio, publicUrl: 'https://bots.example.com' }, 'darwin')).toBe(false)
+        expect(resolveMac({ relay: { inboundSecret: 'x'.repeat(16), relayUrl: 'https://relay' } }, 'darwin')).toBe(false)
+        expect(resolveMac({ macSetting: true, twilio, publicUrl: 'https://bots.example.com' }, 'darwin')).toBe(true)
+        expect(resolveMac({}, 'linux')).toBe(false)
     })
 
     it('opens what was locked for this engine and reports what it can’t', async () => {
