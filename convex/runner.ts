@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { env, mutation, query, type QueryCtx } from './_generated/server'
 import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/sealed'
+import { canComputerUse } from './lib/computers'
 import { insertNumber } from './lib/numbers'
 import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart } from './lib/usage'
@@ -25,7 +26,8 @@ async function runnerFor(ctx: QueryCtx, token: string) {
 export const config = query({
     args: { token: v.string() },
     handler: async (ctx, { token }) => {
-        const { workspaceId } = await runnerFor(ctx, token)
+        const runner = await runnerFor(ctx, token)
+        const { workspaceId } = runner
         const ws = await ctx.db.get('workspace', workspaceId)
         if (!ws) return null
         const [agents, numbers, knowledge] = await Promise.all([
@@ -34,7 +36,7 @@ export const config = query({
             ctx.db.query('knowledge').withIndex('by_workspace_and_updatedAt', (q) => q.eq('workspaceId', workspaceId)).take(500),
         ])
         const { userId, notifyDigest, lastDigestDay, ...workspace } = ws
-        return { workspace, agents, numbers, knowledge }
+        return { workspace, agents, numbers, knowledge, computerUse: runner.computerUse === true && canComputerUse(runner) }
     },
 })
 

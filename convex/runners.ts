@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { owned, requireWorkspace } from './lib/access'
+import { canComputerUse, NO_COMPUTER_USE } from './lib/computers'
 import { TOKEN_PREFIX } from './lib/tokens'
 
 // Your agents, with what each has set up, for Connections. Never returns the token hash.
@@ -48,6 +49,18 @@ export const setPublicUrl = mutation({
         if (url && !/^https?:\/\/[^\s/]+/.test(url)) throw new Error('Enter a URL starting with https://')
         if (url && url.length > 300) throw new Error('That URL is too long')
         await ctx.db.patch('runners', id, { publicUrl: url })
+        return null
+    },
+})
+
+// Lets agents use this computer's screen, mouse and keyboard for tasks you text them (Connections)
+export const setComputerUse = mutation({
+    args: { id: v.id('runners'), on: v.boolean() },
+    handler: async (ctx, { id, on }) => {
+        const ws = await requireWorkspace(ctx)
+        const runner = await owned(ctx, ws, 'runners', id)
+        if (on && !canComputerUse(runner)) throw new Error(NO_COMPUTER_USE)
+        await ctx.db.patch('runners', id, { computerUse: on })
         return null
     },
 })

@@ -469,7 +469,7 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
 // Each demo agent's model mix: the slots it runs on something other than the workspace default
 const MIXES: Record<string, Partial<Record<SlotId, string>>> = {
     Waffles: { brain: 'grok-4', voice: 'cartesia-sonic' },
-    Pebble: { brain: 'gemini-2.5-flash', computer: 'gemini-2.5-computer-use', listening: 'whisper' },
+    Pebble: { brain: 'gemini-2.5-flash', computer: 'claude-opus-5.5-computer-use', listening: 'whisper' },
     Mochi: { brain: 'claude-sonnet-5.5', calls: 'gemini-live' },
     Honey: { brain: 'claude-haiku-4.5', voice: 'openai-tts' },
 }
@@ -526,7 +526,7 @@ function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact
 // Analytics page: what this agent cost this month, split by part and by model (sample numbers that follow its mix)
 const COSTS: { slot: SlotId; split: [string, number][] }[] = [
     { slot: 'brain', split: [['claude-sonnet-5.5', 3.1], ['claude-haiku-4.5', 0.32]] },
-    { slot: 'computer', split: [['gpt-5.1-computer-use', 5.18]] },
+    { slot: 'computer', split: [['claude-sonnet-5.5-computer-use', 5.18]] },
     { slot: 'calls', split: [['gemini-live', 1.94]] },
     { slot: 'voice', split: [['elevenlabs', 0.86]] },
     { slot: 'decisions', split: [['jev', 0.21]] },

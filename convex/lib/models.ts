@@ -6,7 +6,7 @@
 // 'local' is any OpenAI-compatible server the engine can reach (Ollama, LM Studio, vLLM…), so nothing leaves your machines
 export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
 
-// `api` is the provider's own model name, for the slots that call a provider (Brain and Backup today)
+// `api` is the provider's own model name, for the slots that call a provider (Brain, Backup and Computer use)
 export type ModelOption = { id: string; label: string; provider: Provider; api?: string }
 
 export type SlotId = 'brain' | 'computer' | 'voice' | 'listening' | 'calls' | 'vision' | 'decisions' | 'router' | 'backup'
@@ -47,13 +47,13 @@ export const SLOTS: Slot[] = [
     {
         id: 'computer',
         label: 'Computer use',
-        blurb: 'Drives the agent’s own computer: clicks, types and logs into your apps.',
+        blurb: 'Does tasks on your Windows or Mac computer: looks at the screen, clicks and types.',
         options: [
-            { id: 'gpt-5.1-computer-use', label: 'GPT 5.1 Computer Use', provider: 'openai' },
-            { id: 'claude-sonnet-5.5-computer-use', label: 'Claude Computer Use', provider: 'anthropic' },
-            { id: 'gemini-2.5-computer-use', label: 'Gemini Computer Use', provider: 'google' },
+            { id: 'claude-sonnet-5.5-computer-use', label: 'Claude Sonnet 5.5', provider: 'anthropic', api: 'claude-sonnet-5-5' },
+            { id: 'claude-opus-5.5-computer-use', label: 'Claude Opus 5.5', provider: 'anthropic', api: 'claude-opus-5-5' },
         ],
-        default: 'gpt-5.1-computer-use',
+        default: 'claude-sonnet-5.5-computer-use',
+        runs: true,
     },
     {
         id: 'voice',

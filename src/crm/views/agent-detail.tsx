@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { ArrowLeft, Bell, BookOpen, MessageCircle, Monitor } from 'lucide-react'
+import { ArrowLeft, Bell, BookOpen, MessageCircle } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigBar } from '@/components/agent-config-bar'
-import { resolveComputer } from '@convex/lib/computers'
 import { LIVE_SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
 import { INHERIT } from '@convex/lib/models'
 import { DEFAULT_CONFIG } from '@/lib/agent-options'
@@ -15,7 +14,6 @@ import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '..
 import { useNav } from '../nav'
 import { useKeyModels, withKeyOptions } from '../lib/key-models'
 import { CheckIns } from '../check-ins'
-import { ComputerSelect } from '../computer-select'
 import { NoKeyNote } from '../slot-select'
 import { useRun } from '../use-run'
 import { AgentAvatar, Btn, ConfirmDelete, Content, Field, NotFound, Scroll, Select, StatusBadge, Toolbar } from '../ui'
@@ -43,7 +41,6 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const knowledge = useQuery(api.knowledge.list)
     const workspace = useQuery(api.workspace.get)
     const computers = useQuery(api.runners.list)
-    const setComputer = useMutation(api.agents.setComputer)
     const jobs = (computers ?? []).flatMap((r) => r.jobs ?? []).filter((j) => j.agentId === agent._id).reduce((sum, j) => ({ reminders: sum.reminders + j.reminders, watches: sum.watches + j.watches }), { reminders: 0, watches: 0 })
     const [form, setForm] = useState(() => pickAgentFields(agent))
 
@@ -203,16 +200,6 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                                     {jobs.reminders} reminder{jobs.reminders === 1 ? '' : 's'} and {jobs.watches} watch{jobs.watches === 1 ? '' : 'es'} active. Text {agent.name} to list or cancel them.
                                 </p>
                             )}
-                        </section>
-                        <section className="rounded-lg border border-neutral-200 p-4">
-                            <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium"><Monitor className="size-4 text-neutral-500" />Computer</h2>
-                            <p className="mb-2 text-[12px] text-neutral-500">Where this agent does computer use. Saved right away.</p>
-                            <ComputerSelect
-                                computers={computers ?? []}
-                                value={computers?.some((c) => c._id === agent.computerId) ? agent.computerId : undefined}
-                                inherited={resolveComputer(computers ?? [], workspace?.computerId).computer}
-                                onChange={(computerId) => void run(setComputer({ id: agent._id, computerId }))}
-                            />
                         </section>
                         <section className="rounded-lg border border-neutral-200 p-4">
                             <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium"><MessageCircle className="size-4 text-neutral-500" />iMessage</h2>
