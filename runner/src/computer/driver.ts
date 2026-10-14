@@ -57,33 +57,52 @@ const MODS: Record<string, Mod> = { ctrl: 'ctrl', control: 'ctrl', shift: 'shift
 const KEYS: Record<string, string> = {
     return: 'enter', enter: 'enter', kp_enter: 'enter',
     escape: 'escape', esc: 'escape',
-    tab: 'tab', backspace: 'backspace', delete: 'delete', del: 'delete', space: 'space',
+    tab: 'tab', backspace: 'backspace', delete: 'delete', del: 'delete', space: 'space', insert: 'insert',
     up: 'up', down: 'down', left: 'left', right: 'right',
     home: 'home', end: 'end',
     page_up: 'pageup', pageup: 'pageup', prior: 'pageup',
     page_down: 'pagedown', pagedown: 'pagedown', next: 'pagedown',
-    plus: '+', minus: '-',
+    plus: '+', minus: '-', equal: '=', comma: ',', period: '.', slash: '/', backslash: '\\',
+    semicolon: ';', apostrophe: "'", bracketleft: '[', bracketright: ']', grave: '`',
+}
+
+// A modifier name, including xdotool's Super_L / Control_R style
+function modifier(name: string): Mod | undefined {
+    const lower = name.trim().toLowerCase()
+    return MODS[lower] ?? MODS[lower.replace(/_[lr]$/, '')]
 }
 
 export function parseMods(text?: string): Mod[] {
     if (!text) return []
-    return text
-        .split('+')
-        .map((m) => MODS[m.trim().toLowerCase()])
-        .filter((m): m is Mod => !!m)
+    return text.split('+').map((m) => {
+        const mod = modifier(m)
+        if (!mod) throw new Error(`Unknown key "${m.trim()}"`)
+        return mod
+    })
 }
 
 export function parseCombo(text: string): { mods: Mod[]; key: string } {
-    const parts = text.split('+').map((p) => p.trim())
-    const last = parts.pop() ?? ''
+    // A trailing "+" is the key itself ("+", "ctrl++")
+    let head = text
+    let last: string
+    if (text.endsWith('+')) {
+        last = '+'
+        head = text.slice(0, -1)
+        if (head && !head.endsWith('+')) throw new Error(`No key in "${text}"`)
+        head = head.slice(0, -1)
+    } else {
+        const parts = head.split('+')
+        last = (parts.pop() ?? '').trim()
+        head = parts.join('+')
+    }
     if (!last) throw new Error(`No key in "${text}"`)
-    const mods = parts.map((p) => {
-        const m = MODS[p.toLowerCase()]
-        if (!m) throw new Error(`Unknown key "${p}"`)
-        return m
-    })
+    const mods = head ? parseMods(head) : []
     const lower = last.toLowerCase()
+    if (lower === 'iso_left_tab') return { mods: [...mods, 'shift'], key: 'tab' }
     const key = KEYS[lower] ?? (/^f([1-9]|1[0-2])$/.test(lower) ? lower : [...last].length === 1 ? lower : null)
-    if (!key) throw new Error(`Unknown key "${last}"`)
-    return { mods, key }
+    if (key) return { mods, key }
+    // A modifier on its own is a key press of that modifier
+    const bare = modifier(last)
+    if (bare && !head) return { mods: [], key: bare }
+    throw new Error(`Unknown key "${last}"`)
 }
