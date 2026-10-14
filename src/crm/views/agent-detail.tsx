@@ -195,6 +195,8 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                         <section className="rounded-lg border border-neutral-200 p-4">
                             <h2 className="mb-1 flex items-center gap-2 text-[13px] font-medium"><Bell className="size-4 text-neutral-500" />Check-ins</h2>
                             <p className="mb-2 text-[12px] text-neutral-500">Texts {agent.name} sends you on a schedule, in your timezone.</p>
+                            {/* Check-ins go to the phone in Settings; without one the engine skips them */}
+                            {workspace && !workspace.ownerHandle && <p className="mb-2 text-[12px] text-amber-700">Add your phone in Settings so {agent.name} can text you.</p>}
                             <CheckIns agent={agent} />
                             {(jobs.reminders > 0 || jobs.watches > 0) && (
                                 <p className="mt-3 text-[12px] text-neutral-500">
