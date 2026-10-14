@@ -201,25 +201,28 @@ export class Pipeline {
         if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
-        // Scheduling tools only in your own chat, and only when the Brain can run tools
-        const scheduling = owner && TOOL_PROVIDERS.includes(models.brain.option.provider)
-        const prompt: Prompt = {
-            system: systemPrompt({
-                agent,
-                workspace: ws,
-                contact,
-                knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
-                now,
-                group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
-                withOwner: owner,
-                sms: conversation.channel === 'twilio',
-                canSearch: SEARCHES.includes(models.brain.option.provider),
-                canSchedule: scheduling,
-            }),
-            turns: this.turns(conversation),
-            temperature: agent.temperature,
-            maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
-            tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now }) : undefined,
+        const turns = this.turns(conversation)
+        // Each model gets its own prompt: scheduling tools only in your own chat, and only for a model that can run them
+        const promptFor = (option: ModelOption): Prompt => {
+            const scheduling = owner && TOOL_PROVIDERS.includes(option.provider)
+            return {
+                system: systemPrompt({
+                    agent,
+                    workspace: ws,
+                    contact,
+                    knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+                    now,
+                    group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
+                    withOwner: owner,
+                    sms: conversation.channel === 'twilio',
+                    canSearch: SEARCHES.includes(option.provider),
+                    canSchedule: scheduling,
+                }),
+                turns,
+                temperature: agent.temperature,
+                maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
+                tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now }) : undefined,
+            }
         }
 
         const brain = models.brain.option
@@ -227,13 +230,13 @@ export class Pipeline {
         let result: { option: ModelOption; slot: string; text: string } | undefined
         let problem = ''
         try {
-            result = { option: brain, slot: 'brain', text: await this.complete(brains, brain, prompt) }
+            result = { option: brain, slot: 'brain', text: await this.complete(brains, brain, promptFor(brain)) }
         } catch (brainError) {
             problem = describe(brainError)
             // The Backup slot takes over when the brain's provider fails
             if (backup && backup.id !== brain.id) {
                 try {
-                    result = { option: backup, slot: 'backup', text: await this.complete(brains, backup, prompt) }
+                    result = { option: backup, slot: 'backup', text: await this.complete(brains, backup, promptFor(backup)) }
                 } catch (backupError) {
                     problem = `${problem}. Backup ${backup.label} failed too: ${describe(backupError)}`
                 }
@@ -277,6 +280,7 @@ export class Pipeline {
         const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(this.now(), ws.timezone ?? 'UTC', ws.quietStart, ws.quietEnd) : 0
         if (quiet > 0) return { outcome: 'later', inMs: quiet }
         const result = await this.think(agent, `Check this for ${ws.ownerName}: ${job.text}. ${job.last ? `Last time: ${job.last}` : 'This is the first check.'} If nothing that matters changed since last time, reply only [[no-change]]. Otherwise reply with a short text saying what changed.`)
+        if (!result) return { outcome: 'failed' }
         if (result.includes('[[no-change]]')) return { outcome: 'unchanged' }
         await text(result)
         this.log(`${agent.name} sent a watch update to …${handleKey(job.to)?.slice(-4)}`)
@@ -299,7 +303,7 @@ export class Pipeline {
             canSearch: SEARCHES.includes(models.brain.option.provider),
         })
         const text = await this.complete(brains, models.brain.option, { system, turns: [{ role: 'user', content: instruction }], temperature: agent.temperature, maxTokens: MAX_TOKENS.short })
-        void link.record(agent._id, { usage: { slot: 'brain', model: models.brain.option.id } }).catch(() => {})
+        void link.record(agent._id, { usage: { slot: 'brain', model: models.brain.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
         return text.trim()
     }
 

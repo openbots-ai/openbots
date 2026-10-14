@@ -296,6 +296,42 @@ describe('agent', () => {
         expect(store.jobsFor(AGENT)).toEqual([])
     })
 
+    it('refuses a time without its UTC offset, and an end time it can’t read', async () => {
+        const answers: string[] = []
+        const complete = model(async (_b, _o, p) => {
+            const tool = (name: string) => p.tools!.find((t) => t.name === name)!
+            const run = (name: string, input: Record<string, unknown>) => tool(name).run(input).catch((e: Error) => `Error: ${e.message}`)
+            answers.push(await run('set_reminder', { at: '2026-10-14T17:00:00', text: 'call mom' }))
+            answers.push(await run('set_reminder', { at: '2026-10-15', text: 'call mom' }))
+            answers.push(await run('watch', { what: 'Uni ranking', until: 'next friday' }))
+            answers.push(await run('watch', { what: 'Uni ranking', until: '2026-10-20T00:00:00' }))
+            return 'ok'
+        })
+        const { text, store } = setup(config(), complete)
+        vi.setSystemTime(Date.parse('2026-10-14T20:00:00Z'))
+        await text('remind me', OWNER)
+        await vi.runAllTimersAsync()
+        for (const a of answers) expect(a).toMatch(/with its UTC offset/)
+        expect(store.jobsFor(AGENT)).toEqual([])
+    })
+
+    it('gives a Backup that can’t run tools no tools and no scheduling line', async () => {
+        const complete = model(async (_b, option) => {
+            if (option.provider === 'openai') throw new Error('rate limited')
+            return 'from gemini'
+        })
+        const keys: KeyModel[] = [...KEYS, { provider: 'google', id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }]
+        const { text, transport } = setup(config({ agent: { models: { brain: 'openai:gpt-5.1', backup: 'google:gemini-2.5-flash' } } }), complete, { brains: { keys: { openai: 'k', google: 'k' }, demo: false }, models: keys })
+        await text('remind me at 5', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('from gemini')
+        const [brainCall, backupCall] = complete.mock.calls
+        expect(brainCall?.[2].tools?.length).toBeGreaterThan(0)
+        expect(backupCall?.[1].provider).toBe('google')
+        expect(backupCall?.[2].tools).toBeUndefined()
+        expect(backupCall?.[2].system).not.toMatch(/set reminders/)
+    })
+
     it('gives someone else no scheduling tools', async () => {
         const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
         const { text, transport } = setup(config(), complete)
@@ -329,6 +365,14 @@ describe('agent', () => {
         const sent = transport.sent.length
         expect(await pipeline.fireJob(store.jobsFor(AGENT).find((j) => j.id === watchId)!)).toEqual({ outcome: 'sent', result: 'Now #2 in Canada' })
         expect(transport.sent).toHaveLength(sent + 1)
+    })
+
+    it('counts an empty watch check as failed, and sends nothing', async () => {
+        const { pipeline, transport, store } = setup(config(), model(async () => '   '))
+        const id = store.addJob({ kind: 'watch', agentId: AGENT, to: OWNER, number: '+1 (415) 555-0101', channel: 'relay', dueAt: 0, everyMin: 30, until: null, text: 'Uni ranking' })
+        const sent = transport.sent.length
+        expect(await pipeline.fireJob(store.jobsFor(AGENT).find((j) => j.id === id)!)).toEqual({ outcome: 'failed' })
+        expect(transport.sent).toHaveLength(sent)
     })
 
     it("refuses texts to numbers that aren't yours", async () => {

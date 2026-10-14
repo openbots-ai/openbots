@@ -12,9 +12,11 @@ type Ctx = { store: Store; agentId: string; owner: string; number: string; chann
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() && Number.isFinite(Number(v)) ? Number(v) : undefined)
+// A time the model gave, which must carry its UTC offset: without one Date.parse would guess the engine host's timezone
 const when = (iso: unknown) => {
-    const t = typeof iso === 'string' ? Date.parse(iso) : NaN
-    return Number.isFinite(t) ? t : undefined
+    const t = typeof iso === 'string' && /(Z|[+-]\d{2}:?\d{2})$/i.test(iso.trim()) ? Date.parse(iso.trim()) : NaN
+    if (!Number.isFinite(t)) throw new Error('Give the time with its UTC offset, e.g. 2026-10-14T17:00:00-06:00')
+    return t
 }
 const count = (ctx: Ctx, kind: 'reminder' | 'watch') => ctx.store.jobsFor(ctx.agentId).filter((j) => j.kind === kind).length
 
@@ -29,8 +31,8 @@ export function schedulingTools(ctx: Ctx): Tool[] {
                 const text = str(input.text)
                 if (!text) throw new Error('Say what to remind them of')
                 const minutes = num(input.in_minutes)
+                if (minutes === undefined && input.at === undefined) throw new Error('Give a time (`at`) or `in_minutes`')
                 const at = minutes !== undefined ? ctx.now() + minutes * 60_000 : when(input.at)
-                if (at === undefined) throw new Error('Give a time (`at`) or `in_minutes`')
                 if (at <= ctx.now()) throw new Error('That time has already passed')
                 if (count(ctx, 'reminder') >= LIMITS.reminders) throw new Error(`There are already ${LIMITS.reminders} reminders; cancel some first`)
                 const id = ctx.store.addJob({ ...base, kind: 'reminder', dueAt: at, everyMin: null, until: null, text })
@@ -45,7 +47,7 @@ export function schedulingTools(ctx: Ctx): Tool[] {
                 const what = str(input.what)
                 if (!what) throw new Error('Say what to watch')
                 const every = Math.max(MIN_WATCH_MINUTES, Math.round(num(input.every_minutes) ?? 60))
-                const until = input.until === undefined ? null : (when(input.until) ?? null)
+                const until = input.until === undefined || input.until === null || input.until === '' ? null : when(input.until)
                 if (until !== null && until <= ctx.now()) throw new Error('That end time has already passed')
                 if (count(ctx, 'watch') >= LIMITS.watches) throw new Error(`There are already ${LIMITS.watches} watches; cancel one first`)
                 const id = ctx.store.addJob({ ...base, kind: 'watch', dueAt: ctx.now(), everyMin: every, until, text: what })
