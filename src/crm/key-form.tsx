@@ -1,23 +1,20 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
-import { AlertCircle, Lock } from 'lucide-react'
+import { useAction, useMutation } from 'convex/react'
+import { Lock } from 'lucide-react'
 import { api } from '@convex/_generated/api'
-import type { Doc, Id } from '@convex/_generated/dataModel'
-import { checkFields, FIELDS, seal, sealContext, type SealedService } from '@convex/lib/sealed'
+import { checkFields, FIELDS, type SealedService } from '@convex/lib/sealed'
 import { Input } from '@/components/ui/input'
 import { relativeTime } from './lib/time'
 import { useNow } from './use-now'
 import { useRun } from './use-run'
 import { Btn, ConfirmDelete } from './ui'
 
-type Runner = Omit<Doc<'runners'>, 'tokenHash'>
-export type Saved = { service: SealedService; runnerIds: Id<'runners'>[]; updatedAt: number }
+export type Saved = { service: SealedService; updatedAt: number }
 
-// A key entered here is locked in this browser for each of your engines before it's sent, so Convex stores only
-// what it can't open. The field is write-only: once saved, it shows when, never the key.
-export function KeyForm({ service, runners, saved }: { service: SealedService; runners: Runner[]; saved?: Saved }) {
-    const ws = useQuery(api.workspace.get)
-    const set = useMutation(api.secrets.set)
+// A key saved here belongs to your account: every agent and every engine you run uses it. The backend encrypts it
+// before storing it. The field is write-only: once saved, it shows when, never the key.
+export function KeyForm({ service, saved }: { service: SealedService; saved?: Saved }) {
+    const save = useAction(api.secrets.save)
     const remove = useMutation(api.secrets.remove)
     const run = useRun()
     const now = useNow(60_000)
@@ -25,12 +22,8 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
     const [values, setValues] = useState<Record<string, string>>({})
     const [error, setError] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
-    const started = runners.filter((r) => r.publicKey)
-    // Engines added (or reset) after this key was saved can't open it
-    const missing = saved ? started.filter((r) => !saved.runnerIds.includes(r._id)) : []
 
-    const save = async () => {
-        if (!ws) return
+    const submit = async () => {
         let fields
         try {
             fields = checkFields(service, values)
@@ -39,36 +32,21 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
             return
         }
         setSaving(true)
-        try {
-            const sealed = await Promise.all(started.map(async (r) => ({ runnerId: r._id, sealed: await seal(r.publicKey!, sealContext(ws._id, r._id, service), fields) })))
-            const res = await run(set({ service, sealed }))
-            if (res.ok) {
-                setValues({})
-                setError(null)
-                setOpen(false)
-            }
-        } catch {
-            // Keep the message plain: nothing from the key or the failure goes on screen
-            setError('Couldn’t lock this key for your engine. Reload the page and try again.')
-        } finally {
-            setSaving(false)
+        const res = await run(save({ service, fields: fields as Record<string, string> }))
+        setSaving(false)
+        if (res.ok) {
+            setValues({})
+            setError(null)
+            setOpen(false)
         }
     }
-
-    if (!started.length) return <p className="text-[12px] text-neutral-500">Add your engine above and start it once, then enter this key here.</p>
 
     return (
         <div className="space-y-2">
             {saved && (
                 <p className="flex items-center gap-1.5 text-[12px] text-neutral-600">
                     <Lock className="size-3.5" />
-                    Saved {relativeTime(saved.updatedAt, now)}, readable only by your engine
-                </p>
-            )}
-            {missing.length > 0 && (
-                <p className="flex items-center gap-1.5 text-[12px] text-amber-700">
-                    <AlertCircle className="size-3.5" />
-                    Not on {missing.map((r) => r.name).join(', ')} yet: enter it again to add it there
+                    Saved {relativeTime(saved.updatedAt, now)}, encrypted
                 </p>
             )}
             {open ? (
@@ -76,7 +54,7 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
                     className="space-y-2"
                     onSubmit={(e) => {
                         e.preventDefault()
-                        void save()
+                        void submit()
                     }}>
                     {FIELDS[service].map((f) => (
                         <Input
@@ -92,7 +70,7 @@ export function KeyForm({ service, runners, saved }: { service: SealedService; r
                     ))}
                     {error && <p className="text-[12px] text-destructive">{error}</p>}
                     <div className="flex gap-2">
-                        <Btn type="submit" variant="primary" disabled={saving || !ws}>
+                        <Btn type="submit" variant="primary" disabled={saving}>
                             {saving ? 'Saving…' : 'Save'}
                         </Btn>
                         <Btn type="button" variant="ghost" onClick={() => {

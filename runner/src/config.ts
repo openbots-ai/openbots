@@ -1,7 +1,7 @@
 import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
 import { PROVIDER_KEYS, type Brains } from './brain'
-import { checkFields, sealContext, unseal, type SealedService, type SecretFields } from '../../convex/lib/sealed'
+import { checkFields, type SealedService, type SecretFields } from '../../convex/lib/sealed'
 import type { Credentials } from './providers'
 
 // Everything the engine needs comes from environment variables (or a .env file passed with node --env-file).
@@ -101,24 +101,21 @@ export function withDashboard(base: Settings, d: DashboardValues): Settings {
     return { ...merged, mac: resolveMac(merged) }
 }
 
-export type DashboardDoc = { workspaceId: string; runnerId: string; publicUrl?: string; secrets: { service: SealedService; sealed: string }[] }
+export type DashboardDoc = {
+    publicUrl?: string
+    secrets: { service: SealedService; fields: Record<string, string> }[]
+    problems: { service: SealedService; error: string }[]
+}
 
-// Opens each key locked for this engine. One that won't open is reported for its service, not fatal.
-export async function openDashboard(privateKey: string, doc: DashboardDoc) {
+// The keys saved in Connections for this account. One with a missing field is reported for its service, not fatal.
+export function fromDashboard(doc: DashboardDoc) {
     const values: DashboardValues = { publicUrl: doc.publicUrl, secrets: {} }
-    const problems: { service: SealedService; error: string }[] = []
-    for (const { service, sealed } of doc.secrets) {
-        let opened: unknown
+    const problems = [...doc.problems]
+    for (const { service, fields } of doc.secrets) {
         try {
-            opened = await unseal(privateKey, sealContext(doc.workspaceId, doc.runnerId, service), sealed)
-        } catch {
-            problems.push({ service, error: 'The key saved in the dashboard can’t be opened on this engine; enter it again in Connections' })
-            continue
-        }
-        try {
-            ;(values.secrets as Record<string, unknown>)[service] = checkFields(service, opened)
+            ;(values.secrets as Record<string, unknown>)[service] = checkFields(service, fields)
         } catch (e) {
-            problems.push({ service, error: `${e instanceof Error ? e.message : String(e)}; enter it again in Connections` })
+            problems.push({ service, error: `${e instanceof Error ? e.message : String(e)}; save it again in Connections` })
         }
     }
     return { values, problems }

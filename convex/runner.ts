@@ -1,13 +1,14 @@
 import { v } from 'convex/values'
-import { mutation, query, type QueryCtx } from './_generated/server'
+import { env, mutation, query, type QueryCtx } from './_generated/server'
+import { checkFields, decryptSecret, secretContext } from './lib/sealed'
 import { insertNumber } from './lib/numbers'
 import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
 
 // The API your engine (runner/) calls. Every function takes the engine's token, checks it, and stays inside that
-// agent's workspace. None of them accepts or returns message text, contact details or readable credentials;
-// `dashboard` returns keys locked for this engine only.
+// engine's workspace. None of them accepts or returns message text or contact details; `dashboard` returns the keys
+// saved in Connections for that workspace.
 
 async function runnerFor(ctx: QueryCtx, token: string) {
     const tokenHash = await hashToken(token)
@@ -67,31 +68,35 @@ export const heartbeat = mutation({
         channels: v.array(channel),
         lines: v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) })),
         demo: v.boolean(),
-        publicKey: v.optional(v.string()),
     },
-    handler: async (ctx, { token, publicKey, ...status }) => {
+    handler: async (ctx, { token, ...status }) => {
         const runner = await runnerFor(ctx, token)
         if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10) throw new Error('Too much to report')
-        if (publicKey !== undefined && (publicKey.length > 1_000 || !/^[A-Za-z0-9+/=]+$/.test(publicKey))) throw new Error('Unreadable public key')
-        // The first key sent is kept. A different one could be someone with a stolen token, so only the owner's
-        // Reset key in Connections clears it.
-        if (publicKey && runner.publicKey && publicKey !== runner.publicKey) {
-            throw new Error("This engine's key doesn't match the one saved for it. If you reset this engine's data, click Reset key for it in Connections.")
-        }
-        await ctx.db.patch('runners', runner._id, { ...status, ...(publicKey ? { publicKey } : {}), lastSeenAt: Date.now() })
+        await ctx.db.patch('runners', runner._id, { ...status, lastSeenAt: Date.now() })
     },
 })
 
-// The keys entered in the dashboard, locked for this engine, plus its public URL (reactive)
+// The keys saved in Connections for this engine's account, decrypted, plus its public URL (reactive). A key that
+// won't decrypt is reported for its service instead of failing the rest.
 export const dashboard = query({
     args: { token: v.string() },
     handler: async (ctx, { token }) => {
         const runner = await runnerFor(ctx, token)
         const rows = await ctx.db
             .query('secrets')
-            .withIndex('by_runnerId', (q) => q.eq('runnerId', runner._id))
+            .withIndex('by_workspace_and_service', (q) => q.eq('workspaceId', runner.workspaceId))
             .take(50)
-        return { workspaceId: runner.workspaceId, runnerId: runner._id, publicUrl: runner.publicUrl, secrets: rows.map(({ service, sealed }) => ({ service, sealed })) }
+        const secrets: { service: (typeof rows)[number]['service']; fields: Record<string, string> }[] = []
+        const problems: { service: (typeof rows)[number]['service']; error: string }[] = []
+        for (const { service, sealed } of rows) {
+            try {
+                if (!env.ENCRYPTION_KEY) throw new Error('no ENCRYPTION_KEY')
+                secrets.push({ service, fields: checkFields(service, await decryptSecret(env.ENCRYPTION_KEY, secretContext(runner.workspaceId, service), sealed)) })
+            } catch {
+                problems.push({ service, error: 'The key saved in Connections can’t be read; save it again' })
+            }
+        }
+        return { publicUrl: runner.publicUrl, secrets, problems }
     },
 })
 

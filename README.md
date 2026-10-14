@@ -38,7 +38,7 @@ so the path never changes. Its data lives in [Convex](https://convex.dev) (`conv
 People sign up with an email and password and get a private workspace. They run their own **engine** and bring
 their own accounts, so hosting OpenBots costs only Convex and Vercel, and nobody hosting it can read their
 messages: conversations and contacts stay on the engine. Keys and account logins either stay on it
-(environment variables) or are stored in Convex locked so only the engine can read them (entered in Connections). See [SECURITY.md](SECURITY.md).
+(environment variables) or are saved once in Connections for the whole account, encrypted by the backend. See [SECURITY.md](SECURITY.md).
 
 ```sh
 npx convex dev          # first run logs in, creates the deployment and writes .env.local
@@ -56,10 +56,11 @@ npm run setup             # the dev deployment
 npm run setup -- --prod   # production
 ```
 
-This generates the sign-in key pair (`JWT_PRIVATE_KEY`, `JWKS`) for [Convex Auth](https://labs.convex.dev/auth)
-and stores it on the Convex deployment: nothing secret goes in a file or the repo. Running it again keeps a pair
-that's already set. Until it has run, the dashboard shows a setup screen instead of the sign-in page. That's all
-Convex needs: no AI keys, no texting accounts, no encryption key.
+This generates the server's own secrets and stores them on the Convex deployment, so nothing secret goes in a file or
+the repo: `ENCRYPTION_KEY`, which encrypts the keys people save in Connections, and the sign-in key pair
+(`JWT_PRIVATE_KEY`, `JWKS`) for [Convex Auth](https://labs.convex.dev/auth). Running it again only fills in what's
+missing; it never replaces `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the dashboard
+shows a setup screen instead of the sign-in page.
 
 The schema scopes everything to a signed-in user's workspace. A deployment holding data from before that won't
 accept it; export what you want to keep (`npx convex export`) and clear its tables before deploying. A deployment
@@ -72,7 +73,7 @@ then put the schema back and push again.
 ### The engine (`runner/`)
 
 Each person runs the engine on a machine they choose: the Mac signed in to iMessage, a VM, a server at home. They
-add it in **Connections**, which gives them a token, and enter their keys in Connections (locked so only the engine can read them) or set them as environment variables on
+add it in **Connections**, which gives them a token, and save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
 that machine. It keeps contacts, conversations and messages in a local encrypted SQLite file. Setup, settings and
 release verification are in [runner/README.md](runner/README.md).
 

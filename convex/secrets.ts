@@ -1,15 +1,17 @@
 import { v, type Infer } from 'convex/values'
+import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
-import { mutation, query, type MutationCtx } from './_generated/server'
-import { owned, requireWorkspace } from './lib/access'
+import { action, env, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server'
+import { requireWorkspace } from './lib/access'
+import { checkFields, encryptSecret, secretContext } from './lib/sealed'
 import { sealedService } from './schema'
 
-// Keys you enter in Connections. The browser locks each one for every engine you run; this file only ever handles
-// the locked values, and never sends them back to the dashboard.
+// Keys you save in Connections, one per service for your whole account. They're encrypted with the server's
+// ENCRYPTION_KEY before they're stored and are never sent back to the dashboard; only your engines receive them.
 
 type Service = Infer<typeof sealedService>
 
-// Which services have a key saved, on which engines, and when
+// Which services have a key saved, and when
 export const list = query({
     args: {},
     handler: async (ctx) => {
@@ -17,46 +19,47 @@ export const list = query({
         const rows = await ctx.db
             .query('secrets')
             .withIndex('by_workspace_and_service', (q) => q.eq('workspaceId', ws._id))
-            .take(500)
-        const byService = new Map<Service, { service: Service; runnerIds: Id<'runners'>[]; updatedAt: number }>()
-        for (const row of rows) {
-            const entry = byService.get(row.service) ?? { service: row.service, runnerIds: [], updatedAt: 0 }
-            entry.runnerIds.push(row.runnerId)
-            entry.updatedAt = Math.max(entry.updatedAt, row.updatedAt)
-            byService.set(row.service, entry)
-        }
-        return [...byService.values()]
+            .take(50)
+        return rows.map(({ service, updatedAt }) => ({ service, updatedAt }))
     },
+})
+
+export const workspaceId = internalQuery({
+    args: {},
+    handler: async (ctx) => (await requireWorkspace(ctx))._id,
 })
 
 async function clear(ctx: MutationCtx, workspaceId: Id<'workspace'>, service: Service) {
     const rows = await ctx.db
         .query('secrets')
         .withIndex('by_workspace_and_service', (q) => q.eq('workspaceId', workspaceId).eq('service', service))
-        .take(100)
+        .take(10)
     for (const row of rows) await ctx.db.delete('secrets', row._id)
 }
 
-// Saves (or replaces) one service's key, locked once per engine
-export const set = mutation({
-    args: { service: sealedService, sealed: v.array(v.object({ runnerId: v.id('runners'), sealed: v.string() })) },
-    handler: async (ctx, { service, sealed }) => {
-        const ws = await requireWorkspace(ctx)
-        if (!sealed.length) throw new Error('Add your engine and start it once, then enter keys here')
-        if (sealed.length > 50 || new Set(sealed.map((s) => s.runnerId)).size !== sealed.length) throw new Error('One value per engine')
-        for (const s of sealed) {
-            const runner = await owned(ctx, ws, 'runners', s.runnerId)
-            if (!runner.publicKey) throw new Error(`${runner.name} hasn’t started yet. Start it once, then save again.`)
-            if (s.sealed.length > 8_000 || !s.sealed.startsWith('s1:')) throw new Error('That key couldn’t be locked. Reload the page and try again.')
-        }
-        await clear(ctx, ws._id, service)
-        const updatedAt = Date.now()
-        for (const s of sealed) await ctx.db.insert('secrets', { workspaceId: ws._id, runnerId: s.runnerId, service, sealed: s.sealed, updatedAt })
+export const store = internalMutation({
+    args: { workspaceId: v.id('workspace'), service: sealedService, sealed: v.string() },
+    handler: async (ctx, { workspaceId, service, sealed }) => {
+        await clear(ctx, workspaceId, service)
+        await ctx.db.insert('secrets', { workspaceId, service, sealed, updatedAt: Date.now() })
+    },
+})
+
+// Saves (or replaces) one service's key. An action, so the encryption gets a truly random nonce.
+export const save = action({
+    args: { service: sealedService, fields: v.record(v.string(), v.string()) },
+    handler: async (ctx, { service, fields }): Promise<null> => {
+        const workspaceId: Id<'workspace'> = await ctx.runQuery(internal.secrets.workspaceId, {})
+        if (!env.ENCRYPTION_KEY) throw new Error('This server isn’t set up to store keys yet. Run `npm run setup`.')
+        const checked = checkFields(service, fields)
+        const sealed = await encryptSecret(env.ENCRYPTION_KEY, secretContext(workspaceId, service), checked)
+        if (sealed.length > 8_000) throw new Error('That key is too long')
+        await ctx.runMutation(internal.secrets.store, { workspaceId, service, sealed })
         return null
     },
 })
 
-// Removes one service's key from every engine; an environment variable on the engine takes over, if set
+// Removes one service's key; an environment variable on the engine takes over, if set
 export const remove = mutation({
     args: { service: sealedService },
     handler: async (ctx, { service }) => {

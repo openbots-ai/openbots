@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { AlertCircle, Bot, Check, Copy, ExternalLink, HardDrive, Laptop, Mail, MessageCircle, MessageSquareText, RefreshCw, Smartphone, Waypoints, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { fingerprint, SEALED_SERVICES, type SealedService } from '@convex/lib/sealed'
+import { SEALED_SERVICES, type SealedService } from '@convex/lib/sealed'
 import { hashToken, newToken } from '@convex/lib/tokens'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -19,8 +19,8 @@ import { useNow } from '../use-now'
 import { useRun } from '../use-run'
 import { Btn, ConfirmDelete, Content, Scroll, Toolbar } from '../ui'
 
-// Your engines, and what they have set up. Keys and account logins are entered here, locked in the browser so only
-// the engine can read them, or set as environment variables on its machine; this page shows what the engines report.
+// Your engines, and what they have set up. Keys and account logins are saved here once for your whole account (the
+// backend stores them encrypted) or set as environment variables on an engine; this page shows what the engines report.
 
 type Runner = Omit<Doc<'runners'>, 'tokenHash'>
 type Service = NonNullable<Doc<'runners'>['services']>[number]['service']
@@ -192,7 +192,7 @@ export function ConnectionsView() {
     return (
         <Content>
             <Toolbar title="Connections">
-                <span className="text-[12px] text-neutral-500">Keys you enter here are locked in your browser so only your engine can read them.</span>
+                <span className="text-[12px] text-neutral-500">Keys you save here are encrypted and used by all your agents.</span>
             </Toolbar>
             <Scroll>
                 <div className="mx-auto w-full max-w-5xl space-y-8 p-4 pb-16">
@@ -255,7 +255,7 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                     {ai && status.ok && <p className="text-[12px] text-neutral-500">{count} model{count === 1 ? '' : 's'} this key can use. Re-check after you get access to a new one.</p>}
                 </div>
             )}
-            {sealed && <KeyForm service={id as SealedService} runners={runners} saved={saved} />}
+            {sealed && <KeyForm service={id as SealedService} saved={saved} />}
             {sealed ? (
                 <div className="space-y-1">
                     <p className="text-[12px] text-neutral-400">Or set on your engine:</p>
@@ -323,19 +323,6 @@ function Recheck() {
 const ONLINE_MS = 3 * 60_000
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
 
-// Matches the fingerprint the engine prints when it starts
-function Fingerprint({ publicKey }: { publicKey: string }) {
-    const [print, setPrint] = useState('')
-    useEffect(() => {
-        let live = true
-        void fingerprint(publicKey).then((p) => live && setPrint(p))
-        return () => {
-            live = false
-        }
-    }, [publicKey])
-    return <p className="font-mono text-[11px] text-neutral-500">Key {print}</p>
-}
-
 // Where outside services reach this engine
 function PublicUrl({ runner }: { runner: Runner }) {
     const setUrl = useMutation(api.runners.setPublicUrl)
@@ -363,7 +350,6 @@ function PublicUrl({ runner }: { runner: Runner }) {
 function Engines({ runners }: { runners?: Runner[] }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
-    const resetKey = useMutation(api.runners.resetKey)
     const run = useRun()
     const now = useNow(30_000)
     const [name, setName] = useState('')
@@ -382,7 +368,7 @@ function Engines({ runners }: { runners?: Runner[] }) {
         <section className="space-y-3">
             <div>
                 <h2 className="text-[14px] font-semibold">Your engine</h2>
-                <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages and contacts stay on it. Keys you enter below are locked so only it can read them.</p>
+                <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages and contacts stay on it. It uses the keys you save below.</p>
             </div>
             <Card className="divide-y divide-neutral-100 rounded-lg p-0">
                 {runners === undefined ? (
@@ -407,12 +393,9 @@ function Engines({ runners }: { runners?: Runner[] }) {
                                             ? `${online ? 'Online' : `Offline, last seen ${relativeTime(r.lastSeenAt, now)}`} · v${r.version}${r.channels?.length ? ` · texts through ${r.channels.join(', ')}` : ''}${r.demo ? ' · demo replies' : ''}`
                                             : 'Never connected. Start it with the token you copied.'}
                                     </p>
-                                    {r.publicKey && <Fingerprint publicKey={r.publicKey} />}
-                                    {r.publicKey && r.lastSeenAt && !online && <p className="text-[12px] text-neutral-500">Reset its data? Click Reset key, then enter your keys again.</p>}
                                     <PublicUrl runner={r} />
                                 </div>
                                 <div className="flex shrink-0 gap-2">
-                                    {r.publicKey && <ConfirmDelete label="Reset key" what={`${r.name}'s key and the keys saved for it`} onConfirm={() => void run(resetKey({ id: r._id }))} />}
                                     <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
                                 </div>
                             </div>

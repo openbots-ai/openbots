@@ -1,15 +1,8 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import { newEngineKeys, seal, sealContext } from '../../convex/lib/sealed'
-import { loadSettings, openDashboard, resolveMac, withDashboard } from './config'
-import { loadEngineKeys } from './identity'
+import { describe, expect, it } from 'vitest'
+import { fromDashboard, loadSettings, resolveMac, withDashboard } from './config'
 
 const ENV = { OPENBOTS_CONVEX_URL: 'https://x.convex.cloud', OPENBOTS_TOKEN: 'obr_x', OPENAI_API_KEY: 'sk-env', OPENBOTS_MAC: 'false' }
-const dirs: string[] = []
-afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
 
 describe('keys from the dashboard', () => {
     it('beat environment variables, and removing them falls back', () => {
@@ -36,32 +29,18 @@ describe('keys from the dashboard', () => {
         expect(resolveMac({}, 'linux')).toBe(false)
     })
 
-    it('opens what was locked for this engine and reports what it can’t', async () => {
-        const keys = await newEngineKeys()
-        const doc = {
-            workspaceId: 'ws1',
-            runnerId: 'r1',
+    it('takes the keys saved in Connections and passes on what the backend or a missing field reports', () => {
+        const { values, problems } = fromDashboard({
             secrets: [
-                { service: 'anthropic' as const, sealed: await seal(keys.publicKey, sealContext('ws1', 'r1', 'anthropic'), { apiKey: 'sk-ant' }) },
-                // Locked for another engine
-                { service: 'openai' as const, sealed: await seal(keys.publicKey, sealContext('ws1', 'r2', 'openai'), { apiKey: 'sk-1' }) },
-                // Missing a field
-                { service: 'resend' as const, sealed: await seal(keys.publicKey, sealContext('ws1', 'r1', 'resend'), { apiKey: 're_1' }) },
+                { service: 'anthropic', fields: { apiKey: 'sk-ant' } },
+                { service: 'resend', fields: { apiKey: 're_1' } },
             ],
-        }
-        const { values, problems } = await openDashboard(keys.privateKey, doc)
+            problems: [{ service: 'openai', error: 'The key saved in Connections can’t be read; save it again' }],
+        })
         expect(values.secrets).toEqual({ anthropic: { apiKey: 'sk-ant' } })
         expect(problems).toEqual([
-            { service: 'openai', error: expect.stringMatching(/enter it again/) },
+            { service: 'openai', error: expect.stringMatching(/save it again/) },
             { service: 'resend', error: expect.stringMatching(/From address is missing/) },
         ])
-    })
-
-    it('makes its key pair once and keeps it private', async () => {
-        const dir = mkdtempSync(join(tmpdir(), 'engine-'))
-        dirs.push(dir)
-        const first = await loadEngineKeys(dir)
-        expect(await loadEngineKeys(dir)).toEqual(first)
-        expect(statSync(join(dir, 'engine-key.json')).mode & 0o777).toBe(0o600)
     })
 })

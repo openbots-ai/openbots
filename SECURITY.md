@@ -7,8 +7,8 @@ OpenBots has three parts, and message content exists in only one of them.
 | Part | Runs on | Holds |
 | --- | --- | --- |
 | **Engine** (`runner/`) | A machine the workspace owner chooses | Contacts, conversations, message text (encrypted at rest with a local key), AI keys, Twilio / Sendblue / BlueBubbles / Resend logins. |
-| **Backend** (`convex/`) | A Convex deployment | Each user's workspace: settings, agents, model choices, knowledge, their numbers, engine token hashes, keys entered in the dashboard (stored locked for your engine, unreadable without its private key), daily counts, and what each engine reports as set up (which services, which model ids its keys can use, which addresses it texts from). |
-| **Dashboard** (`src/`) | The browser | Nothing beyond what the backend holds. It never receives messages. Keys you enter pass through it only to be locked (see below). |
+| **Backend** (`convex/`) | A Convex deployment | Each user's workspace: settings, agents, model choices, knowledge, their numbers, engine token hashes, keys saved in Connections (encrypted with the server's `ENCRYPTION_KEY`), daily counts, and what each engine reports as set up (which services, which model ids its keys can use, which addresses it texts from). |
+| **Dashboard** (`src/`) | The browser | Nothing beyond what the backend holds. It never receives messages, and never receives a saved key back. |
 
 So whoever runs the backend or hosts the dashboard (including the OpenBots developers, Convex, or anyone with a
 database backup) cannot read messages, because they never receive them, not even encrypted.
@@ -19,21 +19,21 @@ database backup) cannot read messages, because they never receive them, not even
 | --- | --- | --- | --- | --- |
 | The person texting, and the engine's machine | Yes | Yes | Yes | Yes |
 | The model provider the owner picked | Yes, for each reply (none with a local model) | The prompt includes the contact's name, number and notes | No | The assistant's prompt and knowledge |
-| The OpenBots backend / developers / Convex | **No** | **No** | Daily counts only | Yes, plus the owner's own numbers and which models their keys can use |
+| The OpenBots backend / developers / Convex | **No** | **No** | Daily counts only | Yes, plus the owner's own numbers, which models their keys can use, and the keys saved in Connections (stored encrypted; whoever holds the server's `ENCRYPTION_KEY` can decrypt them) |
 | Another OpenBots user | No | No | No | No: every function checks the signed-in user's workspace |
 | Someone holding the engine's database file but not its key | No | No | No | n/a |
-| Someone holding an engine token | No | No | No | That workspace's, read-only; can add to counts and answer its Twilio requests. Can register the engine's key only if none is saved yet; changing it needs the owner's **Reset key** in Connections |
+| Someone holding an engine token | No | No | No | That workspace's, read-only, **including the keys saved in Connections**; can add to counts and answer its Twilio requests. Revoke a token you think was leaked |
 | Twilio, Sendblue, BlueBubbles (whichever the owner uses) | Yes, they carry the texts | Yes | Yes | No |
-
-Keys entered in the dashboard: stored in Convex locked for your engine; only whoever holds that engine's private key file (in its data directory) can open them.
 
 Between the engine's machine and the person texting, iMessage provides Apple's end-to-end encryption.
 
 ## Design choices
 
-- **Keys can be entered in the dashboard or set on the engine.** Keys entered in Connections are locked in the browser
-  with the engine's public key before they're sent, so Convex stores only locked values that just that engine can open.
-  Keys set as environment variables on the engine never leave that machine. A key entered in the dashboard wins over the
+- **Keys can be saved in the dashboard or set on the engine.** Keys saved in Connections belong to the account, so they
+  can be saved before any engine exists. The backend encrypts them (AES-256-GCM, bound to the workspace and service)
+  with the server's `ENCRYPTION_KEY`, never sends them back to the dashboard, and decrypts them only to hand them to the
+  account's engines over their token-checked connection. Keys set as environment variables on the engine never leave
+  that machine. A key entered in the dashboard wins over the
   same environment variable. Things that need keys, like listing the models a key can use or buying a Twilio number, run
   on the engine; the dashboard queues the request and sees only the result (model ids, phone numbers).
 - **Webhooks** from Twilio, Sendblue and BlueBubbles go to the engine's own web server, on paths with a random secret.
@@ -58,7 +58,10 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
 - **The engine's web server** must be reachable by the services that post to it. Use HTTPS (a tunnel is fine) or a
   private network.
 - **macOS's own Messages database** on the engine's Mac is not encrypted by OpenBots; use FileVault.
-- **Dashboard code served by the developer.** The dashboard never sees your messages. Keys you type into Connections do pass through the page: it locks them with your engine's public key before sending, so Convex, its operator and database backups can't read them, but a malicious dashboard update could read a key as you type it, or show a public key that isn't your engine's. Check that the key fingerprint Connections shows matches the one your engine prints when it starts. If you'd rather not trust the dashboard with keys at all, set them as environment variables on the engine instead; they never leave that machine.
+- **Keys saved in Connections can be decrypted by whoever runs the backend.** They're encrypted at rest, so a database
+  backup alone doesn't reveal them, but the OpenBots operators hold `ENCRYPTION_KEY` and could decrypt them, and a
+  leaked engine token can read them until it's revoked. If you'd rather nobody else could, set your keys as environment
+  variables on the engine instead; they never leave that machine.
 - **Counts reveal volume:** the backend knows how many conversations, texts and handoffs each agent had per day.
 - This design hasn't had an external security review yet.
 

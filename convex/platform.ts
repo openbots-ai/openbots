@@ -5,7 +5,7 @@ import { env, query } from './_generated/server'
 export const status = query({
     args: {},
     handler: async () => {
-        const missing = !(env.JWT_PRIVATE_KEY && env.JWKS) ? ['sign-in keys'] : []
+        const missing = [!env.ENCRYPTION_KEY && 'ENCRYPTION_KEY', !(env.JWT_PRIVATE_KEY && env.JWKS) && 'sign-in keys'].filter((m): m is string => !!m)
         return { ready: missing.length === 0, missing }
     },
 })

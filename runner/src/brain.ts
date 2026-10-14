@@ -5,7 +5,7 @@ import { demoReply } from './demo'
 
 export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
 
-// The env var that unlocks each cloud provider that writes text. Keys are set here or entered in the dashboard, where they're locked for this engine.
+// The env var that unlocks each cloud provider that writes text. Keys are set here or saved in Connections for the whole account.
 export const PROVIDER_KEYS = {
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
