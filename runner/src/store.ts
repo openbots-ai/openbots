@@ -27,6 +27,10 @@ export type Conversation = {
 // `senderId` is the contact who wrote it, which matters in group chats
 export type Message = { id: number; conversationId: number; from: 'contact' | 'agent'; senderId?: number; body: string; at: number; model?: string }
 
+// A reminder or watch the owner asked for by text. `to` is the owner's handle; `number`/`channel` are what to text from.
+export type Job = { id: number; kind: 'reminder' | 'watch'; agentId: string; to: string; number: string; channel: Channel; dueAt: number; everyMin: number | null; until: number | null; text: string; last: string | null; failures: number }
+type JobRow = { id: number; kind: Job['kind']; agent_id: string; recipient: string; number: string; channel: Channel; due_at: number; every_min: number | null; until: number | null; text: string; last: string | null; failures: number }
+
 type ConversationRow = {
     id: number
     contact_id: number
@@ -62,6 +66,10 @@ export class Store {
             CREATE INDEX IF NOT EXISTS messages_by_conversation ON messages (conversation_id, id);
             -- Which conversations were already counted as active on a day, for the daily counts sent to Convex
             CREATE TABLE IF NOT EXISTS counted (day TEXT NOT NULL, conversation_id INTEGER NOT NULL, PRIMARY KEY (day, conversation_id));
+            -- Reminders and watches the owner asked for by text; recipient, text and last result are sealed
+            CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, agent_id TEXT NOT NULL, recipient TEXT NOT NULL, number TEXT NOT NULL, channel TEXT NOT NULL,
+                due_at INTEGER NOT NULL, every_min INTEGER, until INTEGER, text TEXT NOT NULL, last TEXT, failures INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL);
+            CREATE INDEX IF NOT EXISTS jobs_due ON jobs (active, due_at);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         `)
     }
@@ -185,5 +193,57 @@ export class Store {
 
     setMeta(key: string, value: string) {
         this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value)
+    }
+
+    addJob(j: Omit<Job, 'id' | 'last' | 'failures'>) {
+        const id = Number(
+            this.db
+                .prepare('INSERT INTO jobs (kind, agent_id, recipient, number, channel, due_at, every_min, until, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                .run(j.kind, j.agentId, '', j.number, j.channel, j.dueAt, j.everyMin, j.until, '', Date.now()).lastInsertRowid,
+        )
+        this.db.prepare('UPDATE jobs SET recipient = ?, text = ? WHERE id = ?').run(this.vault.seal(j.to, `job:${id}:to`), this.vault.seal(j.text, `job:${id}:text`), id)
+        return id
+    }
+
+    private toJob(r: JobRow): Job {
+        return {
+            id: r.id,
+            kind: r.kind,
+            agentId: r.agent_id,
+            to: this.vault.open(r.recipient, `job:${r.id}:to`),
+            number: r.number,
+            channel: r.channel,
+            dueAt: r.due_at,
+            everyMin: r.every_min,
+            until: r.until,
+            text: this.vault.open(r.text, `job:${r.id}:text`),
+            last: r.last ? this.vault.open(r.last, `job:${r.id}:last`) : null,
+            failures: r.failures,
+        }
+    }
+
+    dueJobs(now: number): Job[] {
+        return (this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND due_at <= ? ORDER BY due_at LIMIT 20').all(now) as JobRow[]).map((r) => this.toJob(r))
+    }
+
+    jobsFor(agentId: string): Job[] {
+        return (this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND agent_id = ? ORDER BY due_at').all(agentId) as JobRow[]).map((r) => this.toJob(r))
+    }
+
+    updateJob(id: number, patch: { dueAt?: number; last?: string; failures?: number; active?: boolean }) {
+        if (patch.dueAt !== undefined) this.db.prepare('UPDATE jobs SET due_at = ? WHERE id = ?').run(patch.dueAt, id)
+        if (patch.last !== undefined) this.db.prepare('UPDATE jobs SET last = ? WHERE id = ?').run(this.vault.seal(patch.last, `job:${id}:last`), id)
+        if (patch.failures !== undefined) this.db.prepare('UPDATE jobs SET failures = ? WHERE id = ?').run(patch.failures, id)
+        if (patch.active !== undefined) this.db.prepare('UPDATE jobs SET active = ? WHERE id = ?').run(patch.active ? 1 : 0, id)
+    }
+
+    // Only the agent that owns it can cancel it
+    cancelJob(id: number, agentId: string) {
+        return this.db.prepare('UPDATE jobs SET active = 0 WHERE id = ? AND agent_id = ? AND active = 1').run(id, agentId).changes > 0
+    }
+
+    jobCounts() {
+        const rows = this.db.prepare("SELECT agent_id, SUM(kind = 'reminder') AS reminders, SUM(kind = 'watch') AS watches FROM jobs WHERE active = 1 GROUP BY agent_id").all() as { agent_id: string; reminders: number; watches: number }[]
+        return rows.map((r) => ({ agentId: r.agent_id, reminders: Number(r.reminders), watches: Number(r.watches) }))
     }
 }
