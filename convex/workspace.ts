@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { currentWorkspace, owned, requireUser, requireWorkspace } from './lib/access'
+import { canComputerUse, NO_COMPUTER_USE } from './lib/computers'
 import { handleKind } from './lib/handles'
 import { requireKeyOffers } from './lib/keyModels'
 import { isValidChoice } from './lib/models'
@@ -72,7 +73,7 @@ export const setComputer = mutation({
     args: { computerId: v.optional(v.id('runners')) },
     handler: async (ctx, { computerId }) => {
         const ws = await requireWorkspace(ctx)
-        if (computerId) await owned(ctx, ws, 'runners', computerId)
+        if (computerId && !canComputerUse(await owned(ctx, ws, 'runners', computerId))) throw new Error(NO_COMPUTER_USE)
         await ctx.db.patch('workspace', ws._id, { computerId })
     },
 })

@@ -20,6 +20,9 @@ const HEARTBEAT_MS = 60_000
 // How often keys and accounts are re-checked, so newly available models show up in the dashboard
 const CHECK_MS = 6 * 3_600_000
 
+// Reported so the dashboard knows whether this computer can do computer use
+const osName = () => (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'mac' : process.platform === 'linux' ? 'linux' : 'other')
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 async function main() {
@@ -42,7 +45,7 @@ async function main() {
     // The Orgo key stays with the backend, so its service never appears here
     type EngineService = Exclude<SealedService, 'orgo'>
     let keyProblems: { service: EngineService; error: string }[] = []
-    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo }
+    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, os: osName() }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
 
     // New AI keys and email take effect straight away, without touching the channels

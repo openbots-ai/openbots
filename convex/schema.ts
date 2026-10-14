@@ -189,6 +189,8 @@ export default defineSchema({
         publicUrl: v.optional(v.string()),
         // The public address of the engine's own tunnel, when it runs one (Orgo computers do)
         tunnelUrl: v.optional(v.string()),
+        // The operating system the engine runs on; own Linux computers can't do computer use (see lib/computers.ts)
+        os: v.optional(v.union(v.literal('windows'), v.literal('mac'), v.literal('linux'), v.literal('other'))),
         // A computer OpenBots created on the account's Orgo, and how far its setup got
         orgo: v.optional(v.object({ computerId: v.string(), workspaceId: v.string() })),
         setup: v.optional(
