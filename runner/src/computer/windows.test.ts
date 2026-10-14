@@ -65,6 +65,8 @@ function fakeShell(answer: (command: string) => string) {
 describe('limits', () => {
     it('keeps counts in range and never sends a bad number', () => {
         expect(winCommand({ op: 'key', combo: 'Return', repeat: 9999 })).toContain('$i -lt 100')
+        expect(winCommand({ op: 'scroll', direction: 'down', amount: 500, mods: [] })).toBe('[OB]::Scroll(0, -50, [uint16[]]@())')
+        expect(() => winCommand({ op: 'move', at: { x: 1e9, y: 0 } })).toThrow('Bad number')
         expect(winCommand({ op: 'click', button: 'left', count: 50, mods: [] })).toBe('[OB]::Click(0, 3, [uint16[]]@())')
         expect(winCommand({ op: 'click', button: 'left', count: 0, mods: [] })).toBe('[OB]::Click(0, 1, [uint16[]]@())')
         expect(() => winCommand({ op: 'move', at: { x: NaN, y: 1 } })).toThrow('Bad number')
@@ -81,6 +83,7 @@ function quietChild() {
         stdin,
         stdout,
         events,
+        stderr: new PassThrough(),
         killed: false,
         on: (event: string, cb: (e?: unknown) => void) => void events.on(event, cb),
         kill: () => void (child.killed = true),
@@ -92,26 +95,69 @@ function quietChild() {
 const pause = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
 
 describe('a helper that breaks', () => {
-    it('fails the command instead of crashing when it can’t start or can’t be written to', async () => {
+    it('fails the command instead of crashing when PowerShell can’t start', async () => {
         const broken = quietChild()
         const shell = new PowerShell(() => broken)
         const run = shell.run('x')
         await pause(1)
         broken.events.emit('error', new Error('spawn powershell.exe ENOENT'))
         await expect(run).rejects.toThrow('ENOENT')
+    })
 
+    it('fails the command instead of crashing when it can’t be written to', async () => {
         const stuck = quietChild()
-        const again = new PowerShell(() => stuck)
-        const second = again.run('x')
+        const shell = new PowerShell(() => stuck)
+        const run = shell.run('x')
         await pause()
         stuck.stdin.emit('error', new Error('write EPIPE'))
-        await expect(second).rejects.toThrow('EPIPE')
+        await expect(run).rejects.toThrow('EPIPE')
+    })
+
+    it('includes what PowerShell printed to stderr', async () => {
+        const dying = quietChild()
+        const shell = new PowerShell(() => dying)
+        const run = shell.run('x')
+        await pause(1)
+        dying.stderr.write('Add-Type : compile failed')
+        dying.events.emit('exit')
+        dying.events.emit('close')
+        await expect(run).rejects.toThrow('compile failed')
+    })
+
+    it('stops waiting when closed during startup, and works again afterwards', async () => {
+        const first = quietChild()
+        const children = [first, fakeShell(() => 'fine')]
+        let spawned = 0
+        const shell = new PowerShell(() => children[spawned++] as never)
+        const run = shell.run('x')
+        await pause(0)
+        shell.close()
+        first.events.emit('exit')
+        await expect(run).rejects.toThrow('closed')
+        expect(await shell.run('y')).toBe('fine')
+    })
+
+    it('ignores a late error from an old helper', async () => {
+        const first = quietChild()
+        const second = quietChild()
+        const children = [first, second]
+        let spawned = 0
+        const shell = new PowerShell(() => children[spawned++] as never)
+        const a = shell.run('a')
+        await pause()
+        shell.close()
+        await expect(a).rejects.toThrow('closed')
+        const b = shell.run('b')
+        await pause()
+        first.events.emit('error', new Error('late'))
+        second.say('@@OB 2 ok done')
+        expect(await b).toBe('done')
     })
 
     it('throws the stuck helper away so the next command gets a fresh one', async () => {
         const children = [quietChild(), fakeShell(() => 'fine')]
         let spawned = 0
-        const shell = new PowerShell(() => children[spawned++] as never, 50)
+        const shell = new PowerShell(() => children[spawned++] as never, 1000)
         await expect(shell.run('hangs')).rejects.toThrow('in time')
         expect((children[0] as ReturnType<typeof quietChild>).killed).toBe(true)
         expect(await shell.run('next')).toBe('fine')
