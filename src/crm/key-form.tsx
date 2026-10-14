@@ -70,7 +70,7 @@ export function KeyForm({ service, saved }: { service: SealedService; saved?: Sa
                     ))}
                     {error && <p className="text-[12px] text-destructive">{error}</p>}
                     <div className="flex gap-2">
-                        <Btn type="submit" variant="primary" disabled={saving}>
+                        <Btn type="submit" variant="primary" disabled={saving} className="flex-1">
                             {saving ? 'Saving…' : 'Save'}
                         </Btn>
                         <Btn type="button" variant="ghost" onClick={() => {
@@ -84,7 +84,7 @@ export function KeyForm({ service, saved }: { service: SealedService; saved?: Sa
                 </form>
             ) : (
                 <div className="flex items-center gap-2">
-                    <Btn variant="primary" onClick={() => setOpen(true)}>
+                    <Btn variant="primary" onClick={() => setOpen(true)} className="flex-1">
                         {saved ? 'Replace' : 'Add key'}
                     </Btn>
                     {saved && <ConfirmDelete label="Remove" what={`the saved ${service} key`} onConfirm={() => void run(remove({ service }))} />}
