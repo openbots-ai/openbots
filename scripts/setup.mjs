@@ -1,5 +1,5 @@
 // Sets up a Convex deployment for OpenBots: generates the server's own secrets and stores them on the deployment,
-// so nothing secret is ever written to a file or typed by hand. Users' keys live on their own agent (runner/).
+// so nothing secret is ever written to a file or typed by hand. Users' keys are entered in Connections or set on their engine (runner/).
 //
 //   npm run setup            the dev deployment from `npx convex dev`
 //   npm run setup -- --prod  the production deployment
@@ -11,8 +11,10 @@ import { generateKeyPairSync } from 'node:crypto'
 
 const target = process.argv.slice(2)
 
-function convex(args, { quiet = false } = {}) {
-    const res = spawnSync('npx', ['convex', ...args, ...target], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+// `env list` / `env set …`: the deployment flags (e.g. --prod) go right after the subcommand, before the values,
+// since everything after `--` is read as a value
+function convex([command, sub, ...rest], { quiet = false } = {}) {
+    const res = spawnSync('npx', ['convex', command, sub, ...target, ...rest], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
     if (res.status !== 0) {
         if (!quiet) process.stderr.write(res.stderr || res.stdout)
         return null
@@ -48,4 +50,4 @@ else {
     set('JWKS', JSON.stringify({ keys: [{ use: 'sig', alg: 'RS256', ...jwk }] }))
 }
 
-console.log('\nDone. AI keys, texting accounts and email are set by each person on their own agent (see runner/README.md).')
+console.log('\nDone. AI keys, texting accounts and email are added by each person in Connections, or set on their engine (see runner/README.md).')
