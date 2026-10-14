@@ -11,7 +11,7 @@ import { listModels } from './models'
 import { Vault } from './crypto'
 import { PAUSE_MS, Pipeline, type Activity, type Config, type Link } from './pipeline'
 import { Store } from './store'
-import { textFromAttributedBody } from './transports/mac'
+import { MacTransport, textFromAttributedBody } from './transports/mac'
 import type { Channel, Outgoing, Transport } from './transports/types'
 
 const AGENT = 'agent1' as Id<'agents'>
@@ -312,5 +312,51 @@ describe('mac transport', () => {
         const text = 'hey, are you free later?'
         const blob = Buffer.concat([Buffer.from('\x04\x0bstreamtyped\x81\xe8\x03\x84\x01@\x84\x84\x84\x12NSAttributedString\x00\x84\x84\x08NSObject\x00\x85\x92\x84\x84\x84\x08NSString\x01\x94\x84\x01+', 'latin1'), Buffer.from([text.length]), Buffer.from(text), Buffer.from([0x86])])
         expect(textFromAttributedBody(blob)).toBe(text)
+    })
+
+    it('stops cleanly while a text is still being answered, and never takes it twice', async () => {
+        // A tiny Messages database with two new texts
+        const path = join(dir, 'chat.db')
+        const chat = new DatabaseSync(path)
+        chat.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, text TEXT, attributedBody BLOB, handle_id INTEGER, destination_caller_id TEXT, is_from_me INTEGER, item_type INTEGER);
+            CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT);
+            CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER);
+            CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
+            INSERT INTO handle VALUES (1, '+12125550187');
+            INSERT INTO chat VALUES (1, 45);`)
+        const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
+        store.setMeta('mac.lastRowId', '0')
+        for (const id of [1, 2]) {
+            chat.prepare('INSERT INTO message VALUES (?, ?, NULL, 1, NULL, 0, 0)').run(id, `text ${id}`)
+            chat.prepare('INSERT INTO chat_message_join VALUES (1, ?)').run(id)
+        }
+        chat.close()
+
+        let answer!: () => void
+        const onText = vi.fn(() => new Promise<{ markRead: boolean }>((resolve) => (answer = () => resolve({ markRead: true }))))
+        const mac = new MacTransport(store, path)
+        void mac.start(onText)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(onText).toHaveBeenCalledTimes(1)
+
+        // Stopped while the first text is still being answered: it waits for that one, then takes no more
+        const stopped = mac.stop()
+        answer()
+        await stopped
+        await vi.advanceTimersByTimeAsync(10_000)
+        expect(onText).toHaveBeenCalledTimes(1)
+        expect(store.getMeta('mac.lastRowId')).toBe('1')
+        expect(vi.getTimerCount()).toBe(0)
+
+        // A new one picks up where it left off
+        const next = new MacTransport(store, path)
+        const seen: string[] = []
+        await next.start(async (t) => {
+            seen.push(t.body)
+            return { markRead: true }
+        })
+        expect(seen).toEqual(['text 2'])
+        await next.stop()
+        store.close()
     })
 })
