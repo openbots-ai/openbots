@@ -34,3 +34,4 @@ dist-ssr
 # OpenBots agent: its local config and data never belong in git
 runner/.env
 .openbots
+public/engine/

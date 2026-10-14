@@ -18,3 +18,19 @@ await build({
     legalComments: 'none',
 })
 console.log(`Built openbots-runner ${pkg.version} → runner/dist/main.mjs`)
+
+// The same engine with its dependencies inside, as one file the website serves at /engine/openbots-engine.mjs. Orgo
+// computers download it during setup, so they need nothing but Node.js.
+await build({
+    entryPoints: [new URL('./src/main.ts', import.meta.url).pathname],
+    outfile: new URL('../public/engine/openbots-engine.mjs', import.meta.url).pathname,
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+    // Bundled CommonJS dependencies still call require(); give them one
+    banner: { js: "#!/usr/bin/env node\nimport { createRequire as __openbotsRequire } from 'node:module'; const require = __openbotsRequire(import.meta.url);" },
+    define: { __VERSION__: JSON.stringify(pkg.version) },
+    legalComments: 'none',
+})
+console.log(`Built the standalone engine → public/engine/openbots-engine.mjs`)

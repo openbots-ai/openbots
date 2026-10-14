@@ -72,8 +72,16 @@ then put the schema back and push again.
 
 ### The engine (`runner/`)
 
-Each person runs the engine on a machine they choose: the Mac signed in to iMessage, a VM, a server at home. They
-add it in **Connections**, which gives them a token, and save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
+Each account has an always-on computer that runs the engine and is the desktop its agents use. There are two ways
+to get one, both under **Connections → Computer use**:
+
+- **On Orgo:** save an [Orgo](https://www.orgo.ai) API key and click **Create on Orgo**. The backend creates the
+  computer on that Orgo account (Orgo bills it), installs Node.js, `cloudflared` and the engine (served by this site at
+  `/engine/openbots-engine.mjs`, built with every deploy), and keeps it running. Incoming texts reach it through
+  Cloudflare's quick tunnel, so it needs no open ports.
+- **Your own computer:** a laptop, a server or any VM. Add it to get a token and run the command shown.
+
+Either way they save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
 that machine. It keeps contacts, conversations and messages in a local encrypted SQLite file. Setup, settings and
 release verification are in [runner/README.md](runner/README.md).
 

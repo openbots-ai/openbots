@@ -77,6 +77,7 @@ export const sealedService = v.union(
     v.literal('sendblue'),
     v.literal('bluebubbles'),
     v.literal('resend'),
+    v.literal('orgo'),
 )
 export const keyModel = v.object({ provider: v.string(), id: v.string(), label: v.string() })
 
@@ -183,6 +184,17 @@ export default defineSchema({
         demo: v.optional(v.boolean()),
         // Where Twilio, Sendblue or BlueBubbles reach this engine, set in Connections (not secret)
         publicUrl: v.optional(v.string()),
+        // The public address of the engine's own tunnel, when it runs one (Orgo computers do)
+        tunnelUrl: v.optional(v.string()),
+        // A computer OpenBots created on the account's Orgo, and how far its setup got
+        orgo: v.optional(v.object({ computerId: v.string(), workspaceId: v.string() })),
+        setup: v.optional(
+            v.object({
+                status: v.union(v.literal('creating'), v.literal('installing'), v.literal('ready'), v.literal('failed')),
+                step: v.optional(v.string()),
+                error: v.optional(v.string()),
+            }),
+        ),
     })
         .index('by_workspace', ['workspaceId'])
         .index('by_tokenHash', ['tokenHash']),

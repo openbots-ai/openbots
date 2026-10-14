@@ -24,6 +24,8 @@ export type Settings = {
     bluebubbles?: Credentials['bluebubbles']
     resend?: Credentials['resend']
     brains: Brains
+    // Run Cloudflare's quick tunnel for a public address (OPENBOTS_TUNNEL=true), with this cloudflared binary
+    tunnel?: { bin: string }
 }
 
 export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
@@ -73,6 +75,7 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
         bluebubbles,
         resend,
         brains: { keys, local: localUrl ? { url: localUrl, key: get('OPENBOTS_LOCAL_KEY') } : undefined, demo: get('OPENBOTS_DEMO') === 'true' },
+        tunnel: get('OPENBOTS_TUNNEL') === 'true' ? { bin: get('OPENBOTS_CLOUDFLARED') || 'cloudflared' } : undefined,
     }
 }
 

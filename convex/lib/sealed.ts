@@ -1,8 +1,10 @@
 // Keys entered in the dashboard belong to your account. The backend encrypts them with its own ENCRYPTION_KEY before
 // storing them and decrypts them only to hand them to your engine. Web Crypto only, so it runs in Convex and in tests.
 
-export const SEALED_SERVICES = ['openai', 'anthropic', 'google', 'xai', 'local', 'twilio', 'sendblue', 'bluebubbles', 'resend'] as const
+export const SEALED_SERVICES = ['openai', 'anthropic', 'google', 'xai', 'local', 'twilio', 'sendblue', 'bluebubbles', 'resend', 'orgo'] as const
 export type SealedService = (typeof SEALED_SERVICES)[number]
+// Used by the backend itself (to create computers), never handed to engines
+export const BACKEND_ONLY: readonly SealedService[] = ['orgo']
 
 export type SecretFields = {
     openai: { apiKey: string }
@@ -14,6 +16,7 @@ export type SecretFields = {
     sendblue: { keyId: string; secret: string }
     bluebubbles: { serverUrl: string; password: string }
     resend: { apiKey: string; from: string }
+    orgo: { apiKey: string }
 }
 
 export type Field = { name: string; label: string; secret: boolean; optional?: boolean; placeholder?: string }
@@ -46,6 +49,7 @@ export const FIELDS: Record<SealedService, Field[]> = {
         { name: 'apiKey', label: 'API key', secret: true, placeholder: 're_...' },
         { name: 'from', label: 'From address', secret: false, placeholder: 'alerts@yourdomain.com' },
     ],
+    orgo: apiKey('from orgo.ai'),
 }
 
 const VERSION = 'k1'

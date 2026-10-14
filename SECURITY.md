@@ -24,6 +24,8 @@ database backup) cannot read messages, because they never receive them, not even
 | Someone holding the engine's database file but not its key | No | No | No | n/a |
 | Someone holding an engine token | No | No | No | That workspace's, read-only, **including the keys saved in Connections**; can add to counts and answer its Twilio requests. Revoke a token you think was leaked |
 | Twilio, Sendblue, BlueBubbles (whichever the owner uses) | Yes, they carry the texts | Yes | Yes | No |
+| Orgo, when the owner's computer runs there | Yes, it hosts the computer and its disk | Yes | Yes | The engine's settings file and token |
+| Cloudflare, for an Orgo computer's tunnel | Yes, incoming texts pass through it | Yes | Yes | No |
 
 Between the engine's machine and the person texting, iMessage provides Apple's end-to-end encryption.
 
@@ -55,6 +57,10 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
 - **One machine holds the history.** If the engine's data directory and key are lost, so is the history.
 - **The texting services see texts.** Twilio, Sendblue and BlueBubbles' own servers (where used) carry them. Messages on
   the engine's Mac avoids any third party besides Apple's end-to-end encrypted iMessage.
+- **Orgo computers** are created on the owner's own Orgo account with the Orgo key saved in Connections. That key is
+  used only by the backend to create, start, stop and delete computers; it's never sent to engines. Orgo hosts the
+  computer, so it can read what's on it, and incoming texts reach it through Cloudflare's quick tunnel, which ends HTTPS
+  at Cloudflare. Run the engine on your own computer to avoid both.
 - **The engine's web server** must be reachable by the services that post to it. Use HTTPS (a tunnel is fine) or a
   private network.
 - **macOS's own Messages database** on the engine's Mac is not encrypted by OpenBots; use FileVault.
