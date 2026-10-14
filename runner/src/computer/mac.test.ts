@@ -1,24 +1,62 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { MacDriver, macScript } from './mac'
+import { MacDriver, macScript, typeTimeout } from './mac'
 
 describe('Mac scripts', () => {
     it('types any text literally, never as code', () => {
         const text = 'He said "hi" `rm -rf` ${x}\nnext'
         const script = macScript({ op: 'type', text })
-        expect(script).toContain(`keystroke(${JSON.stringify(text)})`)
+        expect(script).toContain(`const parts = ${JSON.stringify(text)}.split(`)
+        // The text appears once, only as that literal
+        expect(script.split('rm -rf')).toHaveLength(2)
+        expect(script).toContain('key(9, 1048576)')
+        expect(script).toContain('key(36, 0)')
+        expect(script).toContain('pb.setStringForType($(saved)')
+        expect(script).not.toContain('System Events')
     })
 
-    it('presses named keys by key code and characters by keystroke, with modifiers', () => {
-        expect(macScript({ op: 'key', combo: 'cmd+s', repeat: 1 })).toContain(`keystroke("s", { using: ["command down"] })`)
-        expect(macScript({ op: 'key', combo: 'Return', repeat: 2 })).toContain('for (let i = 0; i < 2; i++) se.keyCode(36, { using: [] })')
-        expect(macScript({ op: 'key', combo: 'ctrl+shift+Tab', repeat: 1 })).toContain('keyCode(48, { using: ["control down","shift down"] })')
+    it('presses keys by key code with modifier flags, no System Events', () => {
+        expect(macScript({ op: 'key', combo: 'cmd+s', repeat: 1 })).toContain('key(1, 1048576)')
+        expect(macScript({ op: 'key', combo: 'Return', repeat: 2 })).toContain('for (let i = 0; i < 2; i++) key(36, 0)')
+        expect(macScript({ op: 'key', combo: 'ctrl+shift+Tab', repeat: 1 })).toContain('key(48, 393216)')
+        expect(macScript({ op: 'key', combo: 'cmd+s', repeat: 1 })).toContain('CGEventCreateKeyboardEvent(null, code, down)')
+        expect(macScript({ op: 'key', combo: 'a', repeat: 1 })).not.toContain('System Events')
+        expect(() => macScript({ op: 'key', combo: 'ctrl++', repeat: 1 })).toThrow('Unknown key')
+        expect(() => macScript({ op: 'key', combo: 'é', repeat: 1 })).toThrow('Unknown key')
+    })
+
+    it('drags in steps with pauses', () => {
+        const script = macScript({ op: 'drag', from: { x: 10, y: 20 }, to: { x: 110, y: 20 }, mods: [] })
+        const order = ['mouse(5, 10, 20', 'delay(0.05)', 'mouse(1, 10, 20', 'i <= 10', 'mouse(6,', 'delay(0.01)', 'mouse(2, 110, 20'].map((t) => script.indexOf(t))
+        expect(order.every((n, i) => n >= 0 && (i === 0 || n > order[i - 1]))).toBe(true)
+    })
+
+    it('scrolls with a fallback and the sign convention', () => {
+        const up = macScript({ op: 'scroll', direction: 'up', amount: 2, mods: [] })
+        expect(up).toContain("typeof $.CGEventCreateScrollWheelEvent2 === 'function'")
+        expect(up).toContain('CGEventCreateScrollWheelEvent2(null, 1, 2, 6, 0, 0)')
+        expect(up).toContain('CGEventSetType(e, 22)')
+        expect(up).toContain('CGEventSetIntegerValueField(e, 11, 6)')
+        expect(macScript({ op: 'scroll', direction: 'left', amount: 1, mods: [] })).toContain('CGEventSetIntegerValueField(e, 12, 3)')
+    })
+
+    it('uses the main display and guards the permission checks', () => {
+        expect(macScript({ op: 'size' })).toContain('CGDisplayBounds($.CGMainDisplayID())')
+        expect(macScript({ op: 'ready' })).toContain("typeof $.AXIsProcessTrusted === 'function' ? !!$.AXIsProcessTrusted() : true")
+        expect(macScript({ op: 'ready' })).toContain("typeof $.CGPreflightScreenCaptureAccess === 'function' ? !!$.CGPreflightScreenCaptureAccess() : true")
+    })
+
+    it('moves to the point before clicking', () => {
+        const script = macScript({ op: 'click', at: { x: 5, y: 6 }, button: 'left', count: 1, mods: [] })
+        expect(script.indexOf('mouse(5, at.x, at.y')).toBeGreaterThan(-1)
+        expect(script.indexOf('delay(0.03)')).toBeLessThan(script.indexOf('mouse(1, at.x'))
     })
 
     it('clicks with the click count set, and holds modifiers on the event', () => {
         const script = macScript({ op: 'click', at: { x: 100, y: 50 }, button: 'left', count: 2, mods: ['super'] })
-        expect(script).toContain('mouse(1, 100, 50, 0, 1, 1048576)')
-        expect(script).toContain('mouse(2, 100, 50, 0, 2, 1048576)')
+        expect(script).toContain('const at = { x: 100, y: 50 }')
+        expect(script).toContain('mouse(1, at.x, at.y, 0, 1, 1048576)')
+        expect(script).toContain('mouse(2, at.x, at.y, 0, 2, 1048576)')
         expect(macScript({ op: 'click', button: 'right', count: 1, mods: [] })).toContain('const at = here()')
     })
 
@@ -37,16 +75,16 @@ describe('Mac script number safety', () => {
 
     it('clamps counts, repeats and scroll amounts', () => {
         expect(macScript({ op: 'key', combo: 'a', repeat: 9999 })).toContain('i < 100')
-        expect(macScript({ op: 'scroll', direction: 'up', amount: 500, mods: [] })).toContain('CGEventCreateScrollWheelEvent2(null, 1, 2, 50, 0, 0)')
+        expect(macScript({ op: 'scroll', direction: 'up', amount: 500, mods: [] })).toContain('CGEventCreateScrollWheelEvent2(null, 1, 2, 150, 0, 0)')
         const clicks = macScript({ op: 'click', at: { x: 1, y: 1 }, button: 'left', count: 99, mods: [] })
-        expect(clicks).toContain('mouse(1, 1, 1, 0, 3, 0)')
-        expect(clicks).not.toContain(', 4, 0)')
+        expect(clicks).toContain('mouse(1, at.x, at.y, 0, 3, 0)')
+        expect(clicks).not.toContain('0, 4, 0)')
     })
 
     it('presses bare modifiers and insert by key code', () => {
-        expect(macScript({ op: 'key', combo: 'Super_L', repeat: 1 })).toContain('keyCode(55, { using: [] })')
-        expect(macScript({ op: 'key', combo: 'insert', repeat: 1 })).toContain('keyCode(114,')
-        expect(macScript({ op: 'key', combo: 'ctrl+.', repeat: 1 })).toContain('keystroke(".", { using: ["control down"] })')
+        expect(macScript({ op: 'key', combo: 'Super_L', repeat: 1 })).toContain('key(55, 0)')
+        expect(macScript({ op: 'key', combo: 'insert', repeat: 1 })).toContain('key(114, 0)')
+        expect(macScript({ op: 'key', combo: 'ctrl+.', repeat: 1 })).toContain('key(47, 262144)')
     })
 })
 
@@ -60,7 +98,7 @@ describe('the Mac driver', () => {
         const shot = await driver.screenshot({ width: 1512, height: 982 })
         expect(shot).toEqual({ base64: Buffer.from('png').toString('base64'), width: 1512, height: 982 })
         expect(calls[0][0]).toBe('screencapture')
-        expect(calls[0][1].slice(0, 3)).toEqual(['-x', '-t', 'png'])
+        expect(calls[0][1].slice(0, 4)).toEqual(['-x', '-t', 'png', '-m'])
         expect(calls[1][0]).toBe('sips')
         expect(calls[1][1].slice(0, 3)).toEqual(['-z', '982', '1512'])
     })
@@ -68,7 +106,7 @@ describe('the Mac driver', () => {
     it('gives each screenshot its own temp files and removes them', async () => {
         const paths: string[] = []
         const removed: string[] = []
-        const driver = new MacDriver(async (file, args) => (file === 'screencapture' && paths.push(args[3]), ''), {
+        const driver = new MacDriver(async (file, args) => (file === 'screencapture' && paths.push(args[4]), ''), {
             read: () => Buffer.from('png'),
             remove: (p) => void removed.push(p),
         })
@@ -83,5 +121,13 @@ describe('the Mac driver', () => {
         expect(await driver.ready()).toMatch(/Screen Recording/)
         const ok = new MacDriver(async () => '{"screen":true,"input":true}')
         expect(await ok.ready()).toBeNull()
+    })
+})
+
+describe('typing time', () => {
+    it('grows with the text, up to two minutes', () => {
+        expect(typeTimeout('hi')).toBe(31_000)
+        expect(typeTimeout('x'.repeat(2000))).toBe(40_000)
+        expect(typeTimeout('x'.repeat(1_000_000))).toBe(120_000)
     })
 })
