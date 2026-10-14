@@ -38,8 +38,10 @@ export function systemPrompt(args: {
     group?: string
     // The person texting is the owner, from the phone in Settings: help them directly, never hand off to them
     withOwner?: boolean
+    // The reply goes out as a regular text message (Twilio), where long messages cost more and can fail to deliver
+    sms?: boolean
 }) {
-    const { agent, workspace, contact, knowledge, now, group, withOwner } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner, sms } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -61,6 +63,7 @@ export function systemPrompt(args: {
         knowledge.length && `What you know:\n${knowledge.map((k) => `## ${k.title}\n${k.body.trim()}`).join('\n\n')}`,
         `It is ${date} (${timeZone}).`,
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
+        sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',
         withOwner
             ? 'If you can’t do something yet or aren’t sure, say so plainly. Never make up facts, prices or commitments.'
