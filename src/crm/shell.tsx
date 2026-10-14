@@ -23,6 +23,8 @@ export function Shell() {
     const workspace = useQuery(api.workspace.get)
     const [menuOpen, setMenuOpen] = useState(false)
 
+    // Nothing below may load before the workspace does: its queries need one and would throw for a new account
+    if (workspace === undefined) return <div className="min-h-dvh bg-[#f5f5f7]" />
     // A fresh deployment has no workspace yet: ask for the two names it needs, nothing is made up
     if (workspace === null) return <Onboarding />
 
