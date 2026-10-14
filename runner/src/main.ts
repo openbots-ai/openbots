@@ -43,15 +43,21 @@ async function main() {
     let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, publicKey: engineKeys.publicKey }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
 
+    // New AI keys and email take effect straight away, without touching the channels
+    const takeKeys = (next: Settings) => {
+        settings = next
+        const resend = settings.resend
+        pipeline.update({ brains: settings.brains, email: resend ? (to, subject, text) => sendEmail(resend, to, subject, text) : undefined })
+    }
+
     // Stops the channels, rebuilds them from the new settings and starts them again. A channel that won't stop or
     // start is logged and reported for its service, and the rest keep running.
     const apply = async (next: Settings) => {
         for (const t of Object.values(services.transports)) await t.stop().catch((e) => console.error(`Couldn't stop ${t.channel}: ${message(e)}`))
         server.clearRoutes()
-        settings = next
+        takeKeys(next)
         services = buildServices(settings, { server, store, secret })
-        const resend = settings.resend
-        pipeline.update({ transports: services.transports, brains: settings.brains, email: resend ? (to, subject, text) => sendEmail(resend, to, subject, text) : undefined })
+        pipeline.update({ transports: services.transports })
         for (const t of Object.values(services.transports)) {
             try {
                 await t.start((text) => pipeline.receive(text))
@@ -98,7 +104,8 @@ async function main() {
         for (const s of status.services) if (s.error) console.error(`${s.service}: ${s.error}`)
     }
     const beat = () => link.heartbeat(status).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
-    // Each change from the dashboard is applied in turn, and only when it changes what this engine runs
+    // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
+    const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
     let applied = ''
     let chain = Promise.resolve()
     let resumed = false
@@ -109,11 +116,11 @@ async function main() {
                     const opened = await openDashboard(engineKeys.privateKey, doc)
                     keyProblems = opened.problems
                     const next = withDashboard(base, opened.values)
-                    const fingerprintOf = JSON.stringify(next)
-                    if (fingerprintOf !== applied) {
+                    const wanted = channelSettings(next)
+                    if (wanted !== applied) {
                         await apply(next)
-                        applied = fingerprintOf
-                    }
+                        applied = wanted
+                    } else takeKeys(next)
                     await checkAll()
                     await beat()
                 })

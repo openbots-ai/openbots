@@ -43,6 +43,9 @@ export class MacTransport implements Transport {
     readonly channel = 'mac'
     private db?: DatabaseSync
     private timer?: NodeJS.Timeout
+    private stopped = false
+    // The poll under way, so stop can wait for a text still being answered
+    private polling?: Promise<void>
 
     constructor(
         private store: Store,
@@ -62,13 +65,21 @@ export class MacTransport implements Transport {
         }
         const poll = async () => {
             for (const row of this.newTexts()) {
+                if (this.stopped) return
                 const body = row.text ?? (row.body ? textFromAttributedBody(row.body) : null)
                 if (body?.trim()) await onText({ channel: 'mac', to: cleanAddress(row.dest) ?? undefined, from: row.sender, body }).catch((e) => console.error(`Skipped a text: ${e instanceof Error ? e.message : e}`))
                 this.store.setMeta('mac.lastRowId', String(row.id))
             }
-            this.timer = setTimeout(poll, POLL_MS)
         }
-        await poll()
+        // One poll at a time, the next armed only while running; the first one's error reaches start
+        const tick = () => {
+            this.polling = poll().finally(() => {
+                this.polling = undefined
+                if (!this.stopped) this.timer = setTimeout(() => void tick().catch((e) => console.error(`Couldn't read Messages: ${e instanceof Error ? e.message : e}`)), POLL_MS)
+            })
+            return this.polling
+        }
+        await tick()
     }
 
     private newTexts(): Row[] {
@@ -99,8 +110,12 @@ export class MacTransport implements Transport {
         ])
     }
 
+    // Waits for a text still being answered, so its place is saved and nothing reads the database once it's closed
     async stop() {
+        this.stopped = true
         clearTimeout(this.timer)
+        await this.polling?.catch(() => {})
         this.db?.close()
+        this.db = undefined
     }
 }
