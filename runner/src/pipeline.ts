@@ -208,6 +208,7 @@ export class Pipeline {
                 now,
                 group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
                 withOwner: owner,
+                sms: conversation.channel === 'twilio',
             }),
             turns: this.turns(conversation),
             temperature: agent.temperature,
