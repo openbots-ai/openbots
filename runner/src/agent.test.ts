@@ -234,11 +234,40 @@ describe('agent', () => {
         expect(complete).toHaveBeenCalledTimes(1)
     })
 
-    it("ignores your own texts and numbers that aren't yours", async () => {
-        const { transport, text, pipeline } = setup()
-        expect(await text('ok thanks', OWNER)).toEqual({ markRead: true })
+    it('chats with you from your own phone: no handoffs, no 24-hour pause, even with a draft agent', async () => {
+        const replies = ['Let me check on that. [[handoff]]', 'Sure, here it is.']
+        const { transport, link, text, complete } = setup(config({ agent: { status: 'draft' } }), model(async () => replies.shift() ?? 'ok'))
+        await text('can you look into flights?', OWNER)
         await vi.runAllTimersAsync()
-        expect(transport.sent).toHaveLength(0)
+        await text('thanks, and?', OWNER)
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(2)
+        expect(transport.sent.map((m) => [m.to, m.body])).toEqual([
+            [OWNER, 'Let me check on that.'],
+            [OWNER, 'Sure, here it is.'],
+        ])
+        // You're told about strangers, not about yourself
+        expect(transport.sent.some((m) => /needs you|first time/.test(m.body))).toBe(false)
+        expect(link.records.some((r) => r.activity?.handoffs)).toBe(false)
+    })
+
+    it('tells you why when it can’t reply to you, and answers again once that’s fixed', async () => {
+        let broke = true
+        const { transport, text } = setup(config(), model(async () => {
+            if (broke) throw new Error('You have no credits remaining.')
+            return 'back now'
+        }))
+        await text('hello?', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/couldn’t reply.*no credits remaining/) })
+        broke = false
+        await text('hello again', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)).toMatchObject({ to: OWNER, body: 'back now' })
+    })
+
+    it("refuses texts to numbers that aren't yours", async () => {
+        const { pipeline } = setup()
         await expect(pipeline.receive({ channel: 'relay', to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)
     })
 
