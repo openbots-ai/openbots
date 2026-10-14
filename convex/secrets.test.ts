@@ -78,15 +78,28 @@ describe('keys entered in the dashboard', () => {
         await expect(owner.mutation(api.secrets.set, { service: 'openai', sealed: [] })).rejects.toThrow(/start it once/)
     })
 
-    it('forgets an engine’s values when its key changes or it is revoked', async () => {
-        const { owner, engine } = await setup()
+    it('keeps the first engine key until the owner resets it', async () => {
+        const { base, owner, engine } = await setup()
         const mac = await engine('Mac mini', KEY)
         await owner.mutation(api.secrets.set, { service: 'openai', sealed: [{ runnerId: mac.runnerId, sealed: SEALED }] })
         await mac.beat(KEY) // same key: kept
         expect(await owner.query(api.secrets.list, {})).toHaveLength(1)
-        await mac.beat(KEY + 'AA') // new key pair (data directory wiped): the old values can't be opened anymore
+        // A different key (stolen token, or a wiped data folder) is refused and the saved values stay
+        await expect(mac.beat(KEY + 'AA')).rejects.toThrow(/doesn't match the one saved for it/)
+        expect(await owner.query(api.secrets.list, {})).toHaveLength(1)
+        // Only the owner can reset it
+        const other = await user(base, 'Ali')
+        await expect(other.mutation(api.runners.resetKey, { id: mac.runnerId })).rejects.toThrow(/Not found/)
+        await owner.mutation(api.runners.resetKey, { id: mac.runnerId })
         expect(await owner.query(api.secrets.list, {})).toEqual([])
-        await mac.beat(KEY + 'AA')
+        expect((await owner.query(api.runners.list, {}))[0].publicKey).toBeUndefined()
+        await mac.beat(KEY + 'AA') // the new key is accepted now
+        expect((await owner.query(api.runners.list, {}))[0].publicKey).toBe(KEY + 'AA')
+    })
+
+    it('forgets an engine’s values when it is revoked', async () => {
+        const { owner, engine } = await setup()
+        const mac = await engine('Mac mini', KEY)
         await owner.mutation(api.secrets.set, { service: 'openai', sealed: [{ runnerId: mac.runnerId, sealed: SEALED }] })
         await owner.mutation(api.runners.revoke, { id: mac.runnerId })
         expect(await owner.query(api.secrets.list, {})).toEqual([])

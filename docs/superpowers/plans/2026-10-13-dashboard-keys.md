@@ -24,7 +24,7 @@
 
 ## Review Focus
 
-1. **An engine's data directory is wiped (new key pair) while its old locked values remain** → the heartbeat with a different public key deletes that engine's `secrets` rows, so Connections says "enter it again for <engine>" instead of the engine failing to open them. Test in Task 2.
+1. **An engine's data directory is wiped (new key pair) while its old locked values remain** → the heartbeat with a different public key is refused (the first key is pinned, so a stolen token can't swap in its own) and the values stay; the owner clicks **Reset key** in Connections (`runners.resetKey`), which clears the key and that engine's `secrets` rows, then the next heartbeat registers the new key. Test in `convex/secrets.test.ts`.
 2. **A key is saved while one of two engines has never started (no public key)** → it's locked for the started one only, and Connections lists the other as missing it once it starts. Test in Task 2 (`set` refuses an engine without a public key) and the `missing` logic in Task 5.
 3. **A webhook channel (Twilio/Sendblue/BlueBubbles) is entered but no public URL is set** → the engine starts the other channels and reports "Set this engine's public URL in Connections" for that service instead of exiting. Test in Task 4.
 4. **A stored value can't be opened (damaged, or locked for another workspace/engine/service)** → reported as an error on that service; the engine keeps running with the rest. Test in Task 3.
