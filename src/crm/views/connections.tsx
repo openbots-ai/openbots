@@ -372,8 +372,8 @@ function Engines({ runners }: { runners?: Runner[] }) {
     return (
         <section className="space-y-3">
             <div>
-                <h2 className="text-[14px] font-semibold">Your engine</h2>
-                <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages and contacts stay on it. It uses the keys you save below.</p>
+                <h2 className="text-[14px] font-semibold">Computer use</h2>
+                <p className="text-[13px] text-neutral-500">The always-on computer your agents work on, like a cloud VM. It also answers your texts, and messages and contacts stay on it.</p>
             </div>
             <Card className="divide-y divide-neutral-100 rounded-lg p-0">
                 {runners === undefined ? (
@@ -413,10 +413,10 @@ function Engines({ runners }: { runners?: Runner[] }) {
                         e.preventDefault()
                         void add()
                     }}>
-                    <span className="min-w-0 flex-1 text-[12px] text-neutral-500">{runners?.length ? 'Add another machine:' : 'Name the machine it will run on to get a token:'}</span>
-                    <Input aria-label="Engine name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac mini" className="h-8 w-44" />
+                    <span className="min-w-0 flex-1 text-[12px] text-neutral-500">{runners?.length ? 'Add another computer:' : 'Name the computer to get its token:'}</span>
+                    <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
                     <Btn type="submit" variant="primary" disabled={!name.trim()}>
-                        Add engine
+                        Add computer
                     </Btn>
                 </form>
                 {token && <Setup token={token} onDone={() => setToken(null)} />}
@@ -433,11 +433,11 @@ function Setup({ token, onDone }: { token: string; onDone: () => void }) {
     return (
         <div className="space-y-3 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                Copy this token now. It isn’t stored anywhere, so it can’t be shown again. Start the engine with it, then add your keys in the cards below (or as more variables on the engine).
+                Copy this token now. It isn’t stored anywhere, so it can’t be shown again. Run one of the commands below on the computer to connect it. Your keys come from the cards below.
             </p>
             <CopyBlock label="Token" text={token} />
-            <CopyBlock label="On a Mac signed in to iMessage" text={mac} />
-            <CopyBlock label="Anywhere else, with Docker" text={docker} />
+            <CopyBlock label="On a VM or server, with Docker" text={docker} />
+            <CopyBlock label="Without Docker (needs Node.js)" text={mac} />
             <Btn onClick={onDone}>I’ve copied it</Btn>
         </div>
     )
