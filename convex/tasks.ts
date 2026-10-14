@@ -16,6 +16,17 @@ export const request = mutation({
             .take(50)
         if (!online.length) throw new Error('Add an engine in Connections first')
         if (request.kind !== 'recheck' && !online.some((r) => r.services?.some((s) => s.service === 'twilio' && !s.error))) throw new Error('Add your Twilio account in Connections first')
+        if (request.kind === 'twilioTestText') {
+            // Only from a Twilio number you've added in Numbers, to a real-looking phone number, and short
+            const from = await ctx.db
+                .query('numbers')
+                .withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', ws._id).eq('key', request.from.replace(/\D/g, '')))
+                .unique()
+            if (!from || from.channel !== 'twilio') throw new Error('Send from one of your Twilio numbers in Numbers')
+            const digits = request.to.replace(/\D/g, '')
+            if (digits.length < 10 || digits.length > 15) throw new Error('Enter the phone number to text, with its area code')
+            if (!request.body.trim() || request.body.length > 320) throw new Error('Write a message of up to 320 characters')
+        }
         return ctx.db.insert('tasks', { workspaceId: ws._id, request, status: 'pending' })
     },
 })

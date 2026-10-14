@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useConvex, useMutation, useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { Mail, MessageCircle, Phone, Plug, Plus, Search, Trash2 } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import type { Infer } from 'convex/values'
-import type { taskRequest } from '@convex/schema'
 import { handleKind } from '@convex/lib/handles'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useNav } from '../nav'
+import { useEngineTask } from '../use-engine-task'
 import { useRun } from '../use-run'
 import { Btn, Cell, Content, Dialog, EmptyState, Field, Row, Scroll, Select, SkeletonRows, Table, Toolbar } from '../ui'
 
@@ -165,32 +164,6 @@ function LineForm({ channel, suggested, agentId, onDone }: { channel: Channel; s
     )
 }
 
-type Outcome<T> = { ok: true; value: T } | { ok: false; error: string }
-
-// Queues a request for your engine (only it has your Twilio login) and waits for its answer
-function useAgentTask() {
-    const convex = useConvex()
-    return async (request: Infer<typeof taskRequest>): Promise<Outcome<NonNullable<Doc<'tasks'>['result']>>> => {
-        const id = await convex.mutation(api.tasks.request, { request })
-        return new Promise((resolve) => {
-            const watch = convex.watchQuery(api.tasks.get, { id })
-            const finish = (outcome: Outcome<NonNullable<Doc<'tasks'>['result']>>) => {
-                unsubscribe()
-                clearTimeout(timer)
-                resolve(outcome)
-            }
-            const check = () => {
-                const t = watch.localQueryResult()
-                if (t?.status === 'done' && t.result) finish({ ok: true, value: t.result })
-                if (t?.status === 'failed') finish({ ok: false, error: t.error ?? 'Your engine couldn’t do that' })
-            }
-            const unsubscribe = watch.onUpdate(check)
-            const timer = setTimeout(() => finish({ ok: false, error: 'Your engine didn’t answer. Is it running? (See Connections.)' }), 60_000)
-            check()
-        })
-    }
-}
-
 const COUNTRIES = [
     { value: 'US', label: 'United States' },
     { value: 'CA', label: 'Canada' },
@@ -204,7 +177,7 @@ type Found = { sid?: string; phoneNumber: string; friendlyName: string; locality
 // talking to Twilio; the dashboard only sees the numbers.
 function TwilioNumbers({ agentId, onDone }: { agentId?: Id<'agents'>; onDone: () => void }) {
     const run = useRun()
-    const task = useAgentTask()
+    const task = useEngineTask()
     const [mode, setMode] = useState<'buy' | 'own'>('buy')
     const [country, setCountry] = useState('US')
     const [areaCode, setAreaCode] = useState('')
