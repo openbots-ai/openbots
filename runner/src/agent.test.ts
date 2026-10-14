@@ -219,6 +219,21 @@ describe('agent', () => {
         expect(transport.sent.at(-1)?.body).toMatch(/Pip is paused/)
     })
 
+    it('replies as soon as a draft agent is set live, without the 24-hour handoff pause', async () => {
+        const { transport, link, text, complete } = setup()
+        link.current = config({ agent: { status: 'draft' } })
+        await text('hello?')
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent.at(-1)?.body).toMatch(/Pip is draft/)
+        expect(transport.sent.at(-1)?.body).not.toMatch(/24 hours/)
+
+        link.current = config()
+        await text('are you there now?')
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(1)
+    })
+
     it("ignores your own texts and numbers that aren't yours", async () => {
         const { transport, text, pipeline } = setup()
         expect(await text('ok thanks', OWNER)).toEqual({ markRead: true })

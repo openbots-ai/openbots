@@ -125,7 +125,8 @@ export class Pipeline {
         const ws = this.config.workspace
         if (conversation.pausedUntil && conversation.pausedUntil > this.now()) return
         if (agent.status !== 'live') {
-            if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer yourself.`)
+            // Not a request for help, so no 24-hour pause: once the agent is live it answers the next text
+            if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer yourself.`, { pause: false })
             return
         }
         const now = this.now()
@@ -240,13 +241,14 @@ export class Pipeline {
 
     // Steps the agent out of a conversation for a day and tells you why. The alert names the contact but never quotes
     // what they wrote; you read that on your phone.
-    private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string) {
+    // Flags the chat for you and alerts you. By default the agent then stays out of it for 24 hours so you can answer.
+    private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string, { pause = true } = {}) {
         const { store, link } = this.deps
-        store.updateConversation(conversation.id, { needsYou: true, pausedUntil: this.now() + PAUSE_MS, pendingId: null, dueAt: null })
+        store.updateConversation(conversation.id, { needsYou: true, pausedUntil: pause ? this.now() + PAUSE_MS : null, pendingId: null, dueAt: null })
         void link.record(agent._id, { activity: { handoffs: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         if (this.config.workspace.notifyHandoff === false) return
         const who = conversation.title ?? store.getContact(conversation.contactId)?.name ?? 'Someone'
-        await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason} ${agent.name} stays out of that chat for 24 hours.`)
+        await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason}${pause ? ` ${agent.name} stays out of that chat for 24 hours.` : ''}`)
     }
 
     // Texts your own phone from the conversation's number, and emails you when the engine has Resend set up
