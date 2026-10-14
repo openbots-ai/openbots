@@ -104,7 +104,8 @@ What the engine can use, all with the person's own accounts:
 - **Email** (optional): a Resend key and from address, to also email handoff alerts.
 - **Reminders, watches and check-ins:** text your agent from your own phone "remind me at 5 to…" or "text me if …
   changes"; set check-ins on the agent's page. Reminders and watches are stored on the engine, sealed like messages;
-  Convex only counts them. They need an OpenAI or Anthropic Brain model.
+  Convex only counts them. Setting reminders and watches by text needs an OpenAI or Anthropic Brain model; check-ins
+  and watch checks work with any Brain.
 
 ### How a text flows
 
