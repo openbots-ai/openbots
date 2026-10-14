@@ -98,10 +98,12 @@ export const taskRequest = v.union(
     v.object({ kind: v.literal('twilioOwned') }),
     v.object({ kind: v.literal('twilioBuy'), phoneNumber: v.string(), agentId: v.optional(v.id('agents')) }),
     v.object({ kind: v.literal('twilioUse'), sid: v.string(), phoneNumber: v.string(), agentId: v.optional(v.id('agents')) }),
+    // Send one text from one of your Twilio numbers, to check texting works (Connections → Twilio → Send a test text)
+    v.object({ kind: v.literal('twilioTestText'), from: v.string(), to: v.string(), body: v.string() }),
 )
 
 // What the engine sends back: numbers found, or the number now in use
-export const taskResult = v.union(v.object({ numbers: v.array(twilioNumber) }), v.object({ phoneNumber: v.string(), sid: v.string() }))
+export const taskResult = v.union(v.object({ numbers: v.array(twilioNumber) }), v.object({ phoneNumber: v.string(), sid: v.string() }), v.object({ sentTo: v.string() }))
 
 const ws = { workspaceId: v.id('workspace') }
 

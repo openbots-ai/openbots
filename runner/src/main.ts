@@ -6,7 +6,7 @@ import { startTunnel } from './tunnel'
 import { Vault } from './crypto'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
-import { check, ConnectError, sendEmail, type Credentials } from './providers'
+import { check, ConnectError, sendEmail, sendText, type Credentials } from './providers'
 import { Server } from './server'
 import { buildServices, type Services } from './services'
 import { Store } from './store'
@@ -190,6 +190,14 @@ async function main() {
             return
         }
         try {
+            // A test text only needs your Twilio login, not a public address, so it works before webhooks are set up
+            if (request.kind === 'twilioTestText') {
+                if (!settings.twilio) throw new ConnectError("Twilio isn't set up on this engine")
+                const to = request.to.trim().startsWith('+') ? request.to.trim() : `+${request.to.replace(/\D/g, '').length === 10 ? '1' : ''}${request.to.replace(/\D/g, '')}`
+                await sendText('twilio', settings.twilio, { from: request.from, to, body: request.body.trim() })
+                await link.finishTask(task._id, { result: { sentTo: to } }).catch((e) => console.error(`Couldn't report a task: ${message(e)}`))
+                return
+            }
             const twilio = services.twilio
             if (!twilio) throw new ConnectError("Twilio isn't set up on this engine")
             const numbers = (list: { sid?: string; phoneNumber: string; friendlyName: string; locality?: string; region?: string }[]) => ({

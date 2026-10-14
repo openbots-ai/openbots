@@ -14,6 +14,7 @@ import { ProviderMark } from '@/components/agent-config-bar'
 import runner from '../../../runner/package.json'
 import { KeyForm, type Saved } from '../key-form'
 import { OrgoControls, OrgoCreate } from '../orgo'
+import { TestText } from '../test-text'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
@@ -292,6 +293,7 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                     </a>
                 )}
             </div>
+            {id === 'twilio' && status?.ok && <TestText />}
             {/* The key controls sit at the bottom of every card, full width, so they line up across a row */}
             {sealed && (
                 <div className="mt-auto pt-1">
