@@ -152,7 +152,7 @@ const BUTTON: Record<Button, number> = { left: 0, right: 1, middle: 2 }
 
 // Numbers reach PowerShell as plain integers, never NaN or text
 const num = (n: number) => {
-    if (!Number.isFinite(n)) throw new Error('Bad number')
+    if (!Number.isFinite(n) || Math.abs(n) >= 1e6) throw new Error('Bad number')
     return Math.round(n)
 }
 const within = (n: number, lo: number, hi: number) => Math.min(Math.max(num(n), lo), hi)
@@ -186,7 +186,7 @@ export function winCommand(o: WinOp): string {
         case 'drag':
             return `[OB]::Drag(${num(o.from.x)}, ${num(o.from.y)}, ${num(o.to.x)}, ${num(o.to.y)}, ${mods(o.mods)})`
         case 'scroll': {
-            const n = num(o.amount)
+            const n = within(o.amount, 1, 50)
             const [dx, dy] = o.direction === 'up' ? [0, n] : o.direction === 'down' ? [0, -n] : o.direction === 'left' ? [-n, 0] : [n, 0]
             return [...(o.at ? [move(o.at)] : []), `[OB]::Scroll(${dx}, ${dy}, ${mods(o.mods)})`].join('; ')
         }
@@ -206,7 +206,7 @@ export type ChildLike = {
     stdin: Writable
     stdout: Readable
     stderr?: Readable
-    on(event: 'exit' | 'error', cb: (e?: unknown) => void): void
+    on(event: 'exit' | 'close' | 'error', cb: (e?: unknown) => void): void
     kill(): void
 }
 export type SpawnFn = (scriptFile: string) => ChildLike
@@ -218,7 +218,7 @@ const COMMAND_TIMEOUT_MS = 30_000
 
 type Pending = { resolve: (out: string) => void; reject: (e: Error) => void }
 // One run of the helper process and the commands waiting on it
-type Session = { child: ChildLike; ready: Promise<void>; waiting: Map<number, Pending>; stderr: string }
+type Session = { child: ChildLike; ready: Promise<void>; waiting: Map<number, Pending>; stderr: string; over: boolean; cleanup: () => void; rejectReady: (e: Error) => void }
 
 // The helper process, started on first use and again if it exits, fails or hangs
 export class PowerShell {
@@ -231,9 +231,13 @@ export class PowerShell {
         private timeoutMs = COMMAND_TIMEOUT_MS,
     ) {}
 
-    // Ends a session: everything waiting on it fails, the process is killed
+    // Ends a session once: startup and everything waiting on it fail, the process is killed, the script file goes
     private drop(s: Session, err: Error) {
+        if (s.over) return
+        s.over = true
         if (this.session === s) this.session = null
+        s.cleanup()
+        s.rejectReady(err)
         for (const p of s.waiting.values()) p.reject(err)
         s.waiting.clear()
         try {
@@ -254,21 +258,27 @@ export class PowerShell {
             rejectReady = reject
         })
         ready.catch(() => {})
-        const s: Session = { child, ready, waiting: new Map(), stderr: '' }
+        const cleanup = () => {
+            clearTimeout(startTimer)
+            try {
+                unlinkSync(file)
+            } catch {
+                // already gone
+            }
+        }
+        const s: Session = { child, ready, waiting: new Map(), stderr: '', over: false, cleanup, rejectReady }
         this.session = s
         const startTimer = setTimeout(() => closed('Windows didn’t start PowerShell in time'), this.timeoutMs)
 
-        // Only the current helper may end the session; a late event from an old one is ignored
+        // A late event from a helper that's already over does nothing
         const closed = (why: string) => {
-            if (this.session !== s) return
-            clearTimeout(startTimer)
             const tail = s.stderr.trim()
-            const err = new Error(`${why}${tail ? `: ${tail}` : ''}`)
-            rejectReady(err)
-            this.drop(s, err)
+            this.drop(s, new Error(`${why}${tail ? `: ${tail}` : ''}`))
         }
         child.stderr?.on('data', (chunk) => (s.stderr = (s.stderr + chunk.toString()).slice(-2048)))
-        child.on('exit', () => closed('PowerShell closed'))
+        // 'exit' can come before the last output is read, so give 'close' a moment to arrive first
+        child.on('exit', () => void setTimeout(() => closed('PowerShell closed'), 50))
+        child.on('close', () => closed('PowerShell closed'))
         child.on('error', (e) => closed(`PowerShell closed (${e instanceof Error ? e.message : 'it failed to run'})`))
         child.stdin.on('error', (e) => closed(`PowerShell closed (${e instanceof Error ? e.message : 'it stopped listening'})`))
 
@@ -276,12 +286,7 @@ export class PowerShell {
         lines.on('line', (raw) => {
             const line = raw.trimEnd()
             if (line === '@@OB ready') {
-                clearTimeout(startTimer)
-                try {
-                    unlinkSync(file)
-                } catch {
-                    // already gone
-                }
+                cleanup()
                 return resolveReady()
             }
             const m = line.match(/^@@OB (\d+) (ok|err) ?(.*)$/)
@@ -300,7 +305,6 @@ export class PowerShell {
         const result = this.chain.then(async () => {
             const s = this.session ?? this.start()
             await s.ready
-            if (this.session !== s) throw new Error('PowerShell closed')
             const id = this.next++
             return new Promise<string>((resolve, reject) => {
                 // A helper that stops answering is thrown away so the next command starts a fresh one
