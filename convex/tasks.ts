@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { owned, requireWorkspace } from './lib/access'
+import { handleKey } from './lib/handles'
 import { taskRequest } from './schema'
 
 // Asks your agents to do something only they can, because only they have the credentials: check their keys again,
@@ -20,7 +21,7 @@ export const request = mutation({
             // Only from a Twilio number you've added in Numbers, to a real-looking phone number, and short
             const from = await ctx.db
                 .query('numbers')
-                .withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', ws._id).eq('key', request.from.replace(/\D/g, '')))
+                .withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', ws._id).eq('key', handleKey(request.from) ?? ''))
                 .unique()
             if (!from || from.channel !== 'twilio') throw new Error('Send from one of your Twilio numbers in Numbers')
             const digits = request.to.replace(/\D/g, '')
