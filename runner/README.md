@@ -3,7 +3,7 @@
 The engine answers the texts your OpenBots agents receive, using the models you choose. You run it on a machine you
 control: the Mac signed in to iMessage, a VM, a server at home.
 
-You can enter your keys in the dashboard (Connections) instead of setting them here. They're locked for this engine; a key entered there wins over the same variable here. The engine prints its key fingerprint at startup: check it matches Connections.
+You can enter your keys in the dashboard (Connections) instead of setting them here. They're locked for this engine; a key entered there wins over the same variable here. The engine prints its key fingerprint at startup: check it matches Connections. If you wipe its data directory, click **Reset key** for it in Connections, then enter your keys again.
 
 **Messages never leave it.** Contacts, conversations and message text are kept in a local SQLite file, encrypted
 with a key that sits next to it. Your AI keys and account logins stay here too (keys you enter in the dashboard are stored in Convex, locked for this engine). The OpenBots dashboard and its Convex
@@ -17,7 +17,8 @@ so it can write the reply. Use a local model server if nothing should leave your
 
 1. In the dashboard, open **Connections**, name the machine and click **Add engine**. Copy the token. It's shown
    once and never stored, because Convex keeps only its hash.
-2. Run the engine with that token, your AI key(s) and at least one way to text (see Settings below).
+2. Run the engine with that token. Add your AI key(s) and a way to text in Connections, or as environment variables
+   on the engine (see Settings below).
 
 ```sh
 OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud \
@@ -65,7 +66,7 @@ Use **Re-check** in Connections after you get access to a new model.
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the engine does it. |
 | `SENDBLUE_API_KEY_ID`, `SENDBLUE_API_SECRET` | iMessage through your Sendblue line. |
 | `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD` | iMessage through BlueBubbles Server on your Mac, with group chats. |
-| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Required with any of them. |
+| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; can also be set per engine in Connections. |
 | `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
 | `OPENBOTS_INBOUND_SECRET`, `OPENBOTS_RELAY_URL`, `OPENBOTS_RELAY_SECRET` | Your own relay (protocol below). |
 | `RESEND_API_KEY`, `RESEND_FROM` | Also email you handoff alerts, at the email in Settings. |

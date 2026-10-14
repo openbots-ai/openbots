@@ -66,7 +66,7 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
         port: Number(get('OPENBOTS_PORT') || 8787),
         publicUrl,
         macSetting,
-        mac: resolveMac({ macSetting, relay, twilio, sendblue, bluebubbles }),
+        mac: resolveMac({ macSetting, publicUrl, relay, twilio, sendblue, bluebubbles }),
         relay,
         twilio,
         sendblue,
@@ -76,9 +76,10 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
     }
 }
 
-// Messages on this Mac: on by default on macOS when no other way to text is set up
-const resolveMac = (s: Pick<Settings, 'macSetting' | 'relay' | 'twilio' | 'sendblue' | 'bluebubbles'>) =>
-    s.macSetting ?? (platform() === 'darwin' && !s.relay && !s.twilio && !s.sendblue && !s.bluebubbles)
+// Messages on this Mac: on by default on macOS when no other way to text can run. Twilio, Sendblue and BlueBubbles
+// only count once there's a public URL, since they can't start without one.
+export const resolveMac = (s: Pick<Settings, 'macSetting' | 'publicUrl' | 'relay' | 'twilio' | 'sendblue' | 'bluebubbles'>, os: string = platform()) =>
+    s.macSetting ?? (os === 'darwin' && !s.relay && !(s.publicUrl && (s.twilio || s.sendblue || s.bluebubbles)))
 
 export type DashboardValues = { publicUrl?: string; secrets: Partial<{ [S in SealedService]: SecretFields[S] }> }
 
