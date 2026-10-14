@@ -71,10 +71,11 @@ export const heartbeat = mutation({
         // The address of the engine's own tunnel, when it runs one
         tunnelUrl: v.optional(v.string()),
         os: v.optional(v.union(v.literal('windows'), v.literal('mac'), v.literal('linux'), v.literal('other'))),
+        jobs: v.optional(v.array(v.object({ agentId: v.id('agents'), reminders: v.number(), watches: v.number() }))),
     },
     handler: async (ctx, { token, ...status }) => {
         const runner = await runnerFor(ctx, token)
-        if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10) throw new Error('Too much to report')
+        if (status.models.length > 500 || status.lines.length > 200 || status.services.length > 20 || status.channels.length > 10 || (status.jobs?.length ?? 0) > 500) throw new Error('Too much to report')
         if (status.tunnelUrl !== undefined && (status.tunnelUrl.length > 200 || !/^https:\/\/[^\s/]+$/.test(status.tunnelUrl))) throw new Error('Unreadable tunnel address')
         await ctx.db.patch('runners', runner._id, { ...status, lastSeenAt: Date.now() })
     },

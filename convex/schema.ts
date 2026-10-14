@@ -197,6 +197,8 @@ export default defineSchema({
         // The addresses its texting channels answer on, to offer when adding a number
         lines: v.optional(v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) }))),
         demo: v.optional(v.boolean()),
+        // How many reminders and watches each agent has on this engine (counts only; they stay on the engine)
+        jobs: v.optional(v.array(v.object({ agentId: v.id('agents'), reminders: v.number(), watches: v.number() }))),
         // Where Twilio, Sendblue or BlueBubbles reach this engine, set in Connections (not secret)
         publicUrl: v.optional(v.string()),
         // The public address of the engine's own tunnel, when it runs one (Orgo computers do)
