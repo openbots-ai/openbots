@@ -28,12 +28,27 @@ export const create = mutation({
     },
 })
 
-// The agent using this token is cut off on its next call
+// The agent using this token is cut off on its next call, and the keys locked for it are deleted
 export const revoke = mutation({
     args: { id: v.id('runners') },
     handler: async (ctx, { id }) => {
         const ws = await requireWorkspace(ctx)
         await owned(ctx, ws, 'runners', id)
+        for (const row of await ctx.db.query('secrets').withIndex('by_runnerId', (q) => q.eq('runnerId', id)).take(100)) await ctx.db.delete('secrets', row._id)
         await ctx.db.delete('runners', id)
+    },
+})
+
+// Where your accounts reach this engine. Not secret, so it's stored as is.
+export const setPublicUrl = mutation({
+    args: { id: v.id('runners'), publicUrl: v.optional(v.string()) },
+    handler: async (ctx, { id, publicUrl }) => {
+        const ws = await requireWorkspace(ctx)
+        await owned(ctx, ws, 'runners', id)
+        const url = publicUrl?.trim().replace(/\/+$/, '') || undefined
+        if (url && !/^https?:\/\/[^\s/]+/.test(url)) throw new Error('Enter a URL starting with https://')
+        if (url && url.length > 300) throw new Error('That URL is too long')
+        await ctx.db.patch('runners', id, { publicUrl: url })
+        return null
     },
 })
