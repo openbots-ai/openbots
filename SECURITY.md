@@ -27,6 +27,10 @@ database backup) cannot read messages, because they never receive them, not even
 | Orgo, when the owner's computer runs there | Yes, it hosts the computer and its disk | Yes | Yes | The engine's settings file and token |
 | Cloudflare, for an Orgo computer's tunnel | Yes, incoming texts pass through it | Yes | Yes | No |
 
+Reminders and watches you set by texting your agent stay on the engine, sealed like messages; Convex sees only how
+many each agent has. Check-ins (days, time and what to send) are agent settings, stored in Convex like the agent's
+prompt.
+
 Between the engine's machine and the person texting, iMessage provides Apple's end-to-end encryption.
 
 ## Design choices

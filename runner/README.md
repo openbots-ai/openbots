@@ -89,6 +89,15 @@ engine texts **your phone** (Settings → General) from the engine's number, for
 emails you too if Resend is set up. The alert names the contact (or the group) but never quotes them. Answer them
 yourself; the engine stays out of that chat for 24 hours. In a group chat it only answers when someone uses its name.
 
+## Reminders, watches and check-ins
+
+Text your agent from your own phone (Settings → General): "remind me at 5 to call Dana", "text me if the Oilers game
+gets moved", "what do I have scheduled?", "cancel 2". Up to 50 reminders and 10 watches per agent; a watch checks
+at most every 30 minutes, texts you only when the answer changes, and stops after 30 days or 3 failed checks.
+Check-ins are set on the agent's page and go out at their time in your timezone. Quiet hours hold check-ins and watch
+alerts; reminders go out at the time you asked for. All of it needs the agent's Brain to be an OpenAI or Anthropic
+model, and it's kept in the engine's sealed database: back it up with your history.
+
 ## Back up your history
 
 Everything is in `OPENBOTS_DATA_DIR`: `openbots.db` and `key`. **Back up both.** The database is unreadable without
