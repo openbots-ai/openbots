@@ -9,7 +9,7 @@ import type { KeyModel } from '../../convex/lib/models'
 import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
 import { listModels } from './models'
 import { Vault } from './crypto'
-import { PAUSE_MS, Pipeline, type Activity, type Config, type Link } from './pipeline'
+import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Link } from './pipeline'
 import { Store } from './store'
 import { MacTransport, textFromAttributedBody } from './transports/mac'
 import type { Channel, Outgoing, Transport } from './transports/types'
@@ -416,6 +416,64 @@ describe('agent', () => {
         expect(transport.sent.map((m) => m.body)).toEqual(["Pip's check-in couldn't be sent: model down", 'All good'])
         await pipeline.fireCheckIns(Date.parse('2026-10-14T08:01:00Z'))
         expect(complete).toHaveBeenCalledTimes(3)
+    })
+
+    it('sends a check-in that falls inside overnight quiet hours once they end the next morning', async () => {
+        const checkIns = [{ id: 'a', days: [3], time: '22:30', what: 'Tomorrow’s weather', on: true }]
+        const ws = { timezone: 'America/Regina', quietEnabled: true, quietStart: '22:00', quietEnd: '08:00' }
+        const { pipeline, transport, store } = setup(config({ workspace: ws, agent: { checkIns } }), model(async () => 'Rain tomorrow'))
+        // Wednesday 22:30 and Thursday 07:59 in Regina: quiet
+        await pipeline.fireCheckIns(Date.parse('2026-10-15T04:30:00Z'))
+        await pipeline.fireCheckIns(Date.parse('2026-10-15T13:59:00Z'))
+        expect(transport.sent).toHaveLength(0)
+        // Thursday 08:00 and 08:01: sent once, marked on Wednesday's date
+        await pipeline.fireCheckIns(Date.parse('2026-10-15T14:00:00Z'))
+        await pipeline.fireCheckIns(Date.parse('2026-10-15T14:01:00Z'))
+        expect(transport.sent.map((m) => m.body)).toEqual(['Rain tomorrow'])
+        expect(store.getMeta(`checkin:${AGENT}:a:2026-10-14`)).toBe('1')
+    })
+
+    it('works out when a local time happens, across daylight saving', () => {
+        expect(new Date(zonedTime('2026-10-14', '08:00', 'America/Regina')).toISOString()).toBe('2026-10-14T14:00:00.000Z')
+        expect(new Date(zonedTime('2026-07-01', '08:00', 'America/New_York')).toISOString()).toBe('2026-07-01T12:00:00.000Z')
+        expect(new Date(zonedTime('2026-01-01', '08:00', 'America/New_York')).toISOString()).toBe('2026-01-01T13:00:00.000Z')
+        expect(new Date(zonedTime('2026-03-29', '08:00', 'Europe/London')).toISOString()).toBe('2026-03-29T07:00:00.000Z')
+    })
+
+    it('holds check-ins over budget until the cap is raised, and sends none from a paused agent', async () => {
+        const checkIns = [{ id: 'a', days: [3], time: '08:00', what: 'Weather', on: true }]
+        const { pipeline, transport, link, complete } = setup(config({ agent: { checkIns } }), model(async () => 'Sunny'))
+        link.blocked = 'Today’s budget is used up.'
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T08:00:00Z'))
+        expect(transport.sent).toHaveLength(0)
+        expect(complete).not.toHaveBeenCalled()
+        // Not marked sent, so it goes once the cap is raised
+        link.blocked = null
+        await pipeline.fireCheckIns(Date.parse('2026-10-14T09:00:00Z'))
+        expect(transport.sent.map((m) => m.body)).toEqual(['Sunny'])
+
+        const paused = setup(config({ agent: { checkIns, status: 'paused' } }), model(async () => 'Sunny'))
+        await paused.pipeline.fireCheckIns(Date.parse('2026-10-14T08:00:00Z'))
+        expect(paused.transport.sent).toHaveLength(0)
+        expect(paused.complete).not.toHaveBeenCalled()
+    })
+
+    it('holds a watch for an hour over budget or while paused, but still sends reminders', async () => {
+        const add = (store: Store, kind: 'reminder' | 'watch') => {
+            const id = store.addJob({ kind, agentId: AGENT, to: OWNER, number: '+1 (415) 555-0101', channel: 'relay', dueAt: 0, everyMin: kind === 'watch' ? 30 : null, until: null, text: 'stretch' })
+            return store.jobsFor(AGENT).find((j) => j.id === id)!
+        }
+        const paused = setup(config({ agent: { status: 'paused' } }))
+        expect(await paused.pipeline.fireJob(add(paused.store, 'watch'))).toEqual({ outcome: 'later', inMs: 3_600_000 })
+        expect(await paused.pipeline.fireJob(add(paused.store, 'reminder'))).toEqual({ outcome: 'sent' })
+        expect(paused.transport.sent.map((m) => m.body)).toEqual(['Reminder: stretch'])
+        expect(paused.complete).not.toHaveBeenCalled()
+
+        const over = setup()
+        over.link.blocked = 'Today’s budget is used up.'
+        expect(await over.pipeline.fireJob(add(over.store, 'watch'))).toEqual({ outcome: 'later', inMs: 3_600_000 })
+        expect(await over.pipeline.fireJob(add(over.store, 'reminder'))).toEqual({ outcome: 'sent' })
+        expect(over.complete).not.toHaveBeenCalled()
     })
 
     it("refuses texts to numbers that aren't yours", async () => {

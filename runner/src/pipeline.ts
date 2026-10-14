@@ -48,6 +48,37 @@ const HISTORY = 40
 // After a handoff the agent stays out of the conversation this long, so you can answer yourself
 export const PAUSE_MS = 24 * 3_600_000
 const TYPING_LEAD_MS = 2_000
+// A watch waits this long while its agent is paused or the budget is used up
+const HOLD_MS = 60 * 60_000
+// How late a check-in may still go out
+const LATE_MS = 6 * 3_600_000
+
+// The calendar date at `ms` in `timeZone`
+function localDate(ms: number, timeZone: string) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(ms).map((p) => [p.type, p.value]))
+    return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) }
+}
+
+// How far `timeZone` is ahead of UTC at `ms`
+function offsetAt(ms: number, timeZone: string) {
+    const p = Object.fromEntries(
+        new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+            .formatToParts(ms)
+            .map((x) => [x.type, x.value]),
+    )
+    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second)) - Math.floor(ms / 1000) * 1000
+}
+
+// The moment a local date (YYYY-MM-DD) and time (HH:MM) happen in `timeZone`, using the offset in force then (so
+// daylight saving is right); a time a spring-forward skips lands within an hour of it.
+export function zonedTime(date: string, time: string, timeZone: string) {
+    const [y, mo, d] = date.split('-').map(Number)
+    const [h, mi] = time.split(':').map(Number)
+    const wall = Date.UTC(y, mo - 1, d, h, mi)
+    let at = wall - offsetAt(wall, timeZone)
+    at = wall - offsetAt(at, timeZone)
+    return at
+}
 
 const describe = (e: unknown) => (e instanceof ReplyError ? e.message : `${e instanceof Error ? e.message : String(e)}`.slice(0, 200))
 const named = (name: string, text: string) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
@@ -264,7 +295,8 @@ export class Pipeline {
         if (handoff && !owner) await this.handoff(conversation, agent, `${agent.name} asked you to step in.`)
     }
 
-    // A reminder or watch that came due (see scheduler.ts). Watches hold their alerts through quiet hours.
+    // A reminder or watch that came due (see scheduler.ts). Watches hold their alerts through quiet hours, and wait an
+    // hour while the agent is paused or the budget is used up; reminders make no model call, so they always go.
     async fireJob(job: Job): Promise<Fired> {
         const ws = this.config.workspace
         const agent = this.config.agents.find((a) => a._id === job.agentId)
@@ -277,9 +309,11 @@ export class Pipeline {
             this.log(`${agent.name} sent a reminder to …${handleKey(job.to)?.slice(-4)}`)
             return { outcome: 'sent' }
         }
-        const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(this.now(), ws.timezone ?? 'UTC', ws.quietStart, ws.quietEnd) : 0
+        const now = this.now()
+        const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(now, ws.timezone ?? 'UTC', ws.quietStart, ws.quietEnd) : 0
         if (quiet > 0) return { outcome: 'later', inMs: quiet }
-        const result = await this.think(agent, `Check this for ${ws.ownerName}: ${job.text}. ${job.last ? `Last time: ${job.last}` : 'This is the first check.'} If nothing that matters changed since last time, reply only [[no-change]]. Otherwise reply with a short text saying what changed.`)
+        if (agent.status === 'paused' || (await this.deps.link.budget(dayKey(now)))) return { outcome: 'later', inMs: HOLD_MS }
+        const result = await this.think(agent, `Check this for ${ws.ownerName}: ${job.text}. ${job.last ? `Last time: ${job.last}` : 'This is the first check.'} If nothing that matters changed since last time, reply only [[no-change]]. Otherwise reply with a short text saying what changed.`, now)
         if (!result) return { outcome: 'failed' }
         if (result.includes('[[no-change]]')) return { outcome: 'unchanged' }
         await text(result)
@@ -287,52 +321,62 @@ export class Pipeline {
         return { outcome: 'sent', result }
     }
 
-    // Check-ins due now: the right weekday and time in your timezone, not sent yet today, up to 6 hours late (an engine
-    // that was off sends a missed one once), held through quiet hours
+    // Check-ins due now. Today's and yesterday's occurrence (dated and weekday-checked by their own local day) are each
+    // sent once: up to 6 hours late (an engine that was off sends a missed one once), or, when quiet hours held it, within
+    // 6 hours of those quiet hours ending. Never during quiet hours, from a paused agent, or over budget.
     async fireCheckIns(now: number) {
         const { store } = this.deps
         const ws = this.config.workspace
         if (!ws.ownerHandle) return
         const tz = ws.timezone ?? 'UTC'
-        const parts = Object.fromEntries(
-            new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23' })
-                .formatToParts(now)
-                .map((p) => [p.type, p.value]),
-        )
-        const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday)
-        const minutes = Number(parts.hour) * 60 + Number(parts.minute)
-        const date = `${parts.year}-${parts.month}-${parts.day}`
-        const quiet = ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(now, tz, ws.quietStart, ws.quietEnd) : 0
+        const quietAt = (t: number) => (ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(t, tz, ws.quietStart, ws.quietEnd) : 0)
+        if (quietAt(now) > 0) return
+        const today = localDate(now, tz)
+        const due: { agent: Doc<'agents'>; what: string; key: string }[] = []
         for (const agent of this.config.agents) {
+            if (agent.status === 'paused') continue
             for (const c of agent.checkIns ?? []) {
-                const [h, m] = c.time.split(':').map(Number)
-                const late = minutes - (h * 60 + m)
-                const key = `checkin:${agent._id}:${c.id}:${date}`
-                if (!c.on || !c.days.includes(day) || late < 0 || late > 360 || store.getMeta(key) || quiet > 0) continue
-                const number = this.config.numbers.find((n) => n.agentId === agent._id)
-                const transport = number && this.deps.transports[number.channel]
-                if (!number || !transport) continue
-                // Marked before thinking, so a failing model can't send it again every tick
-                store.setMeta(key, '1')
-                // One check-in going wrong must not stop the others (nothing it says is logged)
-                try {
-                    const body = await this.think(agent, `It's time for your scheduled check-in with ${ws.ownerName}. Send them: ${c.what}`)
-                    if (!body) {
-                        this.log(`${agent.name}'s check-in got no reply, so nothing was sent`)
-                        continue
-                    }
-                    await transport.send({ from: number.handle, to: ws.ownerHandle, body })
-                    this.log(`${agent.name} sent a check-in`)
-                } catch (e) {
-                    this.log(`${agent.name}'s check-in failed: ${describe(e)}`)
-                    await transport.send({ from: number.handle, to: ws.ownerHandle, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
+                if (!c.on) continue
+                for (const back of [0, 1]) {
+                    const d = new Date(Date.UTC(today.year, today.month - 1, today.day - back))
+                    if (!c.days.includes(d.getUTCDay())) continue
+                    const date = d.toISOString().slice(0, 10)
+                    const key = `checkin:${agent._id}:${c.id}:${date}`
+                    const at = zonedTime(date, c.time, tz)
+                    const late = now - at
+                    if (late < 0 || store.getMeta(key)) continue
+                    const held = quietAt(at)
+                    if (late <= LATE_MS || (held > 0 && now - (at + held) <= LATE_MS)) due.push({ agent, what: c.what, key })
                 }
+            }
+        }
+        if (!due.length) return
+        // Checked before anything is marked sent, so check-ins still go out later today if you raise the cap
+        if (await this.deps.link.budget(dayKey(now))) return
+        for (const { agent, what, key } of due) {
+            const number = this.config.numbers.find((n) => n.agentId === agent._id)
+            const transport = number && this.deps.transports[number.channel]
+            if (!number || !transport) continue
+            // Marked before thinking, so a failing model can't send it again every tick
+            store.setMeta(key, '1')
+            // One check-in going wrong must not stop the others (nothing it says is logged)
+            try {
+                const body = await this.think(agent, `It's time for your scheduled check-in with ${ws.ownerName}. Send them: ${what}`, now)
+                if (!body) {
+                    this.log(`${agent.name}'s check-in got no reply, so nothing was sent`)
+                    continue
+                }
+                await transport.send({ from: number.handle, to: ws.ownerHandle, body })
+                this.log(`${agent.name} sent a check-in`)
+            } catch (e) {
+                this.log(`${agent.name}'s check-in failed: ${describe(e)}`)
+                await transport.send({ from: number.handle, to: ws.ownerHandle, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
             }
         }
     }
 
     // One reply from the agent's Brain to an instruction from the engine, for watches and check-ins
-    private async think(agent: Doc<'agents'>, instruction: string) {
+    private async think(agent: Doc<'agents'>, instruction: string, now: number) {
         const { brains, link } = this.deps
         const ws = this.config.workspace
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
@@ -341,7 +385,7 @@ export class Pipeline {
             workspace: ws,
             contact: { name: ws.ownerName, handle: ws.ownerHandle ?? '', tags: [], notes: '' },
             knowledge: this.config.knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
-            now: this.now(),
+            now,
             withOwner: true,
             sms: true,
             canSearch: SEARCHES.includes(models.brain.option.provider),
