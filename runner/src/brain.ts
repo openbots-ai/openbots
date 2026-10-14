@@ -3,7 +3,28 @@ import { PROVIDER_NAMES, type AiProvider, type ModelOption } from '../../convex/
 import type { Turn } from '../../convex/lib/prompt'
 import { demoReply } from './demo'
 
-export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
+// Something the agent can do while writing a reply (set a reminder, start a watch…). `run` gets the model's input
+// and returns what to tell it; a thrown error is passed to the model as the result instead of failing the reply.
+export type Tool = {
+    name: string
+    description: string
+    parameters: { type: 'object'; properties: Record<string, unknown>; required?: string[] }
+    run: (input: Record<string, unknown>) => Promise<string>
+}
+export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number; tools?: Tool[] }
+
+// Model calls per reply when it uses tools: enough for search, act, confirm
+export const MAX_ROUNDS = 6
+
+async function runTool(tools: Tool[], name: string, input: unknown) {
+    const tool = tools.find((t) => t.name === name)
+    if (!tool) return `Error: there is no tool called ${name}`
+    try {
+        return await tool.run(input && typeof input === 'object' ? (input as Record<string, unknown>) : {})
+    } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : String(e)}`
+    }
+}
 
 // The env var that unlocks each cloud provider that writes text. Keys are set here or saved in Connections for the whole account.
 export const PROVIDER_KEYS = {
@@ -45,13 +66,14 @@ async function anthropic(model: string, key: string, p: Prompt) {
     const messages: Anthropic.Beta.BetaMessageParam[] = [...p.turns]
     // Claude searches the web on Anthropic's side when the question needs current information
     const search = { type: isClaude5(model) ? ('web_search_20260209' as const) : ('web_search_20250305' as const), name: 'web_search' as const, max_uses: 3 }
-    for (let round = 0; round < 3; round++) {
+    const own = (p.tools ?? []).map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }))
+    for (let round = 0; round < MAX_ROUNDS; round++) {
         const res = await client.beta.messages.create({
             model,
             max_tokens: p.maxTokens,
             system: p.system,
             messages,
-            tools: [search],
+            tools: [search, ...own],
             ...(isClaude5(model)
                 ? // Short chat replies: low effort; on a safety decline the API re-runs the request on a fallback model
                   { output_config: { effort: 'low' as const }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
@@ -63,28 +85,59 @@ async function anthropic(model: string, key: string, p: Prompt) {
             messages.push({ role: 'assistant', content: res.content })
             continue
         }
+        // Run the agent's tools and hand their results back
+        if (res.stop_reason === 'tool_use') {
+            messages.push({ role: 'assistant', content: res.content })
+            const results: Anthropic.Beta.BetaToolResultBlockParam[] = []
+            for (const block of res.content) {
+                if (block.type !== 'tool_use') continue
+                results.push({ type: 'tool_result', tool_use_id: block.id, content: await runTool(p.tools ?? [], block.name, block.input) })
+            }
+            messages.push({ role: 'user', content: results })
+            continue
+        }
         return plainCitations(res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''))
     }
-    throw new Error('The model kept searching without answering')
+    throw new Error('The model kept using tools without answering')
 }
 
-// OpenAI's Responses API, with its web search tool for current information (weather, news, hours)
+// OpenAI's Responses API, with its web search tool and the agent's own tools. Function calls are run here and their
+// outputs sent back with the earlier items, until the model answers.
 async function openai(model: string, key: string, p: Prompt) {
-    const res = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        // Searching and reasoning use output tokens too, so the cap is roomier than the reply itself
-        body: JSON.stringify({ model, instructions: p.system, input: p.turns, max_output_tokens: p.maxTokens * 4, tools: [{ type: 'web_search', search_context_size: 'low' }] }),
-    })
-    type Output = { type: string; content?: { type: string; text?: string }[] }
-    const data = (await res.json().catch(() => null)) as { output?: Output[]; error?: { message?: string } } | null
-    if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
-    const text = (data?.output ?? [])
-        .filter((o) => o.type === 'message')
-        .flatMap((o) => o.content ?? [])
-        .flatMap((c) => (c.type === 'output_text' && c.text ? [c.text] : []))
-        .join('')
-    return plainCitations(text)
+    type Item = { type: string; call_id?: string; name?: string; arguments?: string; content?: { type: string; text?: string }[] }
+    const tools = [{ type: 'web_search', search_context_size: 'low' }, ...(p.tools ?? []).map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters }))]
+    const input: unknown[] = [...p.turns]
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+            // Searching and reasoning use output tokens too, so the cap is roomier than the reply itself
+            body: JSON.stringify({ model, instructions: p.system, input, max_output_tokens: p.maxTokens * 4, tools }),
+        })
+        const data = (await res.json().catch(() => null)) as { output?: Item[]; error?: { message?: string } } | null
+        if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
+        const output = data?.output ?? []
+        const calls = output.filter((o) => o.type === 'function_call')
+        if (!calls.length) {
+            const text = output
+                .filter((o) => o.type === 'message')
+                .flatMap((o) => o.content ?? [])
+                .flatMap((c) => (c.type === 'output_text' && c.text ? [c.text] : []))
+                .join('')
+            return plainCitations(text)
+        }
+        input.push(...output)
+        for (const call of calls) {
+            let args: unknown
+            try {
+                args = JSON.parse(call.arguments ?? '{}')
+            } catch {
+                args = {}
+            }
+            input.push({ type: 'function_call_output', call_id: call.call_id, output: await runTool(p.tools ?? [], call.name ?? '', args) })
+        }
+    }
+    throw new Error('The model kept using tools without answering')
 }
 
 // OpenAI, xAI and local model servers share the chat completions shape
