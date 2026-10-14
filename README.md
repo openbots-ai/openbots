@@ -48,21 +48,17 @@ npm run runner          # build and start the agent locally (reads runner/.env)
 
 Set `VITE_CONVEX_URL` (production deployment URL) in Vercel. `.env.example` lists every variable.
 
-### Deployment settings (once, by whoever hosts OpenBots)
-
-Sign-in uses [Convex Auth](https://labs.convex.dev/auth). Each deployment (dev and production) needs its own
-signing key pair and `SITE_URL`. Generate the pair and set it:
+### Server secrets (once, by whoever hosts OpenBots)
 
 ```sh
-node -e 'import("jose").then(async({generateKeyPair,exportPKCS8,exportJWK})=>{const k=await generateKeyPair("RS256",{extractable:true});const priv=await exportPKCS8(k.privateKey);const pub=await exportJWK(k.publicKey);console.log(priv.trimEnd().replace(/\n/g," "));console.log(JSON.stringify({keys:[{use:"sig",...pub}]}))})' > keys.txt
-npx convex env set "JWT_PRIVATE_KEY=$(sed -n 1p keys.txt)"
-npx convex env set "JWKS=$(sed -n 2p keys.txt)"
-npx convex env set "SITE_URL=http://localhost:5173"   # your dashboard's URL in production
-rm keys.txt
+npm run setup             # the dev deployment
+npm run setup -- --prod   # production
 ```
 
-Add `--prod` to each `env set` for the production deployment. That's all Convex needs: no AI keys, no texting
-accounts, no encryption key.
+This generates the sign-in key pair (`JWT_PRIVATE_KEY`, `JWKS`) for [Convex Auth](https://labs.convex.dev/auth)
+and stores it on the Convex deployment: nothing secret goes in a file or the repo. Running it again keeps a pair
+that's already set. Until it has run, the dashboard shows a setup screen instead of the sign-in page. That's all
+Convex needs: no AI keys, no texting accounts, no encryption key.
 
 The schema scopes everything to a signed-in user's workspace. A deployment holding data from before that won't
 accept it; export what you want to keep (`npx convex export`) and clear its tables before deploying. A deployment

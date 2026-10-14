@@ -23,6 +23,7 @@ import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_usage from "../lib/usage.js";
 import type * as migrations from "../migrations.js";
 import type * as numbers from "../numbers.js";
+import type * as platform from "../platform.js";
 import type * as runner from "../runner.js";
 import type * as runners from "../runners.js";
 import type * as tasks from "../tasks.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   "lib/usage": typeof lib_usage;
   migrations: typeof migrations;
   numbers: typeof numbers;
+  platform: typeof platform;
   runner: typeof runner;
   runners: typeof runners;
   tasks: typeof tasks;
