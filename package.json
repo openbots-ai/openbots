@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "runner:build": "node runner/build.mjs",
-    "runner": "node runner/build.mjs && node --env-file-if-exists=runner/.env runner/dist/main.mjs"
+    "runner": "node runner/build.mjs && node --env-file-if-exists=runner/.env runner/dist/main.mjs",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
