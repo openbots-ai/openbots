@@ -35,8 +35,8 @@ export const remove = mutation({
     },
 })
 
-// A number one of your agent's channels answers on: a line it reported, or one you type in.
-// Twilio numbers are added through the agent instead (tasks.request), which points their texts at it.
+// A number one of your engine's channels answers on: a line it reported, or one you type in.
+// Twilio numbers are added through the engine instead (tasks.request), which points their texts at it.
 export const add = mutation({
     args: { handle: v.string(), channel, agentId: v.optional(v.id('agents')) },
     handler: async (ctx, { handle, channel, agentId }) => {

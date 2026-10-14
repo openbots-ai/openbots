@@ -4,8 +4,8 @@ import type { Line, OnText, Outgoing, Transport } from './types'
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
 
-// iMessage from your own Mac through its BlueBubbles server. The server posts new messages to the agent (on your
-// network, or its public URL); the agent registers that webhook itself when it starts.
+// iMessage from your own Mac through its BlueBubbles server. The server posts new messages to the engine (on your
+// network, or its public URL); the engine registers that webhook itself when it starts.
 export class BlueBubblesTransport implements Transport {
     readonly channel = 'bluebubbles'
 

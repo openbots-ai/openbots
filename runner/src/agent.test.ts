@@ -17,7 +17,7 @@ import type { Channel, Outgoing, Transport } from './transports/types'
 const AGENT = 'agent1' as Id<'agents'>
 const WS = 'ws' as Id<'workspace'>
 const OWNER = '+1 (650) 555-0000'
-// What the agent's keys can use
+// What the engine's keys can use
 const KEYS: KeyModel[] = [
     { provider: 'openai', id: 'gpt-5.1', label: 'gpt-5.1' },
     { provider: 'openai', id: 'gpt-4o-mini', label: 'gpt-4o-mini' },
@@ -198,11 +198,11 @@ describe('agent', () => {
         rmSync(dir, { recursive: true, force: true })
 
         const broken = setup(config(), model(async () => {
-            throw new ReplyError('Add your OpenAI key to your engine so gpt-5.1 can reply')
+            throw new ReplyError('Add your OpenAI key in Connections or on your engine so gpt-5.1 can reply')
         }))
         await broken.text('hi')
         await vi.runAllTimersAsync()
-        expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/Add your OpenAI key to your engine.*failed too/) })
+        expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/Add your OpenAI key in Connections or on your engine.*failed too/) })
     })
 
     it('hands off when the budget is used up or the agent is paused', async () => {
@@ -279,7 +279,7 @@ describe('channels and models', () => {
         const gone = setup(config({ agent: { models: { brain: 'openai:gpt-4o-mini', backup: 'none' } } }), model(realComplete), { brains: { keys: {}, demo: false }, models: [] })
         await gone.text('hello')
         await vi.runAllTimersAsync()
-        expect(gone.transport.sent.at(-1)?.body).toMatch(/Add your OpenAI key to your engine so gpt-4o-mini can reply/)
+        expect(gone.transport.sent.at(-1)?.body).toMatch(/Add your OpenAI key in Connections or on your engine so gpt-4o-mini can reply/)
         vi.unstubAllGlobals()
     })
 
@@ -287,7 +287,7 @@ describe('channels and models', () => {
         const { transport, text } = setup(config(), model(realComplete), { brains: { keys: {}, demo: false }, models: [] })
         await text('hello')
         await vi.runAllTimersAsync()
-        expect(transport.sent.at(-1)?.body).toMatch(/Add an AI key to your engine, then pick a model on the Models page/)
+        expect(transport.sent.at(-1)?.body).toMatch(/Add an AI key in Connections or on your engine, then pick a model on the Models page/)
     })
 
     it('lists only the chat models a key can use, newest first', async () => {

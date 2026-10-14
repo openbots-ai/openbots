@@ -3,8 +3,8 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 // What's here: each user's workspace and settings, their agents, models, knowledge and numbers, and anonymous
-// daily counts. What's never here: messages, contacts, or any credential. Those live on the user's own agent
-// (runner/), which reads this configuration and reports back only counts and what it has set up.
+// daily counts. What's never here: messages, contacts, or any readable credential (keys entered in the dashboard are stored locked
+// for the engine). Those live on the user's own engine (runner/), which reads this configuration and reports back only counts and what it has set up.
 
 export const agentStatus = v.union(v.literal('draft'), v.literal('live'), v.literal('paused'))
 
@@ -31,7 +31,7 @@ export const agentFields = {
 export const workspaceSettings = {
     // Workspace-wide model per slot (slot id → "provider:model"); see convex/lib/models.ts
     models: v.optional(v.record(v.string(), v.string())),
-    // Where your engine sends handoff alerts: a text to your own phone, and an email if the agent has Resend set up
+    // Where your engine sends handoff alerts: a text to your own phone, and an email if the engine has Resend set up
     ownerHandle: v.optional(v.string()),
     ownerEmail: v.optional(v.string()),
     timezone: v.optional(v.string()),
@@ -49,7 +49,7 @@ export const workspaceSettings = {
 }
 
 // Where a number's texts come from and go out through. All of them run on your engine.
-//   mac: Messages on the agent's own Mac · relay: a relay you run · twilio / sendblue / bluebubbles: your accounts
+//   mac: Messages on the engine's own Mac · relay: a relay you run · twilio / sendblue / bluebubbles: your accounts
 export const channel = v.union(v.literal('mac'), v.literal('relay'), v.literal('twilio'), v.literal('sendblue'), v.literal('bluebubbles'))
 
 // The AI providers and other services an agent reports as set up (never their keys)
@@ -65,7 +65,7 @@ export const service = v.union(
     v.literal('resend'),
 )
 
-// A model a connected key can use, as the agent found it
+// A model a connected key can use, as the engine found it
 // The services whose keys can be entered in the dashboard (see convex/lib/sealed.ts)
 export const sealedService = v.union(
     v.literal('openai'),
@@ -89,7 +89,7 @@ export const twilioNumber = v.object({
     region: v.optional(v.string()),
 })
 
-// Work the dashboard asks the agent to do with credentials only the agent has
+// Work the dashboard asks the engine to do with credentials only the engine has
 export const taskRequest = v.union(
     // Check keys and accounts again now (e.g. after getting access to a new model) instead of at the next 6-hourly check
     v.object({ kind: v.literal('recheck') }),
@@ -99,7 +99,7 @@ export const taskRequest = v.union(
     v.object({ kind: v.literal('twilioUse'), sid: v.string(), phoneNumber: v.string(), agentId: v.optional(v.id('agents')) }),
 )
 
-// What the agent sends back: numbers found, or the number now in use
+// What the engine sends back: numbers found, or the number now in use
 export const taskResult = v.union(v.object({ numbers: v.array(twilioNumber) }), v.object({ phoneNumber: v.string(), sid: v.string() }))
 
 const ws = { workspaceId: v.id('workspace') }
@@ -125,7 +125,7 @@ export default defineSchema({
         kind: v.union(v.literal('phone'), v.literal('email')),
         agentId: v.optional(v.id('agents')),
         channel,
-        // The provider's id for the number (Twilio's PN… sid), so the agent can reconfigure it
+        // The provider's id for the number (Twilio's PN… sid), so the engine can reconfigure it
         externalId: v.optional(v.string()),
     })
         .index('by_workspace_and_key', ['workspaceId', 'key'])
@@ -163,7 +163,7 @@ export default defineSchema({
     })
         .index('by_workspace_and_day', ['workspaceId', 'day'])
         .index('by_agent_and_day', ['agentId', 'day']),
-    // The agents you run on your own machines. Convex only ever sees the token's hash, the agent's version, and
+    // The agents you run on your own machines. Convex only ever sees the token's hash, the engine's version, and
     // what it reports as set up: which services, which models its AI keys can use, and which lines it answers on.
     runners: defineTable({
         ...ws,
@@ -172,7 +172,7 @@ export default defineSchema({
         tokenHash: v.string(),
         lastSeenAt: v.optional(v.number()),
         version: v.optional(v.string()),
-        // Set up on the agent; `error` when the provider refused it (e.g. a rejected key)
+        // Set up on the engine; `error` when the provider refused it (e.g. a rejected key)
         services: v.optional(v.array(v.object({ service, label: v.optional(v.string()), error: v.optional(v.string()) }))),
         // The models each AI key can use, newest first per provider
         models: v.optional(v.array(keyModel)),
@@ -188,7 +188,7 @@ export default defineSchema({
     })
         .index('by_workspace', ['workspaceId'])
         .index('by_tokenHash', ['tokenHash']),
-    // Requests the dashboard queues for the agent (see taskRequest); the agent writes back the result
+    // Requests the dashboard queues for the engine (see taskRequest); the engine writes back the result
     tasks: defineTable({
         ...ws,
         request: taskRequest,

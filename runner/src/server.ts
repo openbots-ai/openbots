@@ -1,6 +1,6 @@
 import { createServer, type IncomingHttpHeaders, type Server as HttpServer } from 'node:http'
 
-// One small web server on the agent for everything that posts to it: your relay, and the webhooks of your
+// One small web server on the engine for everything that posts to it: your relay, and the webhooks of your
 // Twilio, Sendblue and BlueBubbles accounts. Each channel adds its own route.
 
 export type Request = { path: string; headers: IncomingHttpHeaders; body: string }

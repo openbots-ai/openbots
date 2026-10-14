@@ -8,7 +8,7 @@ import { complete as completeWith, ReplyError, type Brains, type Prompt } from '
 import type { Conversation, Store } from './store'
 import type { Channel, Incoming, Transport } from './transports/types'
 
-// What the agent reads from Convex: your settings, agents, numbers and knowledge (see convex/runner.ts:config)
+// What the engine reads from Convex: your settings, agents, numbers and knowledge (see convex/runner.ts:config)
 export type Config = {
     workspace: Omit<Doc<'workspace'>, 'userId' | 'notifyDigest' | 'lastDigestDay'>
     agents: Doc<'agents'>[]
@@ -19,7 +19,7 @@ export type Config = {
 // Counts sent to Convex for Analytics and the budget. Never names, numbers or text.
 export type Activity = Partial<Record<'conversations' | 'newContacts' | 'messagesIn' | 'messagesOut' | 'handoffs', number>>
 
-// The agent's link to Convex (sync.ts), kept behind an interface so tests can fake it
+// The engine's link to Convex (sync.ts), kept behind an interface so tests can fake it
 export interface Link {
     config(): Config | null
     budget(today: string): Promise<string | null>
@@ -34,7 +34,7 @@ export type Deps = {
     brains: Brains
     // The models this agent's AI keys can use (see models.ts:checkKeys)
     models: () => KeyModel[]
-    // Emails you, when the agent has Resend set up
+    // Emails you, when the engine has Resend set up
     email?: (to: string, subject: string, text: string) => Promise<void>
     complete?: typeof completeWith
     now?: () => number
@@ -249,7 +249,7 @@ export class Pipeline {
         await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason} ${agent.name} stays out of that chat for 24 hours.`)
     }
 
-    // Texts your own phone from the conversation's number, and emails you when the agent has Resend set up
+    // Texts your own phone from the conversation's number, and emails you when the engine has Resend set up
     private async alertOwner(conversation: Conversation, body: string) {
         const ws = this.config.workspace
         if (ws.ownerEmail && this.deps.email) await this.deps.email(ws.ownerEmail, body.split('. ')[0], body).catch((e) => this.log(`Couldn't email you: ${describe(e)}`))

@@ -22,7 +22,7 @@ export type TaskResult = NonNullable<Doc<'tasks'>['result']>
 
 const reason = (error: Error) => error.message.match(/Uncaught Error: (.*?)(?:\n|$)/)?.[1] ?? error.message
 
-// The agent's connection to Convex. It reads your configuration and requests (live) and sends back a heartbeat,
+// The engine's connection to Convex. It reads your configuration and requests (live) and sends back a heartbeat,
 // counts and task results. Nothing here carries message text, contact details or credentials.
 export class ConvexLink implements Link {
     private client: ConvexClient

@@ -5,7 +5,7 @@ import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
 
-// The API your agent (runner/) calls. Every function takes the agent's token, checks it, and stays inside that
+// The API your engine (runner/) calls. Every function takes the engine's token, checks it, and stays inside that
 // agent's workspace. None of them accepts or returns message text, contact details or readable credentials;
 // `dashboard` returns keys locked for this engine only.
 
@@ -15,12 +15,12 @@ async function runnerFor(ctx: QueryCtx, token: string) {
         .query('runners')
         .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
         .unique()
-    if (!runner) throw new Error('This agent token is invalid or was revoked. Make a new one in Connections.')
+    if (!runner) throw new Error('This engine token is invalid or was revoked. Make a new one in Connections.')
     return runner
 }
 
-// Everything the agent needs to reply: your settings, agents, numbers and knowledge. Reactive, so edits in
-// the dashboard reach the agent right away.
+// Everything the engine needs to reply: your settings, agents, numbers and knowledge. Reactive, so edits in
+// the dashboard reach the engine right away.
 export const config = query({
     args: { token: v.string() },
     handler: async (ctx, { token }) => {
@@ -37,7 +37,7 @@ export const config = query({
     },
 })
 
-// Says which budget is used up, if any. `today` comes from the agent so the query never reads the clock.
+// Says which budget is used up, if any. `today` comes from the engine so the query never reads the clock.
 export const budget = query({
     args: { token: v.string(), today: v.string() },
     handler: async (ctx, { token, today }) => {
@@ -56,7 +56,7 @@ export const budget = query({
     },
 })
 
-// The agent checks in every minute with what it has set up: services (never their keys), the models its AI keys
+// The engine checks in every minute with what it has set up: services (never their keys), the models its AI keys
 // can use, and the lines its texting channels answer on
 export const heartbeat = mutation({
     args: {
@@ -144,7 +144,7 @@ export const tasks = query({
     },
 })
 
-// The agent's answer to a task. A bought or reused Twilio number is added to your numbers here.
+// The engine's answer to a task. A bought or reused Twilio number is added to your numbers here.
 export const finishTask = mutation({
     args: { token: v.string(), id: v.id('tasks'), result: v.optional(taskResult), error: v.optional(v.string()) },
     handler: async (ctx, { token, id, result, error }) => {

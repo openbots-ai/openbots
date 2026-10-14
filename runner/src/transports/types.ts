@@ -1,6 +1,6 @@
 import type { Doc } from '../../../convex/_generated/dataModel'
 
-// How the agent talks to people. Plain text exists only here and on their phones.
+// How the engine talks to people. Plain text exists only here and on their phones.
 
 export type Channel = Doc<'numbers'>['channel']
 
@@ -25,7 +25,7 @@ export type OnText = (text: Incoming) => Promise<{ markRead: boolean }>
 
 export interface Transport {
     channel: Channel
-    // Starts listening; for webhook channels this registers routes on the agent's server
+    // Starts listening; for webhook channels this registers routes on the engine's server
     start(onText: OnText): Promise<void>
     send(message: Outgoing): Promise<void>
     // Shows the typing bubble, where the channel can

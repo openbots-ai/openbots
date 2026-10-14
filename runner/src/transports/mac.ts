@@ -56,7 +56,7 @@ export class MacTransport implements Transport {
         try {
             this.db = new DatabaseSync(this.path, { readOnly: true })
         } catch {
-            throw new Error(`Can't open ${this.path}. Give the app running the agent Full Disk Access in System Settings → Privacy & Security.`)
+            throw new Error(`Can't open ${this.path}. Give the app running the engine Full Disk Access in System Settings → Privacy & Security.`)
         }
         // First run starts from now, so old history isn't answered
         if (!this.store.getMeta('mac.lastRowId')) {

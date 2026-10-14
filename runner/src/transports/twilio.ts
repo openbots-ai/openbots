@@ -4,7 +4,7 @@ import type { Line, OnText, Outgoing, Transport } from './types'
 
 const twiml = { body: '<?xml version="1.0" encoding="UTF-8"?><Response/>', type: 'text/xml' }
 
-// SMS through your own Twilio account. Twilio posts each text to the agent's public URL, signed with your auth token;
+// SMS through your own Twilio account. Twilio posts each text to the engine's public URL, signed with your auth token;
 // numbers bought or reused from the dashboard are pointed there.
 export class TwilioTransport implements Transport {
     readonly channel = 'twilio'
@@ -12,7 +12,7 @@ export class TwilioTransport implements Transport {
     constructor(
         private server: Server,
         private creds: Credentials['twilio'],
-        // Where Twilio posts texts: your agent's public URL plus an unguessable path
+        // Where Twilio posts texts: your engine's public URL plus an unguessable path
         readonly hookUrl: string,
     ) {}
 

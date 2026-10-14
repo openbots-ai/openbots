@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import type { Vault } from './crypto'
 import type { Channel } from './transports/types'
 
-// Contacts, conversations and messages, kept only on the agent's machine. Names, numbers, notes and message
+// Contacts, conversations and messages, kept only on the engine's machine. Names, numbers, notes and message
 // text are encrypted with the Vault; numbers are found through a keyed fingerprint.
 
 export type Contact = { id: number; handle: string; name: string; tags: string[]; notes: string }
@@ -139,7 +139,7 @@ export class Store {
         }
     }
 
-    // Replies that were queued when the agent stopped, to pick back up on start
+    // Replies that were queued when the engine stopped, to pick back up on start
     pending(): Conversation[] {
         const rows = this.db.prepare('SELECT id FROM conversations WHERE pending_id IS NOT NULL').all() as { id: number }[]
         return rows.map((r) => this.getConversation(r.id)!)

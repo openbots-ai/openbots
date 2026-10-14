@@ -4,8 +4,8 @@ import type { OnText, Outgoing, Transport } from './types'
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
 
-// iMessage through your Sendblue account. Sendblue posts every message on the account to the agent's public URL;
-// the agent registers that webhook itself when it starts.
+// iMessage through your Sendblue account. Sendblue posts every message on the account to the engine's public URL;
+// the engine registers that webhook itself when it starts.
 export class SendblueTransport implements Transport {
     readonly channel = 'sendblue'
 

@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { json, type Server } from '../server'
 import type { OnText, Outgoing, Transport } from './types'
 
-// A relay you run on your Mac posts texts to the agent and receives its replies:
+// A relay you run on your Mac posts texts to the engine and receives its replies:
 //   in:  POST http://<agent>/inbound  Authorization: Bearer $OPENBOTS_INBOUND_SECRET
 //        { "to": "<your number>", "from": "<their handle>", "body": "<text>", "name": "<optional>" }  →  { ok, markRead }
 //   out: POST $OPENBOTS_RELAY_URL  Authorization: Bearer $OPENBOTS_RELAY_SECRET

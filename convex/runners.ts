@@ -22,13 +22,13 @@ export const create = mutation({
     handler: async (ctx, { name, tokenHash }) => {
         const ws = await requireWorkspace(ctx)
         const label = name.trim()
-        if (!label) throw new Error('Give the agent a name, e.g. "Mac mini"')
+        if (!label) throw new Error('Give the engine a name, e.g. "Mac mini"')
         if (!/^[0-9a-f]{64}$/.test(tokenHash)) throw new Error(`Make the token in the dashboard (it starts with ${TOKEN_PREFIX})`)
         return ctx.db.insert('runners', { workspaceId: ws._id, name: label, tokenHash })
     },
 })
 
-// The agent using this token is cut off on its next call, and the keys locked for it are deleted
+// The engine using this token is cut off on its next call, and the keys locked for it are deleted
 export const revoke = mutation({
     args: { id: v.id('runners') },
     handler: async (ctx, { id }) => {

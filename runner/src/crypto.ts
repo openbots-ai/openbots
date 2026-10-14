@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-// Encrypts what the agent stores on disk, so a copied database file is unreadable without the key file next to
+// Encrypts what the engine stores on disk, so a copied database file is unreadable without the key file next to
 // it. The key never leaves this machine: not to Convex, not to the dashboard.
 export class Vault {
     private constructor(private key: Buffer) {}
