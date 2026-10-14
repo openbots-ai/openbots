@@ -118,16 +118,16 @@ export default defineSchema({
         name: v.string(),
         ownerName: v.string(),
         ...workspaceSettings,
-        // The computer agents do computer use on unless they pick their own (Models page); set by workspace.setComputer
+        // Unused since the computer picker was removed; agents use the computer their engine runs on
         computerId: v.optional(v.id('runners')),
         // Left over from before agents ran on your own machine; migrations:purgeLegacy clears these
         notifyDigest: v.optional(v.boolean()),
         lastDigestDay: v.optional(v.string()),
     }).index('by_user', ['userId']),
-    // `computerId` overrides the workspace's computer for this agent; set by agents.setComputer, not the edit form
     agents: defineTable({
         ...ws,
         ...agentFields,
+        // Unused since the computer picker was removed; agents use the computer their engine runs on
         computerId: v.optional(v.id('runners')),
         // Texts the agent sends its owner on a schedule (agent page); set by agents.setCheckIns
         checkIns: v.optional(v.array(checkIn)),
@@ -203,7 +203,9 @@ export default defineSchema({
         publicUrl: v.optional(v.string()),
         // The public address of the engine's own tunnel, when it runs one (Orgo computers do)
         tunnelUrl: v.optional(v.string()),
-        // The operating system the engine runs on; own Linux computers can't do computer use (see lib/computers.ts)
+        // The operating system the engine runs on; computer use needs Windows or Mac (see lib/computers.ts)
+        // The owner turned computer use on for this computer (Connections); only own Windows and Mac computers
+        computerUse: v.optional(v.boolean()),
         os: v.optional(v.union(v.literal('windows'), v.literal('mac'), v.literal('linux'), v.literal('other'))),
         // A computer OpenBots created on the account's Orgo, and how far its setup got
         orgo: v.optional(v.object({ computerId: v.string(), workspaceId: v.string() })),

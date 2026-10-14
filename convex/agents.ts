@@ -1,7 +1,6 @@
 import { v } from 'convex/values'
 import { mutation, query, type MutationCtx } from './_generated/server'
 import { currentWorkspace, owned, requireWorkspace } from './lib/access'
-import { canComputerUse, NO_COMPUTER_USE } from './lib/computers'
 import { requireKeyOffers } from './lib/keyModels'
 import { isValidChoice } from './lib/models'
 import { agentFields, checkIn } from './schema'
@@ -58,17 +57,6 @@ export const update = mutation({
         await check(ctx, ws, { name, temperature, models }, agent.models)
         // Explicit keys: an omitted optional (avatar, folder) arrives as undefined, which clears it
         await ctx.db.patch('agents', id, { name: name.trim(), role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, models, updatedAt: Date.now() })
-    },
-})
-
-// Gives this agent its own computer for computer use, or (without one) the workspace's
-export const setComputer = mutation({
-    args: { id: v.id('agents'), computerId: v.optional(v.id('runners')) },
-    handler: async (ctx, { id, computerId }) => {
-        const ws = await requireWorkspace(ctx)
-        await owned(ctx, ws, 'agents', id)
-        if (computerId && !canComputerUse(await owned(ctx, ws, 'runners', computerId))) throw new Error(NO_COMPUTER_USE)
-        await ctx.db.patch('agents', id, { computerId })
     },
 })
 

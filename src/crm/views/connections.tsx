@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { ProviderMark } from '@/components/agent-config-bar'
 import runner from '../../../runner/package.json'
 import { KeyForm, type Saved } from '../key-form'
@@ -358,6 +359,7 @@ function PublicUrl({ runner }: { runner: Runner }) {
 function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
+    const setComputerUse = useMutation(api.runners.setComputerUse)
     const run = useRun()
     const now = useNow(30_000)
     const [name, setName] = useState('')
@@ -409,7 +411,19 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                               : 'Never connected. Start it with the token you copied.'}
                                     </p>
                                     {r.tunnelUrl && <p className="truncate font-mono text-[11px] text-neutral-500">Public address {r.tunnelUrl}</p>}
-                                    {!onOrgo && r.os === 'linux' && <p className="text-[12px] text-amber-700">Texting only: computer use isn’t supported on Linux.</p>}
+                                    {!onOrgo && r.os === 'linux' && <p className="text-[12px] text-amber-700">Texting only: computer use works on Windows and Mac.</p>}
+                                    {!onOrgo && (r.os === 'windows' || r.os === 'mac') && (
+                                        <div className="mt-2 flex items-start gap-3 rounded-md border border-neutral-200 p-2.5">
+                                            <Switch aria-label="Computer use" checked={!!r.computerUse} onCheckedChange={(on) => void run(setComputerUse({ id: r._id, on }))} />
+                                            <div className="min-w-0 text-[12px]">
+                                                <p className="font-medium">Computer use</p>
+                                                <p className="text-neutral-500">
+                                                    Agents can see this computer’s screen and use its mouse and keyboard while doing a task you text them. They ask before
+                                                    anything that can’t be undone. Pages they visit can try to mislead them, so keep an eye on what they do.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                     {onOrgo ? <OrgoControls runner={r} /> : !r.tunnelUrl && <PublicUrl runner={r} />}
                                 </div>
                                 {!onOrgo && (
