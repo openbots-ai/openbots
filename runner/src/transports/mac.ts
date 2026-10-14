@@ -107,7 +107,7 @@ export class MacTransport implements Transport {
             '--',
             to,
             body,
-        ])
+        ], { timeout: 60_000 })
     }
 
     // Waits for a text still being answered, so its place is saved and nothing reads the database once it's closed
