@@ -25,6 +25,8 @@ export type LoopDeps = {
 export const MAX_ACTIONS = 200
 export const MAX_TASK_MS = 30 * 60_000
 export const KEEP_SHOTS = 3
+// Recent tool calls the API keeps when it clears old ones: about KEEP_SHOTS batches, each a few actions and a screenshot
+export const KEEP_TOOL_USES = 15
 export const SKIPPED = 'Not executed: an earlier computer action in this turn failed.'
 
 // You said stop, or didn't answer a question in time
@@ -73,8 +75,8 @@ const CONTEXT_MANAGEMENT = {
     edits: [
         {
             type: 'clear_tool_uses_20250919',
-            trigger: { type: 'tool_uses', value: 8 },
-            keep: { type: 'tool_uses', value: KEEP_SHOTS },
+            trigger: { type: 'tool_uses', value: 25 },
+            keep: { type: 'tool_uses', value: KEEP_TOOL_USES },
             clear_at_least: { type: 'input_tokens', value: 4000 },
             exclude_tools: ['ask_owner', 'finish'],
         },
@@ -126,7 +128,7 @@ export async function runTask(task: string, deps: LoopDeps): Promise<TaskEnd> {
         } else if (name === 'key') {
             await driver.key(String(input.text ?? ''), clamp(input.repeat, 1, 100, 1))
         } else if (name === 'wait') {
-            await sleep(Math.min(30, Math.max(0, Number(input.duration ?? 1))) * 1000)
+            await sleep(clamp(input.duration, 0, 30, 1) * 1000)
         } else if (name === 'cursor_position') {
             const p = toShot(await driver.cursor(), shot, screen)
             return `[${p.x}, ${p.y}]`
