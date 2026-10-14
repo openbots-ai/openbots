@@ -2,9 +2,9 @@ import { authTables } from '@convex-dev/auth/server'
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
-// What's here: each user's workspace and settings, their agents, models, knowledge and numbers, and anonymous
-// daily counts. What's never here: messages, contacts, or any readable credential (keys entered in the dashboard are stored locked
-// for the engine). Those live on the user's own engine (runner/), which reads this configuration and reports back only counts and what it has set up.
+// What's here: each user's workspace and settings, their agents, models, knowledge and numbers, the keys they save
+// in Connections (encrypted), and anonymous daily counts. What's never here: messages or contacts. Those live on the
+// user's own engine (runner/), which reads this configuration and reports back only counts and what it has set up.
 
 export const agentStatus = v.union(v.literal('draft'), v.literal('live'), v.literal('paused'))
 
@@ -181,8 +181,6 @@ export default defineSchema({
         // The addresses its texting channels answer on, to offer when adding a number
         lines: v.optional(v.array(v.object({ channel, handle: v.string(), externalId: v.optional(v.string()) }))),
         demo: v.optional(v.boolean()),
-        // Public half of the engine's own key pair: the dashboard locks your keys with it
-        publicKey: v.optional(v.string()),
         // Where Twilio, Sendblue or BlueBubbles reach this engine, set in Connections (not secret)
         publicUrl: v.optional(v.string()),
     })
@@ -196,14 +194,11 @@ export default defineSchema({
         result: v.optional(taskResult),
         error: v.optional(v.string()),
     }).index('by_workspace_and_status', ['workspaceId', 'status']),
-    // Keys entered in the dashboard, locked in the browser for one engine; Convex can't open them
+    // Keys saved in Connections, one per account and service, encrypted with the server's ENCRYPTION_KEY
     secrets: defineTable({
         ...ws,
-        runnerId: v.id('runners'),
         service: sealedService,
         sealed: v.string(),
         updatedAt: v.number(),
-    })
-        .index('by_workspace_and_service', ['workspaceId', 'service'])
-        .index('by_runnerId', ['runnerId']),
+    }).index('by_workspace_and_service', ['workspaceId', 'service']),
 })

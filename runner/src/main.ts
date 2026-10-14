@@ -1,9 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
-import { fingerprint, type SealedService } from '../../convex/lib/sealed'
-import { loadSettings, openDashboard, withDashboard, type Settings } from './config'
+import type { SealedService } from '../../convex/lib/sealed'
+import { fromDashboard, loadSettings, withDashboard, type Settings } from './config'
 import { Vault } from './crypto'
-import { loadEngineKeys } from './identity'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
 import { check, ConnectError, sendEmail, type Credentials } from './providers'
@@ -25,11 +24,9 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 async function main() {
     const base = loadSettings()
     const store = new Store(join(base.dataDir, 'openbots.db'), Vault.open(base.dataDir))
-    const engineKeys = await loadEngineKeys(base.dataDir)
     const link = new ConvexLink(base.convexUrl, base.token)
 
     console.log(`OpenBots engine ${VERSION}: connecting to your workspace…`)
-    console.log(`Engine key ${await fingerprint(engineKeys.publicKey)} (Connections shows the same for this engine)`)
     await link.connect((m) => console.error(m))
 
     // Webhook paths carry a random secret, made once, so only your accounts know where to post
@@ -40,7 +37,7 @@ async function main() {
     let settings = withDashboard(base, { secrets: {} })
     let services: Services = { transports: {}, twilio: undefined, problems: [] }
     let keyProblems: { service: SealedService; error: string }[] = []
-    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, publicKey: engineKeys.publicKey }
+    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
 
     // New AI keys and email take effect straight away, without touching the channels
@@ -120,7 +117,7 @@ async function main() {
             (doc) => {
                 chain = chain
                     .then(async () => {
-                        const opened = await openDashboard(engineKeys.privateKey, doc)
+                        const opened = fromDashboard(doc)
                         keyProblems = opened.problems
                         const next = withDashboard(base, opened.values)
                         const wanted = channelSettings(next)

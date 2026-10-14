@@ -1,5 +1,5 @@
-// Keys entered in the dashboard are locked in your browser so only your engine can open them; Convex stores the
-// locked value and can't read it. Web Crypto only, so the same code runs in the browser, in the engine and in tests.
+// Keys entered in the dashboard belong to your account. The backend encrypts them with its own ENCRYPTION_KEY before
+// storing them and decrypts them only to hand them to your engine. Web Crypto only, so it runs in Convex and in tests.
 
 export const SEALED_SERVICES = ['openai', 'anthropic', 'google', 'xai', 'local', 'twilio', 'sendblue', 'bluebubbles', 'resend'] as const
 export type SealedService = (typeof SEALED_SERVICES)[number]
@@ -48,8 +48,7 @@ export const FIELDS: Record<SealedService, Field[]> = {
     ],
 }
 
-const RSA = { name: 'RSA-OAEP', hash: 'SHA-256' } as const
-const VERSION = 's1'
+const VERSION = 'k1'
 const encode = (text: string) => new TextEncoder().encode(text)
 
 function b64(bytes: ArrayBuffer | Uint8Array) {
@@ -59,42 +58,26 @@ function b64(bytes: ArrayBuffer | Uint8Array) {
 }
 const unb64 = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0))
 
-// An engine's own key pair, made once on first run. Only the public half ever leaves the machine.
-export async function newEngineKeys() {
-    const pair = await crypto.subtle.generateKey({ ...RSA, modulusLength: 3072, publicExponent: new Uint8Array([1, 0, 1]) }, true, ['encrypt', 'decrypt'])
-    return {
-        publicKey: b64(await crypto.subtle.exportKey('spki', pair.publicKey)),
-        privateKey: b64(await crypto.subtle.exportKey('pkcs8', pair.privateKey)),
-    }
+async function aesKey(encryptionKey: string) {
+    const raw = unb64(encryptionKey)
+    if (raw.length !== 32) throw new Error('ENCRYPTION_KEY must be 32 bytes, base64. Run `npm run setup`.')
+    return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt'])
 }
 
-// A short form of the public key, shown by the engine and in Connections so you can check they match
-export async function fingerprint(publicKey: string) {
-    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', unb64(publicKey)))
-    const hex = [...digest].map((b) => b.toString(16).padStart(2, '0')).join('')
-    return hex.slice(0, 16).match(/.{4}/g)!.join(' ')
-}
+// Bound to the encrypted value, so it won't decrypt if moved to another workspace or service
+export const secretContext = (workspaceId: string, service: SealedService) => `${workspaceId}:${service}`
 
-// Bound to the locked value, so it won't open if moved to another workspace, engine or service
-export const sealContext = (workspaceId: string, runnerId: string, service: SealedService) => `${workspaceId}:${runnerId}:${service}`
-
-// A fresh AES-256-GCM key locks the value; the engine's public key locks that key
-export async function seal(publicKey: string, context: string, fields: object) {
-    const rsa = await crypto.subtle.importKey('spki', unb64(publicKey), RSA, false, ['encrypt'])
-    const aes = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt'])
+// AES-256-GCM with a fresh random nonce
+export async function encryptSecret(encryptionKey: string, context: string, fields: object) {
     const iv = crypto.getRandomValues(new Uint8Array(12))
-    const body = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encode(context) }, aes, encode(JSON.stringify(fields)))
-    const wrapped = await crypto.subtle.encrypt(RSA, rsa, await crypto.subtle.exportKey('raw', aes))
-    return [VERSION, b64(wrapped), b64(iv), b64(body)].join(':')
+    const body = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encode(context) }, await aesKey(encryptionKey), encode(JSON.stringify(fields)))
+    return [VERSION, b64(iv), b64(body)].join(':')
 }
 
-export async function unseal(privateKey: string, context: string, sealed: string): Promise<unknown> {
-    const [version, wrapped, iv, body] = sealed.split(':')
-    if (version !== VERSION || !wrapped || !iv || !body) throw new Error('Unreadable key')
-    const rsa = await crypto.subtle.importKey('pkcs8', unb64(privateKey), RSA, false, ['decrypt'])
-    const raw = await crypto.subtle.decrypt(RSA, rsa, unb64(wrapped))
-    const aes = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt'])
-    const text = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv), additionalData: encode(context) }, aes, unb64(body))
+export async function decryptSecret(encryptionKey: string, context: string, sealed: string): Promise<unknown> {
+    const [version, iv, body, ...extra] = sealed.split(':')
+    if (version !== VERSION || !iv || !body || extra.length) throw new Error('Unreadable key')
+    const text = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv), additionalData: encode(context) }, await aesKey(encryptionKey), unb64(body))
     return JSON.parse(new TextDecoder().decode(text))
 }
 

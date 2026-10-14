@@ -15,7 +15,6 @@ export type Status = {
     channels: Channel[]
     lines: Line[]
     demo: boolean
-    publicKey?: string
 }
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }
 export type TaskResult = NonNullable<Doc<'tasks'>['result']>
@@ -69,7 +68,7 @@ export class ConvexLink implements Link {
         this.unsubscribers.push(() => sub.unsubscribe())
     }
 
-    // Keys entered in the dashboard (locked for this engine) and its public URL, now and whenever they change
+    // Keys saved in Connections for this account and the engine's public URL, now and whenever they change
     onDashboard(onChange: (doc: DashboardDoc) => void, onError: (message: string) => void = (m) => console.error(`Couldn't read your keys from the dashboard: ${m}`)) {
         const sub = this.client.onUpdate(api.runner.dashboard, { token: this.token }, onChange, (error) => onError(reason(error)))
         this.unsubscribers.push(() => sub.unsubscribe())

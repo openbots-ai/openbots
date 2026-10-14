@@ -35,7 +35,7 @@ export function SignIn() {
                         <span className="text-[15px] font-semibold tracking-tight">OpenBots</span>
                     </span>
                     <CardTitle>{signingUp ? 'Create your account' : 'Sign in'}</CardTitle>
-                    <CardDescription>{signingUp ? 'Your agents and settings are private to your account. Conversations stay on your own engine; keys are locked so only it can read them.' : 'Welcome back.'}</CardDescription>
+                    <CardDescription>{signingUp ? 'Your agents and settings are private to your account. Conversations stay on your own engine; the keys you save are encrypted.' : 'Welcome back.'}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form

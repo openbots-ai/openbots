@@ -28,27 +28,13 @@ export const create = mutation({
     },
 })
 
-// The engine using this token is cut off on its next call, and the keys locked for it are deleted
+// The engine using this token is cut off on its next call
 export const revoke = mutation({
     args: { id: v.id('runners') },
     handler: async (ctx, { id }) => {
         const ws = await requireWorkspace(ctx)
         await owned(ctx, ws, 'runners', id)
-        for (const row of await ctx.db.query('secrets').withIndex('by_runnerId', (q) => q.eq('runnerId', id)).take(100)) await ctx.db.delete('secrets', row._id)
         await ctx.db.delete('runners', id)
-    },
-})
-
-// Forgets this engine's key and the keys locked for it, e.g. after its data folder was wiped. Its next check-in
-// saves its new key, and you enter your keys again.
-export const resetKey = mutation({
-    args: { id: v.id('runners') },
-    handler: async (ctx, { id }) => {
-        const ws = await requireWorkspace(ctx)
-        await owned(ctx, ws, 'runners', id)
-        for (const row of await ctx.db.query('secrets').withIndex('by_runnerId', (q) => q.eq('runnerId', id)).take(100)) await ctx.db.delete('secrets', row._id)
-        await ctx.db.patch('runners', id, { publicKey: undefined })
-        return null
     },
 })
 
