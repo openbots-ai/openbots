@@ -25,8 +25,9 @@ export class Scheduler {
     constructor(private deps: Deps) {}
 
     start(everyMs = 30_000) {
-        this.timer = setInterval(() => void this.tick(), everyMs)
-        void this.tick()
+        const go = () => void this.tick().catch((e) => this.deps.log(`Scheduler tick failed: ${e instanceof Error ? e.message : String(e)}`))
+        this.timer = setInterval(go, everyMs)
+        go()
     }
 
     stop() {
@@ -39,7 +40,10 @@ export class Scheduler {
         this.running = true
         try {
             const now = this.deps.now()
-            for (const job of this.deps.store.dueJobs(now)) await this.run(job, now)
+            for (const job of this.deps.store.dueJobs(now)) {
+                // One job going wrong must not stop the others (nothing from the job is logged)
+                await this.run(job, now).catch((e) => this.deps.log(`A ${job.kind} (#${job.id}) could not be finished: ${e instanceof Error ? e.message : String(e)}`))
+            }
             await this.deps.checkIns(now).catch((e) => this.deps.log(`Check-ins failed: ${e instanceof Error ? e.message : String(e)}`))
         } finally {
             this.running = false
@@ -55,9 +59,14 @@ export class Scheduler {
             this.deps.log(`A ${job.kind} failed: ${e instanceof Error ? e.message : String(e)}`)
             fired = { outcome: 'failed' }
         }
-        if (fired.outcome === 'later') return store.updateJob(job.id, { dueAt: now + fired.inMs })
+        const end = job.until ?? job.createdAt + WATCH_DAYS * 86_400_000
+        if (fired.outcome === 'later') {
+            const dueAt = now + fired.inMs
+            return store.updateJob(job.id, { dueAt, ...(job.kind === 'watch' && dueAt >= end ? { active: false } : {}) })
+        }
         if (job.kind === 'reminder') return store.updateJob(job.id, { active: false })
 
+        const next = now + (job.everyMin ?? 60) * 60_000
         if (fired.outcome === 'failed') {
             const failures = job.failures + 1
             if (failures >= WATCH_FAILURES) {
@@ -65,11 +74,9 @@ export class Scheduler {
                 await this.deps.tellOwner(job, `I stopped watching "${job.text}" after ${WATCH_FAILURES} checks failed in a row. Ask me again to restart it.`)
                 return
             }
-            store.updateJob(job.id, { failures, dueAt: now + (job.everyMin ?? 60) * 60_000 })
+            store.updateJob(job.id, { failures, dueAt: next, ...(next >= end ? { active: false } : {}) })
             return
         }
-        const next = now + (job.everyMin ?? 60) * 60_000
-        const end = job.until ?? job.dueAt + WATCH_DAYS * 86_400_000
         store.updateJob(job.id, { failures: 0, dueAt: next, ...(fired.result ? { last: fired.result } : {}), ...(next >= end ? { active: false } : {}) })
     }
 }
