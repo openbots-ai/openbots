@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { AlertCircle, Bot, Check, Copy, ExternalLink, HardDrive, Laptop, Mail, MessageCircle, MessageSquareText, RefreshCw, Smartphone, Waypoints, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
+import { fingerprint, SEALED_SERVICES, type SealedService } from '@convex/lib/sealed'
 import { hashToken, newToken } from '@convex/lib/tokens'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProviderMark } from '@/components/agent-config-bar'
 import runner from '../../../runner/package.json'
+import { KeyForm, type Saved } from '../key-form'
 import { relativeTime } from '../lib/time'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
@@ -52,7 +54,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['OPENAI_API_KEY'],
         getUrl: 'https://platform.openai.com/api-keys',
         getLabel: 'Get an OpenAI key',
-        steps: ['Sign in to the OpenAI platform and create a secret key.', 'Set it on your agent and restart it.'],
+        steps: ['Sign in to the OpenAI platform and create a secret key.', 'Paste it here, or set it on your engine.'],
         next: { label: 'Pick models', view: 'models' },
     },
     anthropic: {
@@ -61,7 +63,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['ANTHROPIC_API_KEY'],
         getUrl: 'https://console.anthropic.com/settings/keys',
         getLabel: 'Get an Anthropic key',
-        steps: ['Sign in to the Claude Console and create an API key.', 'Set it on your agent and restart it.'],
+        steps: ['Sign in to the Claude Console and create an API key.', 'Paste it here, or set it on your engine.'],
         next: { label: 'Pick models', view: 'models' },
     },
     google: {
@@ -70,7 +72,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['GEMINI_API_KEY'],
         getUrl: 'https://aistudio.google.com/apikey',
         getLabel: 'Get a Gemini key',
-        steps: ['Open Google AI Studio and create an API key.', 'Set it on your agent and restart it.'],
+        steps: ['Open Google AI Studio and create an API key.', 'Paste it here, or set it on your engine.'],
         next: { label: 'Pick models', view: 'models' },
     },
     xai: {
@@ -79,7 +81,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['XAI_API_KEY'],
         getUrl: 'https://console.x.ai',
         getLabel: 'Get an xAI key',
-        steps: ['Sign in to the xAI console and create an API key.', 'Set it on your agent and restart it.'],
+        steps: ['Sign in to the xAI console and create an API key.', 'Paste it here, or set it on your engine.'],
         next: { label: 'Pick models', view: 'models' },
     },
     local: {
@@ -88,7 +90,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['OPENBOTS_LOCAL_URL'],
         getUrl: 'https://ollama.com/download',
         getLabel: 'Get Ollama',
-        steps: ['Run a model server the agent can reach, e.g. Ollama.', 'Set its URL on your agent (for Ollama, http://localhost:11434/v1) and restart it.'],
+        steps: ['Run a model server the agent can reach, e.g. Ollama.', 'Enter its URL here (for Ollama, http://localhost:11434/v1), or set it on your engine.'],
         icon: HardDrive,
         next: { label: 'Pick models', view: 'models' },
         badge: 'Private',
@@ -110,7 +112,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         getLabel: 'Install BlueBubbles Server',
         steps: [
             'On a Mac that stays on and is signed in to Messages, install BlueBubbles Server and set a password.',
-            'Set its URL and password on your agent, plus OPENBOTS_PUBLIC_URL: where the Mac can reach the agent.',
+            'Enter its URL and password here (or set them on your engine), plus this engine’s public URL above.',
             'The agent registers its webhook on your Mac when it starts.',
         ],
         icon: MessageCircle,
@@ -123,7 +125,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['SENDBLUE_API_KEY_ID', 'SENDBLUE_API_SECRET', 'OPENBOTS_PUBLIC_URL'],
         getUrl: 'https://dashboard.sendblue.com',
         getLabel: 'Open Sendblue',
-        steps: ['Create a Sendblue account and get a line.', 'Set the API key ID and secret on your agent, plus OPENBOTS_PUBLIC_URL: where Sendblue can reach the agent.', 'The agent registers its webhook with Sendblue when it starts.'],
+        steps: ['Create a Sendblue account and get a line.', 'Enter the API key ID and secret here (or set them on your engine), plus this engine’s public URL above.', 'The agent registers its webhook with Sendblue when it starts.'],
         icon: MessageSquareText,
         next: { label: 'Add your Sendblue line', view: 'numbers' },
         badge: 'iMessage',
@@ -136,7 +138,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         getLabel: 'Open the Twilio console',
         steps: [
             'Create a Twilio account (Twilio bills you directly for numbers and texts).',
-            'Set the Account SID and Auth token on your agent, plus OPENBOTS_PUBLIC_URL: where Twilio can reach the agent.',
+            'Enter the Account SID and Auth token here (or set them on your engine), plus this engine’s public URL above.',
             'Get a number in Numbers. Texting US numbers needs A2P 10DLC registration in Twilio.',
         ],
         icon: Smartphone,
@@ -157,7 +159,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['RESEND_API_KEY', 'RESEND_FROM'],
         getUrl: 'https://resend.com/api-keys',
         getLabel: 'Get a Resend key',
-        steps: ['Create a Resend account and verify a domain you own.', 'Set an API key and a from address on that domain on your agent.'],
+        steps: ['Create a Resend account and verify a domain you own.', 'Enter an API key and a from address on that domain here, or set them on your engine.'],
         icon: Mail,
         next: { label: 'Choose notifications', view: 'settings' },
     },
@@ -174,6 +176,7 @@ function statusOf(runners: Runner[], id: Ai | Texting | 'resend') {
 
 export function ConnectionsView() {
     const runners = useQuery(api.runners.list)
+    const saved = useQuery(api.secrets.list)
     const hasAi = runners?.some((r) => r.models?.length)
 
     const section = (title: string, description: string, ids: (Ai | Texting | 'resend')[], cols: string) => (
@@ -182,18 +185,18 @@ export function ConnectionsView() {
                 <h2 className="text-[14px] font-semibold">{title}</h2>
                 <p className="text-[13px] text-neutral-500">{description}</p>
             </div>
-            <div className={cn('grid gap-3', cols)}>{ids.map((id) => (runners ? <ServiceCard key={id} id={id} runners={runners} /> : <Skeleton key={id} className="h-40 rounded-lg" />))}</div>
+            <div className={cn('grid gap-3', cols)}>{ids.map((id) => (runners ? <ServiceCard key={id} id={id} runners={runners} saved={saved?.find((s) => s.service === id)} /> : <Skeleton key={id} className="h-40 rounded-lg" />))}</div>
         </section>
     )
 
     return (
         <Content>
             <Toolbar title="Connections">
-                <span className="text-[12px] text-neutral-500">Keys and accounts live on your agent, on a machine you choose. This page only sees what’s set up.</span>
+                <span className="text-[12px] text-neutral-500">Keys you enter here are locked in your browser so only your engine can read them.</span>
             </Toolbar>
             <Scroll>
                 <div className="mx-auto w-full max-w-5xl space-y-8 p-4 pb-16">
-                    <Agents runners={runners} />
+                    <Engines runners={runners} />
                     {runners && runners.length > 0 && !hasAi && (
                         <Card className="flex flex-row items-start gap-3 rounded-lg border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -209,13 +212,23 @@ export function ConnectionsView() {
     )
 }
 
-function ServiceCard({ id, runners }: { id: Ai | Texting | 'resend'; runners: Runner[] }) {
+function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runners: Runner[]; saved?: Saved }) {
     const go = useNav()
     const info = INFO[id]
     const Icon = info.icon
     const status = statusOf(runners, id)
     const ai = (AI as readonly string[]).includes(id)
     const models = ai ? runners.flatMap((r) => r.models ?? []).filter((m) => m.provider === id) : []
+    const sealed = (SEALED_SERVICES as readonly string[]).includes(id)
+    const envChips = (
+        <p className="flex flex-wrap gap-1">
+            {info.env.map((e) => (
+                <code key={e} className="rounded bg-neutral-100 px-1 font-mono text-[11px] text-neutral-700">
+                    {e}
+                </code>
+            ))}
+        </p>
+    )
     const count = new Set(models.map((m) => m.id)).size
 
     return (
@@ -233,33 +246,36 @@ function ServiceCard({ id, runners }: { id: Ai | Texting | 'resend'; runners: Ru
                 </div>
             </div>
 
-            {status ? (
+            {status && (
                 <div className="space-y-1">
                     <p className={cn('flex items-center gap-1.5 text-[12px]', status.ok ? 'text-emerald-700' : 'text-destructive')}>
                         {status.ok ? <Check className="size-3.5" /> : <AlertCircle className="size-3.5" />}
-                        <span className="truncate">{status.ok ? (ai ? 'Set up on your agent' : status.label) : status.label}</span>
+                        <span className="truncate">{status.ok ? (ai ? 'Set up on your engine' : status.label) : status.label}</span>
                     </p>
                     {ai && status.ok && <p className="text-[12px] text-neutral-500">{count} model{count === 1 ? '' : 's'} this key can use. Re-check after you get access to a new one.</p>}
                 </div>
-            ) : (
-                <div className="space-y-2">
-                    <p className="text-[12px] text-neutral-400">Not set up</p>
-                    <ol className="space-y-1 text-[12px] text-neutral-600">
-                        {info.steps.map((step, i) => (
-                            <li key={i} className="flex gap-1.5">
-                                <span className="text-neutral-400">{i + 1}.</span>
-                                <span>{step}</span>
-                            </li>
-                        ))}
-                    </ol>
-                    <p className="flex flex-wrap gap-1">
-                        {info.env.map((e) => (
-                            <code key={e} className="rounded bg-neutral-100 px-1 font-mono text-[11px] text-neutral-700">
-                                {e}
-                            </code>
-                        ))}
-                    </p>
+            )}
+            {sealed && <KeyForm service={id as SealedService} runners={runners} saved={saved} />}
+            {sealed ? (
+                <div className="space-y-1">
+                    <p className="text-[12px] text-neutral-400">Or set on your engine:</p>
+                    {envChips}
                 </div>
+            ) : (
+                !status && (
+                    <div className="space-y-2">
+                        <p className="text-[12px] text-neutral-400">Not set up</p>
+                        <ol className="space-y-1 text-[12px] text-neutral-600">
+                            {info.steps.map((step, i) => (
+                                <li key={i} className="flex gap-1.5">
+                                    <span className="text-neutral-400">{i + 1}.</span>
+                                    <span>{step}</span>
+                                </li>
+                            ))}
+                        </ol>
+                        {envChips}
+                    </div>
+                )
             )}
 
             <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
@@ -308,7 +324,43 @@ const ONLINE_MS = 3 * 60_000
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
 
 // The agents you run, with tokens made here in the browser (Convex only ever gets a hash)
-function Agents({ runners }: { runners?: Runner[] }) {
+// Matches the fingerprint the engine prints when it starts
+function Fingerprint({ publicKey }: { publicKey: string }) {
+    const [print, setPrint] = useState('')
+    useEffect(() => {
+        let live = true
+        void fingerprint(publicKey).then((p) => live && setPrint(p))
+        return () => {
+            live = false
+        }
+    }, [publicKey])
+    return <p className="font-mono text-[11px] text-neutral-500">Key {print}</p>
+}
+
+// Where outside services reach this engine
+function PublicUrl({ runner }: { runner: Runner }) {
+    const setUrl = useMutation(api.runners.setPublicUrl)
+    const run = useRun()
+    const [value, setValue] = useState(runner.publicUrl ?? '')
+    return (
+        <div className="mt-1.5 space-y-1">
+            <form
+                className="flex items-center gap-2"
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    void run(setUrl({ id: runner._id, publicUrl: value || undefined }))
+                }}>
+                <Input aria-label="Public URL" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Public URL, e.g. https://bots.example.com" className="h-8 w-72" />
+                <Btn type="submit" variant="primary" disabled={value === (runner.publicUrl ?? '')}>
+                    Save
+                </Btn>
+            </form>
+            <p className="text-[12px] text-neutral-500">Where Twilio, Sendblue or BlueBubbles reach this engine. Only needed for those.</p>
+        </div>
+    )
+}
+
+function Engines({ runners }: { runners?: Runner[] }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
     const run = useRun()
@@ -328,7 +380,7 @@ function Agents({ runners }: { runners?: Runner[] }) {
     return (
         <section className="space-y-3">
             <div>
-                <h2 className="text-[14px] font-semibold">Your agent</h2>
+                <h2 className="text-[14px] font-semibold">Your engine</h2>
                 <p className="text-[13px] text-neutral-500">The program that answers your texts, on a machine you choose. Messages, contacts and keys stay on it; this dashboard never sees them.</p>
             </div>
             <Card className="divide-y divide-neutral-100 rounded-lg p-0">
@@ -354,6 +406,8 @@ function Agents({ runners }: { runners?: Runner[] }) {
                                             ? `${online ? 'Online' : `Offline, last seen ${relativeTime(r.lastSeenAt, now)}`} · v${r.version}${r.channels?.length ? ` · texts through ${r.channels.join(', ')}` : ''}${r.demo ? ' · demo replies' : ''}`
                                             : 'Never connected. Start it with the token you copied.'}
                                     </p>
+                                    {r.publicKey && <Fingerprint publicKey={r.publicKey} />}
+                                    <PublicUrl runner={r} />
                                 </div>
                                 <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
                             </div>
@@ -367,9 +421,9 @@ function Agents({ runners }: { runners?: Runner[] }) {
                         void add()
                     }}>
                     <span className="min-w-0 flex-1 text-[12px] text-neutral-500">{runners?.length ? 'Add another machine:' : 'Name the machine it will run on to get a token:'}</span>
-                    <Input aria-label="Agent name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac mini" className="h-8 w-44" />
+                    <Input aria-label="Engine name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac mini" className="h-8 w-44" />
                     <Btn type="submit" variant="primary" disabled={!name.trim()}>
-                        Add agent
+                        Add engine
                     </Btn>
                 </form>
                 {token && <Setup token={token} onDone={() => setToken(null)} />}
@@ -381,12 +435,12 @@ function Agents({ runners }: { runners?: Runner[] }) {
 // Shown once after adding an agent: the token and how to start it. Versions are pinned so an agent only changes
 // when you choose to upgrade it.
 function Setup({ token, onDone }: { token: string; onDone: () => void }) {
-    const mac = `OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\nOPENBOTS_TOKEN=${token} \\\nOPENAI_API_KEY=sk-... \\\nnpx openbots-runner@${runner.version}`
-    const docker = `docker run -d --name openbots -v openbots:/data -p 8787:8787 \\\n  -e OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\n  -e OPENBOTS_TOKEN=${token} \\\n  -e OPENBOTS_PUBLIC_URL=https://<where your accounts reach it> \\\n  -e OPENAI_API_KEY=sk-... \\\n  ghcr.io/shidhartha-sen/openbots-runner:${runner.version}`
+    const mac = `OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\nOPENBOTS_TOKEN=${token} \\\nnpx openbots-runner@${runner.version}`
+    const docker = `docker run -d --name openbots -v openbots:/data -p 8787:8787 \\\n  -e OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\n  -e OPENBOTS_TOKEN=${token} \\\n  -e OPENBOTS_PUBLIC_URL=https://<where your accounts reach it> \\\n  ghcr.io/shidhartha-sen/openbots-runner:${runner.version}`
     return (
         <div className="space-y-3 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                Copy this token now. It isn’t stored anywhere, so it can’t be shown again. Add the keys and accounts from the cards below as more variables, then restart the agent.
+                Copy this token now. It isn’t stored anywhere, so it can’t be shown again. Start the engine with it, then add your keys in the cards below (or as more variables on the engine).
             </p>
             <CopyBlock label="Token" text={token} />
             <CopyBlock label="On a Mac signed in to iMessage" text={mac} />
