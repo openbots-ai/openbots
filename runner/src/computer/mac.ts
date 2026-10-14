@@ -182,9 +182,10 @@ export function macScript(o: MacOp): string {
         }
         case 'key': {
             const { mods, key } = parseCombo(o.combo)
-            // The combo's own last part tells "A" from "a"
+            // The combo's own last part tells "A" from "a". With other modifiers held a capital is just the key, as on
+            // Windows, so "cmd+C" copies rather than pressing Cmd+Shift+C
             const typed = o.combo.split('+').pop() ?? ''
-            let shift = /^[A-Z]$/.test(typed)
+            let shift = !mods.length && /^[A-Z]$/.test(typed)
             let code = KEY_CODE[key] ?? CHAR_CODE[key]
             if (code === undefined && SHIFTED[key] && CHAR_CODE[SHIFTED[key]] !== undefined) {
                 code = CHAR_CODE[SHIFTED[key]]
