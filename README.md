@@ -102,6 +102,9 @@ What the engine can use, all with the person's own accounts:
     number at itself. Every incoming request's Twilio signature is checked. US texting needs A2P 10DLC registration.
   - **A relay** of their own, posting texts to the engine.
 - **Email** (optional): a Resend key and from address, to also email handoff alerts.
+- **Reminders, watches and check-ins:** text your agent from your own phone "remind me at 5 to…" or "text me if …
+  changes"; set check-ins on the agent's page. Reminders and watches are stored on the engine, sealed like messages;
+  Convex only counts them. They need an OpenAI or Anthropic Brain model.
 
 ### How a text flows
 
