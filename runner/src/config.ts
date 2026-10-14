@@ -4,13 +4,13 @@ import { PROVIDER_KEYS, type Brains } from './brain'
 import { checkFields, sealContext, unseal, type SealedService, type SecretFields } from '../../convex/lib/sealed'
 import type { Credentials } from './providers'
 
-// Everything the agent needs comes from environment variables (or a .env file passed with node --env-file).
+// Everything the engine needs comes from environment variables (or a .env file passed with node --env-file).
 // Keys, account logins and history stay on this machine; see runner/README.md.
 export type Settings = {
     convexUrl: string
     token: string
     dataDir: string
-    // The agent's web server, for your relay and your accounts' webhooks
+    // The engine's web server, for your relay and your accounts' webhooks
     host: string
     port: number
     // How the internet (Twilio, Sendblue) or your Mac (BlueBubbles) reaches that server

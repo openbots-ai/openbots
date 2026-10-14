@@ -1,7 +1,7 @@
 import type { Doc } from '../_generated/dataModel'
 
 export type Turn = { role: 'user' | 'assistant'; content: string }
-// The agent keeps contacts and messages on its own machine; these are the parts the prompt uses
+// The engine keeps contacts and messages on its own machine; these are the parts the prompt uses
 export type PromptContact = { name: string; handle: string; tags: string[]; notes: string }
 export type PromptMessage = { from: 'contact' | 'agent'; body: string }
 

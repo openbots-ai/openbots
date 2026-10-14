@@ -323,7 +323,6 @@ function Recheck() {
 const ONLINE_MS = 3 * 60_000
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
 
-// The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
 // Matches the fingerprint the engine prints when it starts
 function Fingerprint({ publicKey }: { publicKey: string }) {
     const [print, setPrint] = useState('')
@@ -360,6 +359,7 @@ function PublicUrl({ runner }: { runner: Runner }) {
     )
 }
 
+// The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
 function Engines({ runners }: { runners?: Runner[] }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)

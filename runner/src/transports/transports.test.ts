@@ -8,7 +8,7 @@ import { SendblueTransport } from './sendblue'
 import { TwilioTransport } from './twilio'
 import type { Incoming } from './types'
 
-// Each channel's webhook, posted to the agent's real web server
+// Each channel's webhook, posted to the engine's real web server
 let server: Server
 let base: string
 let received: Incoming[]
@@ -28,7 +28,7 @@ afterEach(async () => {
     vi.unstubAllGlobals()
 })
 
-// The providers' own APIs (webhook registration) are stubbed; posts to the agent go through for real
+// The providers' own APIs (webhook registration) are stubbed; posts to the engine go through for real
 const stubProviderApis = () => {
     const real = globalThis.fetch
     vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => (url.startsWith(base) ? real(url, init) : Promise.resolve(new Response('{"data":[]}')))))

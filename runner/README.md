@@ -6,7 +6,7 @@ control: the Mac signed in to iMessage, a VM, a server at home.
 You can enter your keys in the dashboard (Connections) instead of setting them here. They're locked for this engine; a key entered there wins over the same variable here. The engine prints its key fingerprint at startup: check it matches Connections.
 
 **Messages never leave it.** Contacts, conversations and message text are kept in a local SQLite file, encrypted
-with a key that sits next to it. Your AI keys and account logins stay here too (keys you enter in the dashboard are stored there locked, so only this engine can open them). The OpenBots dashboard and its Convex
+with a key that sits next to it. Your AI keys and account logins stay here too (keys you enter in the dashboard are stored in Convex, locked for this engine). The OpenBots dashboard and its Convex
 backend only ever see your settings (agents, models, knowledge, numbers), anonymous daily counts, and what the engine
 reports as set up: which services, which models your keys can use, and which addresses it texts from.
 

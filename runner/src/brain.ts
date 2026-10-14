@@ -5,7 +5,7 @@ import { demoReply } from './demo'
 
 export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxTokens: number }
 
-// The env var that unlocks each cloud provider that writes text. Keys live only on the agent.
+// The env var that unlocks each cloud provider that writes text. Keys are set here or entered in the dashboard, where they're locked for this engine.
 export const PROVIDER_KEYS = {
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
@@ -14,7 +14,7 @@ export const PROVIDER_KEYS = {
 } as const satisfies Partial<Record<AiProvider, string>>
 export type CloudProvider = keyof typeof PROVIDER_KEYS
 
-// What the agent was started with (see config.ts)
+// What the engine was started with (see config.ts)
 export type Brains = {
     keys: Partial<Record<CloudProvider, string>>
     // An OpenAI-compatible model server (Ollama, LM Studio, vLLM…), e.g. http://localhost:11434/v1
@@ -23,7 +23,7 @@ export type Brains = {
     demo: boolean
 }
 
-// A failure worth showing the owner as-is ("Add your OpenAI key to your engine …")
+// A failure worth showing the owner as-is ("Add your OpenAI key in Connections or on your engine …")
 export class ReplyError extends Error {}
 
 // Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
@@ -78,12 +78,12 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
     const demo = () => demoReply(p.turns.at(-1)?.content ?? '')
     if (option.provider === 'none') {
         if (brains.demo) return demo()
-        throw new ReplyError('Add an AI key to your engine, then pick a model on the Models page')
+        throw new ReplyError('Add an AI key in Connections or on your engine, then pick a model on the Models page')
     }
     if (!option.api) throw new ReplyError(`${option.label} can't write replies`)
     let text: string
     if (option.provider === 'local') {
-        if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL on your engine so ${option.label} can reply`)
+        if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL in Connections or on your engine so ${option.label} can reply`)
         text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, option.api, brains.local.key ?? 'local', p)
     } else {
         if (!(option.provider in PROVIDER_KEYS)) throw new ReplyError(`${option.label} can't write replies`)
@@ -91,7 +91,7 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
         const key = brains.keys[provider]
         if (!key) {
             if (brains.demo) return demo()
-            throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key to your engine so ${option.label} can reply`)
+            throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key in Connections or on your engine so ${option.label} can reply`)
         }
         if (provider === 'anthropic') text = await anthropic(option.api, key, p)
         else if (provider === 'openai') text = await chatCompletions('https://api.openai.com/v1/chat/completions', option.api, key, p)

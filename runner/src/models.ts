@@ -2,8 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { KeyModel } from '../../convex/lib/models'
 import type { Brains, CloudProvider } from './brain'
 
-// Asks each AI provider which models this agent's key can use, so the dashboard offers exactly those. Only model
-// ids and names leave the agent; the keys never do.
+// Asks each AI provider which models this engine's key can use, so the dashboard offers exactly those. Only model
+// ids and names leave the engine; the keys never do.
 
 const CAP = 80
 
@@ -78,7 +78,7 @@ export async function listModels(provider: CloudProvider | 'local', key: string,
     }
 }
 
-// Every AI key the agent has, checked: the models each can use, or why it couldn't be checked
+// Every AI key the engine has, checked: the models each can use, or why it couldn't be checked
 export async function checkKeys(brains: Brains): Promise<{ models: KeyModel[]; results: { provider: CloudProvider | 'local'; error?: string; count: number }[] }> {
     const jobs: [CloudProvider | 'local', string][] = Object.entries(brains.keys).map(([p, k]) => [p as CloudProvider, k!])
     if (brains.local) jobs.push(['local', brains.local.key ?? 'local'])

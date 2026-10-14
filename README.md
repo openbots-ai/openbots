@@ -37,7 +37,8 @@ so the path never changes. Its data lives in [Convex](https://convex.dev) (`conv
 
 People sign up with an email and password and get a private workspace. They run their own **engine** and bring
 their own accounts, so hosting OpenBots costs only Convex and Vercel, and nobody hosting it can read their
-messages: conversations, contacts, AI keys and account logins stay on the engine. See [SECURITY.md](SECURITY.md).
+messages: conversations and contacts stay on the engine. Keys and account logins either stay on it
+(environment variables) or are stored in Convex locked so only the engine can read them (entered in Connections). See [SECURITY.md](SECURITY.md).
 
 ```sh
 npx convex dev          # first run logs in, creates the deployment and writes .env.local

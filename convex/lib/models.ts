@@ -1,9 +1,9 @@
 // Every part of an agent ("slot") can run on a different model. This is the single list of slots and the
-// models offered for each, shared by the backend (to validate choices), the agent and the UI.
-// Brain and Backup offer the models your own AI keys can use, as your agent reports them; a choice is stored as
+// models offered for each, shared by the backend (to validate choices), the engine and the UI.
+// Brain and Backup offer the models your own AI keys can use, as your engine reports them; a choice is stored as
 // "provider:model", e.g. "openai:gpt-5.1". The fixed lists below are what the landing page shows.
 
-// 'local' is any OpenAI-compatible server the agent can reach (Ollama, LM Studio, vLLM…), so nothing leaves your machines
+// 'local' is any OpenAI-compatible server the engine can reach (Ollama, LM Studio, vLLM…), so nothing leaves your machines
 export type Provider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'elevenlabs' | 'deepgram' | 'cartesia' | 'typesafe' | 'none'
 
 // `api` is the provider's own model name, for the slots that call a provider (Brain and Backup today)
@@ -128,13 +128,13 @@ export const slotOf = (id: string) => SLOTS.find((s) => s.id === id)
 // The slots agents use today; the dashboard only offers these, so nothing it shows is just for show
 export const LIVE_SLOTS = SLOTS.filter((s) => s.runs)
 
-// The providers that write replies, in the order the pickers group them. 'local' is the agent's own model server.
+// The providers that write replies, in the order the pickers group them. 'local' is the engine's own model server.
 export const AI_PROVIDERS = ['openai', 'anthropic', 'google', 'xai', 'local'] as const
 export type AiProvider = (typeof AI_PROVIDERS)[number]
 export const PROVIDER_NAMES: Record<AiProvider, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', xai: 'xAI', local: 'local model' }
 const isAiProvider = (p: string): p is AiProvider => (AI_PROVIDERS as readonly string[]).includes(p)
 
-// A model a key can use, as the agent reports it (see convex/runner.ts)
+// A model a key can use, as the engine reports it (see convex/runner.ts)
 export type KeyModel = { provider: string; id: string; label: string }
 
 const NO_KEY: ModelOption = { id: NONE, label: 'Connect an AI key', provider: 'none' }
