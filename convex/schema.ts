@@ -113,11 +113,14 @@ export default defineSchema({
         name: v.string(),
         ownerName: v.string(),
         ...workspaceSettings,
+        // The computer agents do computer use on unless they pick their own (Models page); set by workspace.setComputer
+        computerId: v.optional(v.id('runners')),
         // Left over from before agents ran on your own machine; migrations:purgeLegacy clears these
         notifyDigest: v.optional(v.boolean()),
         lastDigestDay: v.optional(v.string()),
     }).index('by_user', ['userId']),
-    agents: defineTable({ ...ws, ...agentFields, updatedAt: v.number() }).index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt']),
+    // `computerId` overrides the workspace's computer for this agent; set by agents.setComputer, not the edit form
+    agents: defineTable({ ...ws, ...agentFields, computerId: v.optional(v.id('runners')), updatedAt: v.number() }).index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt']),
     numbers: defineTable({
         ...ws,
         handle: v.string(),

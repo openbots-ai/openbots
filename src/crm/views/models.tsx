@@ -1,5 +1,7 @@
 import { useMutation, useQuery } from 'convex/react'
+import { Monitor } from 'lucide-react'
 import { api } from '@convex/_generated/api'
+import { resolveComputer } from '@convex/lib/computers'
 import { LIVE_SLOTS as SLOTS, resolveModels, type Provider } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +11,7 @@ import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
 import { useNav } from '../nav'
 import { useKeyModels, withKeyOptions } from '../lib/key-models'
+import { ComputerSelect } from '../computer-select'
 import { SlotSelect } from '../slot-select'
 import { useRun } from '../use-run'
 import { AgentAvatar, Content, Scroll, Toolbar } from '../ui'
@@ -32,6 +35,8 @@ export function ModelsView() {
     const workspace = useQuery(api.workspace.get)
     const agents = useQuery(api.agents.list)
     const setModel = useMutation(api.workspace.setModel)
+    const setComputer = useMutation(api.workspace.setComputer)
+    const computers = useQuery(api.runners.list)
 
     // What your agents' keys can use; each choice here is one of these
     const available = useKeyModels()
@@ -124,6 +129,25 @@ export function ModelsView() {
                                 </Card>
                             )
                         })}
+                        <Card className="flex flex-col gap-3 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-neutral-100 text-neutral-700">
+                                    <Monitor className="size-4" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[14px] font-semibold">Computer</p>
+                                    <p className="mt-0.5 text-[12px] leading-snug text-neutral-500">Where agents do computer use: your own computer, or a cloud computer on Orgo.</p>
+                                </div>
+                            </div>
+                            <ComputerSelect
+                                computers={computers ?? []}
+                                value={resolveComputer(computers ?? [], workspace?.computerId).computer?._id}
+                                onChange={(computerId) => run(setComputer({ computerId }))}
+                            />
+                            <p className="mt-auto text-[11px] text-neutral-500">
+                                {agents ? `${agents.filter((a) => !a.computerId).length} of ${agents.length} agents use this` : '…'}
+                            </p>
+                        </Card>
                     </div>
 
                     <Card className="rounded-lg">

@@ -67,6 +67,16 @@ export const setModel = mutation({
     },
 })
 
+// Sets the computer agents use for computer use (Models page). Without one, they use the account's only computer.
+export const setComputer = mutation({
+    args: { computerId: v.optional(v.id('runners')) },
+    handler: async (ctx, { computerId }) => {
+        const ws = await requireWorkspace(ctx)
+        if (computerId) await owned(ctx, ws, 'runners', computerId)
+        await ctx.db.patch('workspace', ws._id, { computerId })
+    },
+})
+
 // Your configuration and counts, for the Settings → Export button. Conversations and contacts live on your engine.
 export const exportAll = query({
     args: {},
