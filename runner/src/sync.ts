@@ -16,6 +16,7 @@ export type Status = {
     lines: Line[]
     demo: boolean
     tunnelUrl?: string
+    jobs?: { agentId: Id<'agents'>; reminders: number; watches: number }[]
     os?: 'windows' | 'mac' | 'linux' | 'other'
 }
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }

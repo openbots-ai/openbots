@@ -121,6 +121,12 @@ describe('models from your keys', () => {
         await save('openai:gpt-4o-mini', 'Pip 2')
     })
 
+    it('keeps the engine’s reminder and watch counts per agent', async () => {
+        const { base, owner, token, agentId } = await setup()
+        await base.mutation(api.runner.heartbeat, { token, version: '0.2.0', services: [], models: [], channels: [], lines: [], demo: false, jobs: [{ agentId, reminders: 2, watches: 1 }] })
+        expect((await owner.query(api.runners.list, {}))[0].jobs).toEqual([{ agentId, reminders: 2, watches: 1 }])
+    })
+
     it('defaults Brain to a well-known model and Backup to another provider', () => {
         const available = keyModels([...OPENAI, { provider: 'anthropic', id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' }])
         const r = resolveModels(undefined, undefined, undefined, available)

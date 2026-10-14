@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
+import type { Id } from '../../convex/_generated/dataModel'
 import type { SealedService } from '../../convex/lib/sealed'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { startTunnel } from './tunnel'
@@ -9,6 +10,7 @@ import { Pipeline } from './pipeline'
 import { check, ConnectError, sendEmail, sendText, type Credentials } from './providers'
 import { Server } from './server'
 import { buildServices, type Services } from './services'
+import { Scheduler } from './scheduler'
 import { Store } from './store'
 import { ConvexLink, type Status, type Task, type TaskResult } from './sync'
 import type { Channel } from './transports/types'
@@ -47,6 +49,23 @@ async function main() {
     let keyProblems: { service: EngineService; error: string }[] = []
     let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, os: osName() }
     const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
+
+    // Runs reminders, watches and check-ins when they're due
+    const scheduler = new Scheduler({
+        store,
+        now: Date.now,
+        fire: (job) => pipeline.fireJob(job),
+        // A send that fails is logged without the message
+        tellOwner: async (job, body) => {
+            try {
+                await services.transports[job.channel]?.send({ from: job.number, to: job.to, body })
+            } catch (e) {
+                console.error(`Couldn't tell you about a job: ${message(e)}`)
+            }
+        },
+        checkIns: (now) => pipeline.fireCheckIns(now),
+        log: (line) => console.log(line),
+    })
 
     // New AI keys and email take effect straight away, without touching the channels
     const takeKeys = (next: Settings) => {
@@ -125,7 +144,7 @@ async function main() {
         for (const s of list) if (!seen.has(s.service) || (s.error && !seen.get(s.service)!.error)) seen.set(s.service, s)
         return [...seen.values()]
     }
-    const beat = () => link.heartbeat({ ...status, services: perService(status.services) }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
+    const beat = () => link.heartbeat({ ...status, services: perService(status.services), jobs: store.jobCounts() as { agentId: Id<'agents'>; reminders: number; watches: number }[] }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
     // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
     const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
     let applied = ''
@@ -155,6 +174,7 @@ async function main() {
                         if (resumed) return
                         resumed = true
                         pipeline.resume()
+                        scheduler.start()
                         resolve()
                     })
         }
@@ -218,6 +238,7 @@ async function main() {
     const shutdown = async () => {
         timers.forEach(clearInterval)
         stopTunnel()
+        scheduler.stop()
         pipeline.stop()
         for (const t of Object.values(services.transports)) await t.stop().catch(() => {})
         await server.stop()
