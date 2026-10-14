@@ -67,7 +67,7 @@ export const setModel = mutation({
     },
 })
 
-// Your configuration and counts, for the Settings → Export button. Conversations and contacts live on your agent.
+// Your configuration and counts, for the Settings → Export button. Conversations and contacts live on your engine.
 export const exportAll = query({
     args: {},
     handler: async (ctx) => {

@@ -19,7 +19,7 @@ export async function requireKeyOffers(ctx: QueryCtx, workspaceId: Id<'workspace
     const available = await workspaceModels(ctx, workspaceId)
     const name = PROVIDER_NAMES[parsed.provider]
     if (!available.some((o) => o.provider === parsed.provider)) {
-        throw new Error(parsed.provider === 'local' ? `Set up a local model server on your agent to use ${modelLabel(model)}` : `Add your ${name} key to your agent to use ${modelLabel(model)}`)
+        throw new Error(parsed.provider === 'local' ? `Set up a local model server on your engine to use ${modelLabel(model)}` : `Add your ${name} key to your engine to use ${modelLabel(model)}`)
     }
     if (!available.some((o) => o.id === `${parsed.provider}:${parsed.model}`)) {
         throw new Error(parsed.provider === 'local' ? `Your local model server doesn't have ${modelLabel(model)}` : `Your ${name} key can't use ${modelLabel(model)}`)

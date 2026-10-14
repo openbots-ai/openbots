@@ -78,7 +78,7 @@ function Ready({ children }: { children: ReactNode }) {
                         <code className="rounded bg-neutral-100 px-1">-- --prod</code> for production). It generates the server's secrets and stores them on the
                         Convex deployment, then this page signs you in.
                     </p>
-                    <p>Your own AI keys and texting accounts aren't set here: they live on your agent, which you add under Connections.</p>
+                    <p>Your own AI keys and texting accounts aren't set here: you add them under Connections, where they're locked so only your engine can read them.</p>
                 </CardContent>
             </Card>
         </div>

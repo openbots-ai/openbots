@@ -12,12 +12,12 @@ const Choice = ({ option, muted }: { option: ModelOption; muted?: boolean }) => 
     </span>
 )
 
-// Shown instead of models when no AI key is set up on your agent
+// Shown instead of models when no AI key is set up
 export function NoKeyNote() {
     const go = useNav()
     return (
         <p className="px-2 py-2 text-[12px] text-neutral-500">
-            No AI key on your agent yet.{' '}
+            No AI key yet.{' '}
             <button type="button" onClick={() => go('connections')} className="cursor-pointer font-medium text-neutral-900 underline-offset-2 hover:underline">
                 Set one up in Connections
             </button>

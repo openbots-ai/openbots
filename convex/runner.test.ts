@@ -108,9 +108,9 @@ describe('models from your keys', () => {
         const agent = (await owner.query(api.agents.get, { id: agentId }))!
         const save = (brain: string, name = agent.name) => owner.mutation(api.agents.update, { id: agentId, ...fields(agent), name, models: { brain } })
 
-        await expect(save('openai:gpt-4o-mini')).rejects.toThrow(/Add your OpenAI key to your agent/)
+        await expect(save('openai:gpt-4o-mini')).rejects.toThrow(/Add your OpenAI key to your engine/)
         await beat()
-        await expect(save('anthropic:claude-sonnet-5-5')).rejects.toThrow(/Add your Anthropic key to your agent/)
+        await expect(save('anthropic:claude-sonnet-5-5')).rejects.toThrow(/Add your Anthropic key to your engine/)
         await expect(save('openai:o9-ultra')).rejects.toThrow(/Your OpenAI key can't use o9-ultra/)
         await save('openai:gpt-4o-mini')
         await expect(owner.mutation(api.workspace.setModel, { slot: 'backup', model: 'openai:o9-ultra' })).rejects.toThrow(/can't use/)

@@ -15,7 +15,7 @@ export const request = mutation({
             .withIndex('by_workspace', (q) => q.eq('workspaceId', ws._id))
             .take(50)
         if (!online.length) throw new Error('Add an agent in Connections first')
-        if (request.kind !== 'recheck' && !online.some((r) => r.services?.some((s) => s.service === 'twilio' && !s.error))) throw new Error('Add your Twilio account to your agent first (see Connections)')
+        if (request.kind !== 'recheck' && !online.some((r) => r.services?.some((s) => s.service === 'twilio' && !s.error))) throw new Error('Add your Twilio account to your engine first (see Connections)')
         return ctx.db.insert('tasks', { workspaceId: ws._id, request, status: 'pending' })
     },
 })

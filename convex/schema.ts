@@ -31,7 +31,7 @@ export const agentFields = {
 export const workspaceSettings = {
     // Workspace-wide model per slot (slot id → "provider:model"); see convex/lib/models.ts
     models: v.optional(v.record(v.string(), v.string())),
-    // Where your agent sends handoff alerts: a text to your own phone, and an email if the agent has Resend set up
+    // Where your engine sends handoff alerts: a text to your own phone, and an email if the agent has Resend set up
     ownerHandle: v.optional(v.string()),
     ownerEmail: v.optional(v.string()),
     timezone: v.optional(v.string()),
@@ -48,7 +48,7 @@ export const workspaceSettings = {
     weeklyBudget: v.optional(v.number()),
 }
 
-// Where a number's texts come from and go out through. All of them run on your agent.
+// Where a number's texts come from and go out through. All of them run on your engine.
 //   mac: Messages on the agent's own Mac · relay: a relay you run · twilio / sendblue / bluebubbles: your accounts
 export const channel = v.union(v.literal('mac'), v.literal('relay'), v.literal('twilio'), v.literal('sendblue'), v.literal('bluebubbles'))
 

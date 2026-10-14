@@ -159,10 +159,10 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 <Row label="Your name" description="Shown in the sidebar." htmlFor="s-owner">
                     <Input id="s-owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} />
                 </Row>
-                <Row label="Your phone" description={!handleOk ? 'Enter a phone number or an Apple ID email.' : 'Your agent texts you here when it needs you. Use your own number, not one of your agents’.'} error={!handleOk} htmlFor="s-handle">
+                <Row label="Your phone" description={!handleOk ? 'Enter a phone number or an Apple ID email.' : 'Your engine texts you here when it needs you. Use your own number, not one of your agents’.'} error={!handleOk} htmlFor="s-handle">
                     <Input id="s-handle" aria-invalid={!handleOk} value={form.ownerHandle} onChange={(e) => set('ownerHandle', e.target.value)} placeholder="+1 415 555 0100" />
                 </Row>
-                <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where your agent also emails you, if it has Resend set up.'} error={!emailOk} htmlFor="s-email">
+                <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where your engine also emails you, if it has Resend set up.'} error={!emailOk} htmlFor="s-email">
                     <Input id="s-email" type="email" aria-invalid={!emailOk} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />
                 </Row>
                 <Row label="Timezone" description="Used for quiet hours." htmlFor="s-tz">
@@ -212,8 +212,8 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 title="Notifications"
                 description={
                     emailing
-                        ? `Your agent texts these to your phone and emails them to ${form.ownerEmail.trim()}. They name the contact but never quote them.`
-                        : 'Your agent texts these to your phone (under General). They name the contact but never quote them. To get them by email too, set up Resend on your agent.'
+                        ? `Your engine texts these to your phone and emails them to ${form.ownerEmail.trim()}. They name the contact but never quote them.`
+                        : 'Your engine texts these to your phone (under General). They name the contact but never quote them. To get them by email too, set up Resend in Connections.'
                 }>
                 <Row label="New contact" description="When someone texts one of your agents for the first time." inline>
                     <Toggle label="New contact notifications" checked={form.notifyNewContact} onChange={(v) => set('notifyNewContact', v)} />
@@ -232,7 +232,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="data" title="Data" description="Conversations and contacts never reach this dashboard; they live on your agent.">
+            <Section id="data" title="Data" description="Conversations and contacts never reach this dashboard; they live on your engine.">
                 <Row label="Export settings" description="Agents, numbers, knowledge, settings and usage counts as JSON.">
                     <ExportButton />
                 </Row>

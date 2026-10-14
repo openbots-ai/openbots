@@ -17,12 +17,12 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
     const steps: { done: boolean; title: string; body: string; action: string; go?: View; onClick?: () => void }[] = [
         {
             done: runners.some((r) => r.lastSeenAt),
-            title: 'Start your agent',
+            title: 'Start your engine',
             body: 'It runs on a machine you choose and keeps your messages there. Add it to get a token.',
-            action: 'Add your agent',
+            action: 'Add your engine',
             go: 'connections',
         },
-        { done: runners.some((r) => r.models?.length), title: 'Give it an AI key', body: 'OpenAI, Anthropic, Gemini, xAI or a local model, set on your agent.', action: 'See how', go: 'connections' },
+        { done: runners.some((r) => r.models?.length), title: 'Give it an AI key', body: 'OpenAI, Anthropic, Gemini, xAI or a local model, entered in Connections or set on your engine.', action: 'See how', go: 'connections' },
         {
             done: agents.some((a) => a.status === 'live'),
             title: 'Create an agent and set it live',

@@ -1,6 +1,6 @@
 import { DASHBOARD_PATH } from './route'
 
-// No conversations or contacts: those live only on your agent, never in the dashboard
+// No conversations or contacts: those live only on your engine, never in the dashboard
 export const VIEWS = ['agents', 'knowledge', 'numbers', 'models', 'analytics', 'connections', 'settings'] as const
 export type View = (typeof VIEWS)[number]
 

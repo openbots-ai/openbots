@@ -60,7 +60,7 @@ export const update = mutation({
     },
 })
 
-// Conversations with this agent stay on your agent's machine; here only its numbers and knowledge are let go
+// Conversations with this agent stay on your engine's machine; here only its numbers and knowledge are let go
 export const remove = mutation({
     args: { id: v.id('agents') },
     handler: async (ctx, { id }) => {
