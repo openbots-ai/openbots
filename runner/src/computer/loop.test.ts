@@ -112,14 +112,21 @@ describe('the computer loop', () => {
         expect(broke).toMatchObject({ outcome: 'failed', summary: 'Today’s usage budget is used up.' })
     })
 
-    it('keeps only the last 3 screenshots in the request', async () => {
+    it('never edits its own history and asks the API to clear old tool uses', async () => {
         const { driver } = fakeDriver()
         const shots = Array.from({ length: 5 }, (_, i) => [call(`s${i}`, 'screenshot')])
         const { create, bodies } = script(...shots)
         await runTask('t', deps({ create, driver }))
-        const last = bodies.at(-1)!
-        const images = JSON.stringify(last.messages).match(/"type":"image"/g) ?? []
-        expect(images).toHaveLength(KEEP_SHOTS)
+        for (const b of bodies) {
+            expect(b.betas).toEqual(['context-management-2025-06-27'])
+            expect(b.context_management.edits[0]).toMatchObject({ type: 'clear_tool_uses_20250919', keep: { type: 'tool_uses', value: KEEP_SHOTS }, exclude_tools: ['ask_owner', 'finish'] })
+            expect(b.output_config).toEqual({ effort: 'medium' })
+            expect(b.max_tokens).toBe(16000)
+        }
+        const images = JSON.stringify(bodies.at(-1)!.messages).match(/"type":"image"/g) ?? []
+        expect(images).toHaveLength(5)
+        for (let i = 0; i + 1 < bodies.length; i++) expect(bodies[i + 1].messages.slice(0, bodies[i].messages.length)).toEqual(bodies[i].messages)
+        expect(bodies[0].tools.at(-1).cache_control).toEqual({ type: 'ephemeral' })
     })
 
     it('answers members it doesn’t do with an error instead of failing the task', async () => {
@@ -134,5 +141,64 @@ describe('the computer loop', () => {
         const create: Create = async () => ({ stop_reason: 'max_tokens', content: [{ type: 'text', text: 'Let me' }] })
         const end = await runTask('t', deps({ create, driver }))
         expect(end).toMatchObject({ outcome: 'failed', summary: 'Claude’s answer was cut off' })
+    })
+
+    it('runs the complete tool calls of a cut-off answer and refuses the last', async () => {
+        const { driver, actions } = fakeDriver()
+        const cutOff: Create = async () => ({ stop_reason: 'max_tokens', content: [call('a', 'type', { text: 'hi' }), call('b', 'type', { text: 'half' })] })
+        const bodies: Record<string, any>[] = [] // eslint-disable-line @typescript-eslint/no-explicit-any
+        let n = 0
+        const create: Create = async (body) => {
+            bodies.push(structuredClone(body))
+            return n++ ? { stop_reason: 'end_turn', content: [own('f', 'finish', { summary: 'ok' })] } : cutOff(body)
+        }
+        await runTask('t', deps({ create, driver }))
+        expect(actions).toEqual(['type hi'])
+        const results = bodies[1].messages.at(-1).content
+        expect(results[1]).toEqual({ type: 'tool_result', tool_use_id: 'b', toolset_name: 'computer', is_error: true, content: 'Not executed: the answer was cut off.' })
+        const lone: Create = async () => ({ stop_reason: 'max_tokens', content: [call('a', 'type', { text: 'half' })] })
+        expect((await runTask('t', deps({ create: lone, driver }))).summary).toBe('Claude’s answer was cut off')
+    })
+
+    it('does not finish or ask after a failed action in the same batch', async () => {
+        const { driver } = fakeDriver('click')
+        const ask = vi.fn(async () => 'YES')
+        const first = script([call('a', 'left_click', { coordinate: [1, 1] }), own('f', 'finish', { summary: 'x' })])
+        const end = await runTask('t', deps({ create: first.create, driver, ask }))
+        expect(end.outcome).toBe('done') // the second round has no tool calls
+        expect(first.bodies[1].messages.at(-1).content[1]).toEqual({ type: 'tool_result', tool_use_id: 'f', is_error: true, content: 'Not executed: an earlier action in this turn failed.' })
+        const second = script([call('a', 'left_click', { coordinate: [1, 1] }), own('q', 'ask_owner', { question: 'ok?' })])
+        await runTask('t', deps({ create: second.create, driver, ask }))
+        expect(ask).not.toHaveBeenCalled()
+    })
+
+    it('rejects bad numbers as errors', async () => {
+        const { driver } = fakeDriver()
+        const { create, bodies } = script([call('a', 'left_click', { coordinate: [null, 1] })])
+        await runTask('t', deps({ create, driver }))
+        expect(bodies[1].messages.at(-1).content[0]).toMatchObject({ is_error: true, content: 'Bad coordinate' })
+        const dir = script([call('a', 'scroll', { scroll_direction: 'sideways' })])
+        await runTask('t', deps({ create: dir.create, driver }))
+        expect(dir.bodies[1].messages.at(-1).content[0]).toMatchObject({ is_error: true })
+    })
+
+    it('does not count the time spent waiting for your answer', async () => {
+        const { driver } = fakeDriver()
+        let t = 0
+        const { create } = script([own('q', 'ask_owner', { question: 'ok?' })], [own('f', 'finish', { summary: 'Done.' })])
+        const end = await runTask('t', deps({ create, driver, now: () => t, ask: async () => ((t += 60 * 60_000), 'YES') }))
+        expect(end.outcome).toBe('done')
+    })
+
+    it('joins a paused turn onto the same assistant message', async () => {
+        const { driver } = fakeDriver()
+        const bodies: Record<string, any>[] = [] // eslint-disable-line @typescript-eslint/no-explicit-any
+        const replies = [
+            { stop_reason: 'pause_turn', content: [{ type: 'text', text: 'hmm' }] },
+            { stop_reason: 'end_turn', content: [own('f', 'finish', { summary: 'ok' })] },
+        ]
+        const create: Create = async (body) => (bodies.push(structuredClone(body)), replies.shift()!)
+        await runTask('t', deps({ create, driver }))
+        expect(bodies[1].messages).toHaveLength(2)
     })
 })
