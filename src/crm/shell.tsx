@@ -35,7 +35,7 @@ export function Shell() {
                     <Sidebar view={view} workspace={workspace} />
                 </div>
                 <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-                    <SheetContent side="left" showCloseButton={false} className="w-60 gap-0 border-0 p-0 md:hidden">
+                    <SheetContent side="left" showCloseButton={false} className="gap-0 border-0 bg-[#f5f5f7] p-0 data-[side=left]:w-60 md:hidden">
                         <SheetTitle className="sr-only">Menu</SheetTitle>
                         <Sidebar view={view} workspace={workspace} onNavigate={() => setMenuOpen(false)} />
                     </SheetContent>
