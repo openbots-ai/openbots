@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { Driver } from './driver'
-import { KEEP_SHOTS, MAX_ACTIONS, runTask, SKIPPED, Stopped, type Block, type Create, type LoopDeps } from './loop'
+import { KEEP_TOOL_USES, MAX_ACTIONS, runTask, SKIPPED, Stopped, type Block, type Create, type LoopDeps } from './loop'
 
 // A screen 2000×1000; screenshots are sent at 1516×758 (fitted)
 function fakeDriver(failOn?: string) {
@@ -119,7 +119,7 @@ describe('the computer loop', () => {
         await runTask('t', deps({ create, driver }))
         for (const b of bodies) {
             expect(b.betas).toEqual(['context-management-2025-06-27'])
-            expect(b.context_management.edits[0]).toMatchObject({ type: 'clear_tool_uses_20250919', keep: { type: 'tool_uses', value: KEEP_SHOTS }, exclude_tools: ['ask_owner', 'finish'] })
+            expect(b.context_management.edits[0]).toMatchObject({ type: 'clear_tool_uses_20250919', keep: { type: 'tool_uses', value: KEEP_TOOL_USES }, exclude_tools: ['ask_owner', 'finish'] })
             expect(b.output_config).toEqual({ effort: 'medium' })
             expect(b.max_tokens).toBe(16000)
         }
