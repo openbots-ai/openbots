@@ -19,8 +19,8 @@ import { useNow } from '../use-now'
 import { useRun } from '../use-run'
 import { Btn, ConfirmDelete, Content, Scroll, Toolbar } from '../ui'
 
-// Your agents, and what they have set up. Keys and account logins are set on the agent itself (environment
-// variables on the machine it runs on), so this page never sees them; it shows what the agents report.
+// Your engines, and what they have set up. Keys and account logins are entered here, locked in the browser so only
+// the engine can read them, or set as environment variables on its machine; this page shows what the engines report.
 
 type Runner = Omit<Doc<'runners'>, 'tokenHash'>
 type Service = NonNullable<Doc<'runners'>['services']>[number]['service']
@@ -30,7 +30,7 @@ type Info = {
     name: string
     // One line on what it does
     blurb: string
-    // The environment variables to set on the agent
+    // The environment variables to set on the engine
     env: string[]
     getUrl?: string
     getLabel?: string
@@ -43,7 +43,7 @@ type Info = {
 
 const AI = ['openai', 'anthropic', 'google', 'xai', 'local'] as const
 type Ai = (typeof AI)[number]
-// Texting cards: the accounts, plus Messages on the agent's Mac and a relay, which aren't accounts
+// Texting cards: the accounts, plus Messages on the engine's Mac and a relay, which aren't accounts
 type Texting = 'mac' | 'bluebubbles' | 'sendblue' | 'twilio' | 'relay'
 const TEXTING: Texting[] = ['mac', 'bluebubbles', 'sendblue', 'twilio', 'relay']
 
@@ -90,30 +90,30 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['OPENBOTS_LOCAL_URL'],
         getUrl: 'https://ollama.com/download',
         getLabel: 'Get Ollama',
-        steps: ['Run a model server the agent can reach, e.g. Ollama.', 'Enter its URL here (for Ollama, http://localhost:11434/v1), or set it on your engine.'],
+        steps: ['Run a model server the engine can reach, e.g. Ollama.', 'Enter its URL here (for Ollama, http://localhost:11434/v1), or set it on your engine.'],
         icon: HardDrive,
         next: { label: 'Pick models', view: 'models' },
         badge: 'Private',
     },
     mac: {
         name: 'Messages on a Mac',
-        blurb: 'iMessage straight from the Mac your agent runs on, signed in to Messages. One-to-one chats.',
+        blurb: 'iMessage straight from the Mac your engine runs on, signed in to Messages. One-to-one chats.',
         env: ['OPENBOTS_MAC=true'],
-        steps: ['Run the agent on a Mac that stays on and is signed in to Messages.', 'Give the app running it Full Disk Access, and let it control Messages when asked.', 'On by default on a Mac with no other texting set up.'],
+        steps: ['Run the engine on a Mac that stays on and is signed in to Messages.', 'Give the app running it Full Disk Access, and let it control Messages when asked.', 'On by default on a Mac with no other texting set up.'],
         icon: Laptop,
         next: { label: 'Add your iMessage address', view: 'numbers' },
         badge: 'iMessage',
     },
     bluebubbles: {
         name: 'BlueBubbles',
-        blurb: 'iMessage from your own Mac, free, with group chats. The agent can run elsewhere.',
+        blurb: 'iMessage from your own Mac, free, with group chats. The engine can run elsewhere.',
         env: ['BLUEBUBBLES_URL', 'BLUEBUBBLES_PASSWORD', 'OPENBOTS_PUBLIC_URL'],
         getUrl: 'https://bluebubbles.app/install',
         getLabel: 'Install BlueBubbles Server',
         steps: [
             'On a Mac that stays on and is signed in to Messages, install BlueBubbles Server and set a password.',
             'Enter its URL and password here (or set them on your engine), plus this engine’s public URL above.',
-            'The agent registers its webhook on your Mac when it starts.',
+            'The engine registers its webhook on your Mac when it starts.',
         ],
         icon: MessageCircle,
         next: { label: 'Add your iMessage address', view: 'numbers' },
@@ -125,7 +125,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         env: ['SENDBLUE_API_KEY_ID', 'SENDBLUE_API_SECRET', 'OPENBOTS_PUBLIC_URL'],
         getUrl: 'https://dashboard.sendblue.com',
         getLabel: 'Open Sendblue',
-        steps: ['Create a Sendblue account and get a line.', 'Enter the API key ID and secret here (or set them on your engine), plus this engine’s public URL above.', 'The agent registers its webhook with Sendblue when it starts.'],
+        steps: ['Create a Sendblue account and get a line.', 'Enter the API key ID and secret here (or set them on your engine), plus this engine’s public URL above.', 'The engine registers its webhook with Sendblue when it starts.'],
         icon: MessageSquareText,
         next: { label: 'Add your Sendblue line', view: 'numbers' },
         badge: 'iMessage',
@@ -147,15 +147,15 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
     },
     relay: {
         name: 'Your own relay',
-        blurb: 'Anything that can post texts to the agent and send its replies. See runner/README.md for the protocol.',
+        blurb: 'Anything that can post texts to the engine and send its replies. See runner/README.md for the protocol.',
         env: ['OPENBOTS_INBOUND_SECRET', 'OPENBOTS_RELAY_URL'],
-        steps: ['Run a relay that posts each text to the agent’s /inbound and sends the replies it posts back.', 'Set the shared secret and the relay’s URL on your agent.'],
+        steps: ['Run a relay that posts each text to the engine’s /inbound and sends the replies it posts back.', 'Set the shared secret and the relay’s URL on your engine.'],
         icon: Waypoints,
         next: { label: 'Add its number', view: 'numbers' },
     },
     resend: {
         name: 'Resend',
-        blurb: 'Your agent also emails you handoffs and new contacts at the email in Settings, without quoting anyone.',
+        blurb: 'Your engine also emails you handoffs and new contacts at the email in Settings, without quoting anyone.',
         env: ['RESEND_API_KEY', 'RESEND_FROM'],
         getUrl: 'https://resend.com/api-keys',
         getLabel: 'Get a Resend key',
@@ -165,7 +165,7 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
     },
 }
 
-// What the agents report for one card: set up (with a label), or set up but failing, or not set up
+// What the engines report for one card: set up (with a label), or set up but failing, or not set up
 function statusOf(runners: Runner[], id: Ai | Texting | 'resend') {
     if (id === 'mac' || id === 'relay') return runners.some((r) => r.channels?.includes(id as Channel)) ? { ok: true as const, label: `On ${runners.filter((r) => r.channels?.includes(id as Channel)).map((r) => r.name).join(', ')}` } : null
     const entries = runners.flatMap((r) => (r.services ?? []).filter((s) => s.service === (id as Service)).map((s) => ({ ...s, runner: r.name })))
@@ -200,12 +200,12 @@ export function ConnectionsView() {
                     {runners && runners.length > 0 && !hasAi && (
                         <Card className="flex flex-row items-start gap-3 rounded-lg border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                            <span>Your agents can’t reply until your agent has at least one AI key or a local model server. You pay the provider directly for what your agents use.</span>
+                            <span>Your agents can’t reply until your engine has at least one AI key or a local model server. You pay the provider directly for what your agents use.</span>
                         </Card>
                     )}
-                    {section('AI models', 'Agents write their replies with these. Your agent checks which models each key can use; pick them on the Models page.', [...AI], 'sm:grid-cols-2 xl:grid-cols-3')}
-                    {section('Texting', 'Where your agents send and receive messages. Set one up on your agent, then add its number in Numbers.', TEXTING, 'sm:grid-cols-2 xl:grid-cols-3')}
-                    {section('Email', 'Optional. Your agent always texts you handoffs; this also emails them.', ['resend'], 'sm:grid-cols-2 xl:grid-cols-3')}
+                    {section('AI models', 'Agents write their replies with these. Your engine checks which models each key can use; pick them on the Models page.', [...AI], 'sm:grid-cols-2 xl:grid-cols-3')}
+                    {section('Texting', 'Where your agents send and receive messages. Set one up in the cards below, then add its number in Numbers.', TEXTING, 'sm:grid-cols-2 xl:grid-cols-3')}
+                    {section('Email', 'Optional. Your engine always texts you handoffs; this also emails them.', ['resend'], 'sm:grid-cols-2 xl:grid-cols-3')}
                 </div>
             </Scroll>
         </Content>
@@ -296,7 +296,7 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
     )
 }
 
-// Asks the agents to check their keys again now, and spins until one has
+// Asks the engines to check their keys again now, and spins until one has
 function Recheck() {
     const run = useRun()
     const request = useMutation(api.tasks.request)
@@ -319,11 +319,11 @@ function Recheck() {
     )
 }
 
-// The agent checks in every minute; a few missed beats and it shows as offline
+// The engine checks in every minute; a few missed beats and it shows as offline
 const ONLINE_MS = 3 * 60_000
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
 
-// The agents you run, with tokens made here in the browser (Convex only ever gets a hash)
+// The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
 // Matches the fingerprint the engine prints when it starts
 function Fingerprint({ publicKey }: { publicKey: string }) {
     const [print, setPrint] = useState('')
@@ -432,7 +432,7 @@ function Engines({ runners }: { runners?: Runner[] }) {
     )
 }
 
-// Shown once after adding an agent: the token and how to start it. Versions are pinned so an agent only changes
+// Shown once after adding an engine: the token and how to start it. Versions are pinned so an engine only changes
 // when you choose to upgrade it.
 function Setup({ token, onDone }: { token: string; onDone: () => void }) {
     const mac = `OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\nOPENBOTS_TOKEN=${token} \\\nnpx openbots-runner@${runner.version}`

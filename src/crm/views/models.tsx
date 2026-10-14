@@ -55,7 +55,7 @@ export function ModelsView() {
                         <div className="max-w-xl">
                             <h2 className="text-[17px] font-semibold tracking-tight">Pick the models behind your agents</h2>
                             <p className="mt-1 text-[13px] text-neutral-500">
-                                Pick the model that writes your agents’ replies, and a backup from another provider that takes over if the first one fails. You can pick any model your agent’s keys can use.
+                                Pick the model that writes your agents’ replies, and a backup from another provider that takes over if the first one fails. You can pick any model your engine’s keys can use.
                             </p>
                             <p className="mt-2 text-[12px] text-neutral-600">
                                 {!available ? (

@@ -23,7 +23,7 @@ export type Brains = {
     demo: boolean
 }
 
-// A failure worth showing the owner as-is ("Add your OpenAI key to your agent …")
+// A failure worth showing the owner as-is ("Add your OpenAI key to your engine …")
 export class ReplyError extends Error {}
 
 // Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
@@ -78,12 +78,12 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
     const demo = () => demoReply(p.turns.at(-1)?.content ?? '')
     if (option.provider === 'none') {
         if (brains.demo) return demo()
-        throw new ReplyError('Add an AI key to your agent, then pick a model on the Models page')
+        throw new ReplyError('Add an AI key to your engine, then pick a model on the Models page')
     }
     if (!option.api) throw new ReplyError(`${option.label} can't write replies`)
     let text: string
     if (option.provider === 'local') {
-        if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL on your agent so ${option.label} can reply`)
+        if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL on your engine so ${option.label} can reply`)
         text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, option.api, brains.local.key ?? 'local', p)
     } else {
         if (!(option.provider in PROVIDER_KEYS)) throw new ReplyError(`${option.label} can't write replies`)
@@ -91,7 +91,7 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
         const key = brains.keys[provider]
         if (!key) {
             if (brains.demo) return demo()
-            throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key to your agent so ${option.label} can reply`)
+            throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key to your engine so ${option.label} can reply`)
         }
         if (provider === 'anthropic') text = await anthropic(option.api, key, p)
         else if (provider === 'openai') text = await chatCompletions('https://api.openai.com/v1/chat/completions', option.api, key, p)

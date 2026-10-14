@@ -1,11 +1,13 @@
-# OpenBots agent
+# OpenBots engine
 
-The agent answers the texts your OpenBots agents receive, using the models you choose. You run it on a machine you
+The engine answers the texts your OpenBots agents receive, using the models you choose. You run it on a machine you
 control: the Mac signed in to iMessage, a VM, a server at home.
 
+You can enter your keys in the dashboard (Connections) instead of setting them here. They're locked for this engine; a key entered there wins over the same variable here. The engine prints its key fingerprint at startup: check it matches Connections.
+
 **Messages never leave it.** Contacts, conversations and message text are kept in a local SQLite file, encrypted
-with a key that sits next to it. Your AI keys and account logins stay here too. The OpenBots dashboard and its Convex
-backend only ever see your settings (agents, models, knowledge, numbers), anonymous daily counts, and what the agent
+with a key that sits next to it. Your AI keys and account logins stay here too (keys you enter in the dashboard are stored there locked, so only this engine can open them). The OpenBots dashboard and its Convex
+backend only ever see your settings (agents, models, knowledge, numbers), anonymous daily counts, and what the engine
 reports as set up: which services, which models your keys can use, and which addresses it texts from.
 
 The one exception is the model you pick: a cloud model (OpenAI, Anthropic, Google, xAI) receives each conversation
@@ -13,9 +15,9 @@ so it can write the reply. Use a local model server if nothing should leave your
 
 ## Start it
 
-1. In the dashboard, open **Connections**, name the machine and click **Add agent**. Copy the token. It's shown
+1. In the dashboard, open **Connections**, name the machine and click **Add engine**. Copy the token. It's shown
    once and never stored, because Convex keeps only its hash.
-2. Run the agent with that token, your AI key(s) and at least one way to text (see Settings below).
+2. Run the engine with that token, your AI key(s) and at least one way to text (see Settings below).
 
 ```sh
 OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud \
@@ -42,12 +44,12 @@ docker run -d --name openbots -v openbots:/data -p 8787:8787 \
   ghcr.io/shidhartha-sen/openbots-runner:0.2.0
 ```
 
-Twilio and Sendblue post incoming texts to the agent, so it needs a public HTTPS URL: a tunnel such as Cloudflare
-Tunnel or Tailscale Funnel to port 8787 is enough. BlueBubbles only needs the Mac to reach the agent, so a private
+Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL: a tunnel such as Cloudflare
+Tunnel or Tailscale Funnel to port 8787 is enough. BlueBubbles only needs the Mac to reach the engine, so a private
 network address works. Every webhook path carries a random secret, and Twilio's requests are checked against its
 signature.
 
-On start, and every six hours, the agent checks each key and account with its provider and reports what it found.
+On start, and every six hours, the engine checks each key and account with its provider and reports what it found.
 Use **Re-check** in Connections after you get access to a new model.
 
 ## Settings
@@ -57,31 +59,31 @@ Use **Re-check** in Connections after you get access to a new model.
 | `OPENBOTS_CONVEX_URL` | Your Convex deployment URL (the dashboard's `VITE_CONVEX_URL`). Required. |
 | `OPENBOTS_TOKEN` | The token from Connections. Required. |
 | `OPENBOTS_DATA_DIR` | Where history and its key live. Default `~/.openbots`; `/data` in Docker. |
-| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` | Your AI keys. The agent lists the chat models each can use, and the dashboard offers exactly those. |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` | Your AI keys. The engine lists the chat models each can use, and the dashboard offers exactly those. |
 | `OPENBOTS_LOCAL_URL` | A local, OpenAI-compatible model server, e.g. `http://localhost:11434/v1` for Ollama. Its models are listed too. `OPENBOTS_LOCAL_KEY` if it needs one. |
 | `OPENBOTS_MAC` | `true` to text through Messages on this Mac. On by default on macOS when no other texting is set up. |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the agent does it. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the engine does it. |
 | `SENDBLUE_API_KEY_ID`, `SENDBLUE_API_SECRET` | iMessage through your Sendblue line. |
 | `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD` | iMessage through BlueBubbles Server on your Mac, with group chats. |
-| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the agent's web server. Required with any of them. |
-| `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the agent's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
+| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Required with any of them. |
+| `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
 | `OPENBOTS_INBOUND_SECRET`, `OPENBOTS_RELAY_URL`, `OPENBOTS_RELAY_SECRET` | Your own relay (protocol below). |
 | `RESEND_API_KEY`, `RESEND_FROM` | Also email you handoff alerts, at the email in Settings. |
 | `OPENBOTS_DEMO` | `true` answers with sample replies when no AI key is set up. |
 
 ### Relay protocol
 
-- **In:** `POST http://<agent>:8787/inbound` with `Authorization: Bearer $OPENBOTS_INBOUND_SECRET` and
+- **In:** `POST http://<engine>:8787/inbound` with `Authorization: Bearer $OPENBOTS_INBOUND_SECRET` and
   `{ "to": "<your number>", "from": "<their handle>", "body": "<text>", "name": "<optional>" }`. Answers `{ ok, markRead }`.
-- **Out:** the agent POSTs `{ "type": "message", from, to, body }` to `OPENBOTS_RELAY_URL` (with
+- **Out:** the engine POSTs `{ "type": "message", from, to, body }` to `OPENBOTS_RELAY_URL` (with
   `Authorization: Bearer $OPENBOTS_RELAY_SECRET` if set), and `{ "type": "typing", from, to }` just before a reply.
 
 ## Handoffs
 
 When an agent can't or shouldn't answer (it asked for you, its model failed, the budget ran out, it's paused), the
-agent texts **your phone** (Settings → General) from the agent's number, for example "Dana needs you (Pip)", and
+engine texts **your phone** (Settings → General) from the engine's number, for example "Dana needs you (Pip)", and
 emails you too if Resend is set up. The alert names the contact (or the group) but never quotes them. Answer them
-yourself; the agent stays out of that chat for 24 hours. In a group chat it only answers when someone uses its name.
+yourself; the engine stays out of that chat for 24 hours. In a group chat it only answers when someone uses its name.
 
 ## Back up your history
 
@@ -92,7 +94,7 @@ Messages history unencrypted on disk.
 
 ## Updating, and checking what you run
 
-The agent never updates itself. Change the pinned version (`openbots-runner@x.y.z`, or the image tag) when you
+The engine never updates itself. Change the pinned version (`openbots-runner@x.y.z`, or the image tag) when you
 decide to. Releases are built and published by GitHub Actions from this repository, never from a laptop:
 
 ```sh

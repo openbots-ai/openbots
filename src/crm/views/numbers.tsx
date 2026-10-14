@@ -56,8 +56,8 @@ export function NumbersView() {
                         title="No numbers yet"
                         body={
                             texting.length
-                                ? 'Add a number your agent texts from, then point it at an agent. People text that number to reach the agent.'
-                                : 'First set up texting on your agent (Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS); see Connections.'
+                                ? 'Add a number your engine texts from, then point it at an agent. People text that number to reach the agent.'
+                                : 'First set up texting in Connections (Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS).'
                         }
                         action={runners && add}
                     />
@@ -167,7 +167,7 @@ function LineForm({ channel, suggested, agentId, onDone }: { channel: Channel; s
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; error: string }
 
-// Queues a request for your agent (only it has your Twilio login) and waits for its answer
+// Queues a request for your engine (only it has your Twilio login) and waits for its answer
 function useAgentTask() {
     const convex = useConvex()
     return async (request: Infer<typeof taskRequest>): Promise<Outcome<NonNullable<Doc<'tasks'>['result']>>> => {
@@ -182,10 +182,10 @@ function useAgentTask() {
             const check = () => {
                 const t = watch.localQueryResult()
                 if (t?.status === 'done' && t.result) finish({ ok: true, value: t.result })
-                if (t?.status === 'failed') finish({ ok: false, error: t.error ?? 'Your agent couldn’t do that' })
+                if (t?.status === 'failed') finish({ ok: false, error: t.error ?? 'Your engine couldn’t do that' })
             }
             const unsubscribe = watch.onUpdate(check)
-            const timer = setTimeout(() => finish({ ok: false, error: 'Your agent didn’t answer. Is it running? (See Connections.)' }), 60_000)
+            const timer = setTimeout(() => finish({ ok: false, error: 'Your engine didn’t answer. Is it running? (See Connections.)' }), 60_000)
             check()
         })
     }
@@ -200,7 +200,7 @@ const COUNTRIES = [
 
 type Found = { sid?: string; phoneNumber: string; friendlyName: string; locality?: string; region?: string }
 
-// Twilio: search numbers for sale (bought on your Twilio account) or reuse one you already own. Your agent does the
+// Twilio: search numbers for sale (bought on your Twilio account) or reuse one you already own. Your engine does the
 // talking to Twilio; the dashboard only sees the numbers.
 function TwilioNumbers({ agentId, onDone }: { agentId?: Id<'agents'>; onDone: () => void }) {
     const run = useRun()
@@ -299,7 +299,7 @@ function TwilioNumbers({ agentId, onDone }: { agentId?: Id<'agents'>; onDone: ()
                 </ul>
             )}
             <p className="text-[11px] leading-snug text-neutral-400">
-                {mode === 'buy' ? 'Numbers are bought on your Twilio account and Twilio bills you for them. ' : ''}Your agent points the number’s incoming texts at itself.
+                {mode === 'buy' ? 'Numbers are bought on your Twilio account and Twilio bills you for them. ' : ''}Your engine points the number’s incoming texts at itself.
             </p>
         </div>
     )

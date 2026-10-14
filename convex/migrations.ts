@@ -2,7 +2,7 @@ import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { internalMutation } from './_generated/server'
 
-// Tables from before messages, contacts and credentials moved onto your agent. They're no longer in the schema,
+// Tables from before messages, contacts and credentials moved onto your engine. They're no longer in the schema,
 // so they're named loosely.
 const LEGACY = ['messages', 'conversations', 'contacts', 'notifications', 'connections'] as const
 type Loose = { query: (t: string) => { take: (n: number) => Promise<{ _id: string }[]> }; delete: (id: string) => Promise<void> }

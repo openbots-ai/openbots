@@ -91,7 +91,7 @@ export function AnalyticsView() {
     const rows = useQuery(api.usage.summary, { today }) as Row[] | undefined
     const agents = useQuery(api.agents.list)
     const workspace = useQuery(api.workspace.get)
-    // Daily totals your agents report; the conversations themselves stay on your agent
+    // Daily totals your agents report; the conversations themselves stay on your engine
     const activity = useQuery(api.usage.activity, { since: addDays(today, -29) })
     const all = rows ?? []
 

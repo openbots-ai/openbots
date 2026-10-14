@@ -1,5 +1,5 @@
 // Everything that talks to your texting and email accounts: checking credentials, sending texts and email, and
-// Twilio number management. Runs only on your agent, with credentials from its environment (see config.ts).
+// Twilio number management. Runs only on your engine, with credentials from its environment (see config.ts).
 
 export type Credentials = {
     twilio: { accountSid: string; authToken: string }
@@ -78,7 +78,7 @@ export async function check<P extends keyof Credentials>(provider: P, creds: Cre
     throw new ConnectError('Unknown provider')
 }
 
-// Points the account's incoming messages at your agent's webhook, unless it already is. Twilio is set per number
+// Points the account's incoming messages at your engine's webhook, unless it already is. Twilio is set per number
 // when a number is added.
 export async function registerWebhook(provider: keyof Credentials, creds: Credentials[keyof Credentials], url: string) {
     if (provider === 'sendblue') {
