@@ -226,6 +226,9 @@ export class PowerShell {
     private next = 1
     private chain: Promise<unknown> = Promise.resolve()
 
+    // How many helpers this has started, for their script file names
+    private helpers = 0
+
     constructor(
         private spawnFn: SpawnFn = realSpawn,
         private timeoutMs = COMMAND_TIMEOUT_MS,
@@ -248,7 +251,8 @@ export class PowerShell {
     }
 
     private start(): Session {
-        const file = join(tmpdir(), `openbots-computer-${process.pid}.ps1`)
+        // Each helper gets its own script file, so an old one can't delete a new one's
+        const file = join(tmpdir(), `openbots-computer-${process.pid}-${++this.helpers}.ps1`)
         writeFileSync(file, HELPER_SCRIPT)
         const child = this.spawnFn(file)
         let resolveReady!: () => void
@@ -286,6 +290,7 @@ export class PowerShell {
         lines.on('line', (raw) => {
             const line = raw.trimEnd()
             if (line === '@@OB ready') {
+                if (s.over) return
                 cleanup()
                 return resolveReady()
             }
@@ -305,6 +310,8 @@ export class PowerShell {
         const result = this.chain.then(async () => {
             const s = this.session ?? this.start()
             await s.ready
+            // The helper may have ended between starting and this command
+            if (s.over) throw new Error('PowerShell closed')
             const id = this.next++
             return new Promise<string>((resolve, reject) => {
                 // A helper that stops answering is thrown away so the next command starts a fresh one
