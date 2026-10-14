@@ -92,8 +92,8 @@ export class Pipeline {
         if (!body) throw new Error('Message is empty')
         const fromKey = handleKey(text.from)
         if (!fromKey) throw new Error("That text didn't come from a phone number or email")
-        // Your own replies to handoff alerts aren't conversations
-        if (ws.ownerHandle && handleKey(ws.ownerHandle) === fromKey) return { markRead: true }
+        // Texts from your own phone are a chat with your agent (see isOwner)
+        const fromOwner = this.isOwner(text.from)
         // The number it was sent to, or for a channel with one address (BlueBubbles) that channel's number
         const toKey = text.to ? handleKey(text.to) : null
         const number = toKey ? numbers.find((n) => n.key === toKey) : numbers.find((n) => n.channel === text.channel)
@@ -113,18 +113,31 @@ export class Pipeline {
 
         const counted = store.countOnce(dayKey(at), conversation.id)
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
-        if (newContact && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
+        if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
         return { markRead: true }
+    }
+
+    // You texting your own agent from the phone in Settings: it helps you directly, even before it's live, and never
+    // hands the chat to you or goes quiet, since you're the one it would hand it to
+    private isOwner(handle: string) {
+        const owner = this.config.workspace.ownerHandle
+        return !!owner && handleKey(owner) === handleKey(handle)
+    }
+
+    // A note straight to you in your own chat, instead of a handoff alert about it
+    private async tellOwner(conversation: Conversation, to: string, body: string) {
+        await this.send(conversation, to, body).catch((e) => this.log(`Couldn't text you: ${describe(e)}`))
     }
 
     // Queues the reply to the newest message, honouring pauses, the reply delay and quiet hours
     private async queue(conversation: Conversation, messageId: number, agent: Doc<'agents'>) {
         const { store } = this.deps
         const ws = this.config.workspace
-        if (conversation.pausedUntil && conversation.pausedUntil > this.now()) return
-        if (agent.status !== 'live') {
+        const owner = this.isOwner(store.getContact(conversation.contactId)?.handle ?? '')
+        if (!owner && conversation.pausedUntil && conversation.pausedUntil > this.now()) return
+        if (!owner && agent.status !== 'live') {
             // Not a request for help, so no 24-hour pause: once the agent is live it answers the next text
             if (!conversation.needsYou) await this.handoff(conversation, agent, `${agent.name} is ${agent.status}, so it didn't reply. Set it live in the dashboard, or answer yourself.`, { pause: false })
             return
@@ -175,10 +188,12 @@ export class Pipeline {
         const { workspace: ws, agents, knowledge } = this.config
         const agent = agents.find((a) => a._id === conversation.agentId)
         const contact = store.getContact(conversation.contactId)
-        if (!agent || !contact || agent.status !== 'live') return
+        const owner = !!contact && this.isOwner(contact.handle)
+        if (!agent || !contact || (agent.status !== 'live' && !owner)) return
 
         const now = this.now()
         const blocked = await link.budget(dayKey(now))
+        if (blocked && owner) return this.tellOwner(conversation, contact.handle, `${blocked} Raise it in Settings.`)
         if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
@@ -190,6 +205,7 @@ export class Pipeline {
                 knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
                 now,
                 group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
+                withOwner: owner,
             }),
             turns: this.turns(conversation),
             temperature: agent.temperature,
@@ -213,6 +229,7 @@ export class Pipeline {
                 }
             }
         }
+        if (!result && owner) return this.tellOwner(conversation, contact.handle, `${agent.name} couldn’t reply: ${problem}`)
         if (!result) return this.handoff(conversation, agent, `${agent.name} couldn't reply. ${problem}`)
 
         void link.record(agent._id, { usage: { slot: result.slot, model: result.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
@@ -222,6 +239,7 @@ export class Pipeline {
             try {
                 await this.send(conversation, contact.handle, body)
             } catch (e) {
+                if (owner) return this.log(`Couldn't send ${agent.name}'s reply to you: ${describe(e)}`)
                 return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`)
             }
             const at = this.now()
@@ -229,7 +247,7 @@ export class Pipeline {
             store.updateConversation(conversationId, { lastAt: at })
             void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         }
-        if (handoff) await this.handoff(conversation, agent, `${agent.name} asked you to step in.`)
+        if (handoff && !owner) await this.handoff(conversation, agent, `${agent.name} asked you to step in.`)
     }
 
     // Sends through the channel the conversation came in on (to the group, for a group chat)

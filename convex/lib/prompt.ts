@@ -36,8 +36,10 @@ export function systemPrompt(args: {
     now: number
     // The group chat's name, when the conversation is a group
     group?: string
+    // The person texting is the owner, from the phone in Settings: help them directly, never hand off to them
+    withOwner?: boolean
 }) {
-    const { agent, workspace, contact, knowledge, now, group } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -51,14 +53,18 @@ export function systemPrompt(args: {
     const lines = [
         `You are ${agent.name}, ${agent.role ? `${owner}'s ${agent.role.toLowerCase()}` : `an assistant for ${owner}`}. You talk with people over iMessage.`,
         agent.prompt.trim() && `How you work:\n${agent.prompt.trim()}`,
-        group
+        withOwner
+            ? `You're texting ${owner}, the person you work for. Help them directly, like a capable personal assistant.`
+            : group
             ? `You're in a group chat (${group}). Each message starts with who sent it. Reply to the group, briefly, and only about what you were asked.`
             : `You're texting ${contact.name} (${contact.handle}).${contact.tags.length ? ` Tags: ${contact.tags.join(', ')}.` : ''}${contact.notes.trim() ? ` Notes from ${owner}: ${contact.notes.trim()}` : ''}`,
         knowledge.length && `What you know:\n${knowledge.map((k) => `## ${k.title}\n${k.body.trim()}`).join('\n\n')}`,
         `It is ${date} (${timeZone}).`,
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',
-        `If you can't help, aren't sure, or they ask for a person, say briefly that you'll check with ${owner}, then end your reply with ${HANDOFF}. Never make up facts, prices or commitments.`,
+        withOwner
+            ? 'If you can’t do something yet or aren’t sure, say so plainly. Never make up facts, prices or commitments.'
+            : `If you can't help, aren't sure, or they ask for a person, say briefly that you'll check with ${owner}, then end your reply with ${HANDOFF}. Never make up facts, prices or commitments.`,
     ]
     return lines.filter(Boolean).join('\n\n')
 }
