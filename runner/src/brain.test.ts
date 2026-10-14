@@ -63,7 +63,7 @@ describe('tools', () => {
         })
         expect(await complete(brains, option('openai', 'gpt-5.1'), { ...prompt, tools: [remind] })).toBe('Done, I will remind you.')
         expect(remind.run).toHaveBeenCalledWith({ text: 'stretch' })
-        expect(bodies[0].tools).toEqual([{ type: 'web_search', search_context_size: 'low' }, { type: 'function', name: 'set_reminder', description: 'Set a reminder', parameters: remind.parameters }])
+        expect(bodies[0].tools).toEqual([{ type: 'web_search', search_context_size: 'low' }, { type: 'function', name: 'set_reminder', description: 'Set a reminder', parameters: remind.parameters, strict: false }])
         expect(bodies[1].input).toEqual(expect.arrayContaining([{ type: 'function_call_output', call_id: 'c1', output: 'Reminder set: stretch' }]))
     })
 

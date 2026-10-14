@@ -105,7 +105,7 @@ async function anthropic(model: string, key: string, p: Prompt) {
 // outputs sent back with the earlier items, until the model answers.
 async function openai(model: string, key: string, p: Prompt) {
     type Item = { type: string; call_id?: string; name?: string; arguments?: string; content?: { type: string; text?: string }[] }
-    const tools = [{ type: 'web_search', search_context_size: 'low' }, ...(p.tools ?? []).map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters }))]
+    const tools = [{ type: 'web_search', search_context_size: 'low' }, ...(p.tools ?? []).map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters, strict: false }))]
     const input: unknown[] = [...p.turns]
     for (let round = 0; round < MAX_ROUNDS; round++) {
         const res = await fetch('https://api.openai.com/v1/responses', {
