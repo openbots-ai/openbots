@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as knowledge from "../knowledge.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_computers from "../lib/computers.js";
 import type * as lib_handles from "../lib/handles.js";
 import type * as lib_keyModels from "../lib/keyModels.js";
 import type * as lib_models from "../lib/models.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   knowledge: typeof knowledge;
   "lib/access": typeof lib_access;
+  "lib/computers": typeof lib_computers;
   "lib/handles": typeof lib_handles;
   "lib/keyModels": typeof lib_keyModels;
   "lib/models": typeof lib_models;

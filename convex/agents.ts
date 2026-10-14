@@ -60,6 +60,17 @@ export const update = mutation({
     },
 })
 
+// Gives this agent its own computer for computer use, or (without one) the workspace's
+export const setComputer = mutation({
+    args: { id: v.id('agents'), computerId: v.optional(v.id('runners')) },
+    handler: async (ctx, { id, computerId }) => {
+        const ws = await requireWorkspace(ctx)
+        await owned(ctx, ws, 'agents', id)
+        if (computerId) await owned(ctx, ws, 'runners', computerId)
+        await ctx.db.patch('agents', id, { computerId })
+    },
+})
+
 // Conversations with this agent stay on your engine's machine; here only its numbers and knowledge are let go
 export const remove = mutation({
     args: { id: v.id('agents') },
