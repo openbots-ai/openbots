@@ -15,6 +15,8 @@ export type Prompt = { system: string; turns: Turn[]; temperature?: number; maxT
 
 // Model calls per reply when it uses tools: enough for search, act, confirm
 export const MAX_ROUNDS = 6
+// A model call that hasn't answered by then is given up on, so one stuck request can't hold up the engine
+const TIMEOUT_MS = 60_000
 
 async function runTool(tools: Tool[], name: string, input: unknown) {
     const tool = tools.find((t) => t.name === name)
@@ -115,6 +117,7 @@ async function openai(model: string, key: string, p: Prompt) {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
             // Searching and reasoning use output tokens too, so the cap is roomier than the reply itself
             body: JSON.stringify({ model, instructions: p.system, input, max_output_tokens: p.maxTokens * 4, tools }),
+            signal: AbortSignal.timeout(TIMEOUT_MS),
         })
         const data = (await res.json().catch(() => null)) as { output?: Item[]; error?: { message?: string } } | null
         if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
@@ -148,6 +151,7 @@ async function chatCompletions(url: string, model: string, key: string, p: Promp
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({ model, messages: [{ role: 'system', content: p.system }, ...p.turns], max_completion_tokens: p.maxTokens }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     const data = (await res.json().catch(() => null)) as { choices?: { message?: { content?: string } }[]; error?: { message?: string } } | null
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
@@ -165,6 +169,7 @@ async function gemini(model: string, key: string, p: Prompt) {
             // Grounded in Google Search when the question needs current information
             tools: [{ google_search: {} }],
         }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     const data = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; error?: { message?: string } } | null
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)

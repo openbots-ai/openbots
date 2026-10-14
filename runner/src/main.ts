@@ -144,7 +144,20 @@ async function main() {
         for (const s of list) if (!seen.has(s.service) || (s.error && !seen.get(s.service)!.error)) seen.set(s.service, s)
         return [...seen.values()]
     }
-    const beat = () => link.heartbeat({ ...status, services: perService(status.services), jobs: store.jobCounts() as { agentId: Id<'agents'>; reminders: number; watches: number }[] }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
+    const beat = () => {
+        const agents = link.config()?.agents ?? []
+        // Only agents the dashboard still has, so a job left from a deleted agent can't get the heartbeat refused
+        const jobs = store.jobCounts().filter((j) => agents.some((a) => a._id === j.agentId)) as { agentId: Id<'agents'>; reminders: number; watches: number }[]
+        // Reminders and watches waiting for a channel that isn't running, reported on that channel's service
+        const waiting: Status['services'] = []
+        // A held job comes due again within 5 minutes, so that window covers the ones waiting
+        for (const { agentId, channel } of store.dueChannels(Date.now() + 5 * 60_000)) {
+            const agent = agents.find((a) => a._id === agentId)
+            if (!agent || services.transports[channel] || (channel !== 'twilio' && channel !== 'sendblue' && channel !== 'bluebubbles')) continue
+            waiting.push({ service: channel, error: `${agent.name} has reminders or watches waiting for ${channel}, which isn't running` })
+        }
+        return link.heartbeat({ ...status, services: perService([...status.services, ...waiting]), jobs }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
+    }
     // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
     const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
     let applied = ''

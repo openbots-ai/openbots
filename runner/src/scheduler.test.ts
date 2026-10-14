@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Vault } from './crypto'
-import { Scheduler, WATCH_FAILURES, type Fired } from './scheduler'
+import { FIRE_DEADLINE_MS, RETRY_MS, Scheduler, WATCH_FAILURES, type Fired } from './scheduler'
 import { Store, type Job } from './store'
 
 let dir: string
@@ -130,6 +130,47 @@ describe('scheduler', () => {
         const { store, job } = setup(async () => ({ outcome: 'sent' }))
         job({ kind: 'watch', everyMin: 1 })
         expect(store.jobsFor('a1')[0].everyMin).toBe(30)
+    })
+
+    it('gives up on a job that never finishes, runs the next one, and doesn’t fire it again while it hangs', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        try {
+            const fire = vi.fn((job: Job): Promise<Fired> => (job.text === 'stuck' ? new Promise<Fired>(() => {}) : Promise.resolve({ outcome: 'sent' })))
+            const { scheduler, store, job } = setup(fire)
+            const stuck = job({ dueAt: now - 1_000, text: 'stuck' })
+            job({ dueAt: now })
+            const ticking = scheduler.tick()
+            await vi.advanceTimersByTimeAsync(FIRE_DEADLINE_MS)
+            await ticking
+            expect(fire.mock.calls.map(([j]) => j.text)).toEqual(['stuck', 'stretch'])
+            // Counted as a failed send: tried again later
+            expect(store.jobsFor('a1')).toEqual([expect.objectContaining({ id: stuck, failures: 1, dueAt: now + RETRY_MS })])
+            now += RETRY_MS
+            await scheduler.tick()
+            expect(fire).toHaveBeenCalledTimes(2)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it('runs due reminders before due watches', async () => {
+        const fire = vi.fn<(job: Job) => Promise<Fired>>(async () => ({ outcome: 'sent' }))
+        const { scheduler, job } = setup(fire)
+        job({ kind: 'watch', everyMin: 30, dueAt: now - 60_000 })
+        job({ dueAt: now })
+        await scheduler.tick()
+        expect(fire.mock.calls.map(([j]) => j.kind)).toEqual(['reminder', 'watch'])
+    })
+
+    it('keeps a held reminder waiting up to 30 days, then drops it', async () => {
+        const fire = vi.fn(async (): Promise<Fired> => ({ outcome: 'later', inMs: 5 * 60_000 }))
+        const { scheduler, store, job } = setup(fire)
+        job({ dueAt: now })
+        await scheduler.tick()
+        expect(store.jobsFor('a1')[0]).toMatchObject({ until: now + 30 * 86_400_000 })
+        now += 30 * 86_400_000 - 60_000
+        await scheduler.tick()
+        expect(store.jobsFor('a1')).toEqual([])
     })
 
     it('keeps going when one job blows up, and skips unreadable rows', async () => {

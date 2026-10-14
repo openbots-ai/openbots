@@ -22,7 +22,7 @@ const bbUrl = (c: Credentials['bluebubbles'], path: string) => `${c.serverUrl.re
 async function call(url: string, init: RequestInit, what: string) {
     let res: Response
     try {
-        res = await fetch(url, init)
+        res = await fetch(url, { signal: AbortSignal.timeout(60_000), ...init })
     } catch (e) {
         throw new ConnectError(`Couldn't reach ${what}: ${e instanceof Error ? e.message : String(e)}`)
     }

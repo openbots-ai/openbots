@@ -238,16 +238,18 @@ export class Store {
         return jobs
     }
 
+    // Reminders first, since they're quick and were asked for at a time; then watches
     dueJobs(now: number): Job[] {
-        return this.openJobs(this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND due_at <= ? ORDER BY due_at LIMIT 20').all(now) as JobRow[])
+        return this.openJobs(this.db.prepare("SELECT * FROM jobs WHERE active = 1 AND due_at <= ? ORDER BY kind = 'watch', due_at LIMIT 20").all(now) as JobRow[])
     }
 
     jobsFor(agentId: string): Job[] {
         return this.openJobs(this.db.prepare('SELECT * FROM jobs WHERE active = 1 AND agent_id = ? ORDER BY due_at').all(agentId) as JobRow[])
     }
 
-    updateJob(id: number, patch: { dueAt?: number; last?: string; failures?: number; active?: boolean }) {
+    updateJob(id: number, patch: { dueAt?: number; until?: number; last?: string; failures?: number; active?: boolean }) {
         if (patch.dueAt !== undefined) this.db.prepare('UPDATE jobs SET due_at = ? WHERE id = ?').run(patch.dueAt, id)
+        if (patch.until !== undefined) this.db.prepare('UPDATE jobs SET until = ? WHERE id = ?').run(patch.until, id)
         if (patch.last !== undefined) this.db.prepare('UPDATE jobs SET last = ? WHERE id = ?').run(this.vault.seal(patch.last, `job:${id}:last`), id)
         if (patch.failures !== undefined) this.db.prepare('UPDATE jobs SET failures = ? WHERE id = ?').run(patch.failures, id)
         if (patch.active !== undefined) this.db.prepare('UPDATE jobs SET active = ? WHERE id = ?').run(patch.active ? 1 : 0, id)
@@ -256,6 +258,12 @@ export class Store {
     // Only the agent that owns it can cancel it
     cancelJob(id: number, agentId: string) {
         return this.db.prepare('UPDATE jobs SET active = 0 WHERE id = ? AND agent_id = ? AND active = 1').run(id, agentId).changes > 0
+    }
+
+    // Which agents have jobs due on which channels (no text), so the heartbeat can report ones stuck waiting for a channel
+    dueChannels(now: number) {
+        const rows = this.db.prepare('SELECT DISTINCT agent_id, channel FROM jobs WHERE active = 1 AND due_at <= ?').all(now) as { agent_id: string; channel: Channel }[]
+        return rows.map((r) => ({ agentId: r.agent_id, channel: r.channel }))
     }
 
     jobCounts() {
