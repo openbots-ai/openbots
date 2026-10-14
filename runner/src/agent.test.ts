@@ -310,7 +310,7 @@ describe('channels and models', () => {
     })
 
     it('uses the model picked from the key, and says what to do when the key is gone', async () => {
-        const fetch = vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: 'hi from mini' } }], model: JSON.parse(String(init?.body)).model })))
+        const fetch = vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify({ output: [{ type: 'message', content: [{ type: 'output_text', text: 'hi from mini' }] }], model: JSON.parse(String(init?.body)).model })))
         vi.stubGlobal('fetch', fetch)
         const picked = setup(config({ agent: { models: { brain: 'openai:gpt-4o-mini', backup: 'none' } } }), model(realComplete))
         await picked.text('hello')

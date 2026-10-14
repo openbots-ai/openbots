@@ -14,6 +14,9 @@ export const PROVIDER_KEYS = {
 } as const satisfies Partial<Record<AiProvider, string>>
 export type CloudProvider = keyof typeof PROVIDER_KEYS
 
+// The providers whose replies can search the web (xAI and local model servers can't yet)
+export const SEARCHES: readonly string[] = ['openai', 'anthropic', 'google']
+
 // What the engine was started with (see config.ts)
 export type Brains = {
     keys: Partial<Record<CloudProvider, string>>
@@ -29,20 +32,59 @@ export class ReplyError extends Error {}
 // Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
 const isClaude5 = (model: string) => /^claude-[a-z]+-5/.test(model)
 
+// Web search answers can carry Markdown citations; a text message reads better without them
+export function plainCitations(text: string) {
+    return text
+        .replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, '')
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+        .trim()
+}
+
 async function anthropic(model: string, key: string, p: Prompt) {
-    const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 60_000 })
-    const res = await client.beta.messages.create({
-        model,
-        max_tokens: p.maxTokens,
-        system: p.system,
-        messages: p.turns,
-        ...(isClaude5(model)
-            ? // Short chat replies: low effort; on a safety decline the API re-runs the request on a fallback model
-              { output_config: { effort: 'low' as const }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
-            : { temperature: p.temperature }),
+    const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 90_000 })
+    const messages: Anthropic.Beta.BetaMessageParam[] = [...p.turns]
+    // Claude searches the web on Anthropic's side when the question needs current information
+    const search = { type: isClaude5(model) ? ('web_search_20260209' as const) : ('web_search_20250305' as const), name: 'web_search' as const, max_uses: 3 }
+    for (let round = 0; round < 3; round++) {
+        const res = await client.beta.messages.create({
+            model,
+            max_tokens: p.maxTokens,
+            system: p.system,
+            messages,
+            tools: [search],
+            ...(isClaude5(model)
+                ? // Short chat replies: low effort; on a safety decline the API re-runs the request on a fallback model
+                  { output_config: { effort: 'low' as const }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
+                : { temperature: p.temperature }),
+        })
+        if (res.stop_reason === 'refusal') throw new ReplyError('The model declined to answer this one')
+        // A long search can pause the turn; sending it back lets Claude carry on where it stopped
+        if (res.stop_reason === 'pause_turn') {
+            messages.push({ role: 'assistant', content: res.content })
+            continue
+        }
+        return plainCitations(res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''))
+    }
+    throw new Error('The model kept searching without answering')
+}
+
+// OpenAI's Responses API, with its web search tool for current information (weather, news, hours)
+async function openai(model: string, key: string, p: Prompt) {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        // Searching and reasoning use output tokens too, so the cap is roomier than the reply itself
+        body: JSON.stringify({ model, instructions: p.system, input: p.turns, max_output_tokens: p.maxTokens * 4, tools: [{ type: 'web_search', search_context_size: 'low' }] }),
     })
-    if (res.stop_reason === 'refusal') throw new ReplyError('The model declined to answer this one')
-    return res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
+    type Output = { type: string; content?: { type: string; text?: string }[] }
+    const data = (await res.json().catch(() => null)) as { output?: Output[]; error?: { message?: string } } | null
+    if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
+    const text = (data?.output ?? [])
+        .filter((o) => o.type === 'message')
+        .flatMap((o) => o.content ?? [])
+        .flatMap((c) => (c.type === 'output_text' && c.text ? [c.text] : []))
+        .join('')
+    return plainCitations(text)
 }
 
 // OpenAI, xAI and local model servers share the chat completions shape
@@ -65,11 +107,13 @@ async function gemini(model: string, key: string, p: Prompt) {
             systemInstruction: { parts: [{ text: p.system }] },
             contents: p.turns.map((t) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
             generationConfig: { temperature: p.temperature, maxOutputTokens: p.maxTokens },
+            // Grounded in Google Search when the question needs current information
+            tools: [{ google_search: {} }],
         }),
     })
     const data = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; error?: { message?: string } } | null
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
-    return (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join('')
+    return plainCitations((data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join(''))
 }
 
 // Writes one reply with the given model and this agent's own key for it. Throws ReplyError for problems the owner
@@ -94,7 +138,7 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
             throw new ReplyError(`Add your ${PROVIDER_NAMES[provider]} key in Connections or on your engine so ${option.label} can reply`)
         }
         if (provider === 'anthropic') text = await anthropic(option.api, key, p)
-        else if (provider === 'openai') text = await chatCompletions('https://api.openai.com/v1/chat/completions', option.api, key, p)
+        else if (provider === 'openai') text = await openai(option.api, key, p)
         else if (provider === 'xai') text = await chatCompletions('https://api.x.ai/v1/chat/completions', option.api, key, p)
         else text = await gemini(option.api, key, p)
     }

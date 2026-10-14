@@ -40,8 +40,10 @@ export function systemPrompt(args: {
     withOwner?: boolean
     // The reply goes out as a regular text message (Twilio), where long messages cost more and can fail to deliver
     sms?: boolean
+    // The model writing the reply can search the web (OpenAI, Anthropic and Gemini models can; see runner/src/brain.ts)
+    canSearch?: boolean
 }) {
-    const { agent, workspace, contact, knowledge, now, group, withOwner, sms } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -62,6 +64,8 @@ export function systemPrompt(args: {
             : `You're texting ${contact.name} (${contact.handle}).${contact.tags.length ? ` Tags: ${contact.tags.join(', ')}.` : ''}${contact.notes.trim() ? ` Notes from ${owner}: ${contact.notes.trim()}` : ''}`,
         knowledge.length && `What you know:\n${knowledge.map((k) => `## ${k.title}\n${k.body.trim()}`).join('\n\n')}`,
         `It is ${date} (${timeZone}).`,
+        canSearch &&
+            'You can search the web for current information such as weather, news, opening hours and prices. Use it when a question needs something current, and give the answer itself, not a list of links.',
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',

@@ -6,6 +6,11 @@ const agent = { _id: 'a' as Id<'agents'>, _creationTime: 0, workspaceId: 'w' as 
 const base = { agent, workspace: { ownerName: 'Sam', timezone: 'UTC' }, contact: { name: 'Dana', handle: '+16395550100', tags: [], notes: '' }, knowledge: [], now: 0 }
 
 describe('agent instructions', () => {
+    it('mentions web search only when the model can search', () => {
+        expect(systemPrompt({ ...base, canSearch: true })).toMatch(/search the web/)
+        expect(systemPrompt(base)).not.toMatch(/search the web/)
+    })
+
     it('keeps replies sent as SMS short, emoji and all', () => {
         expect(systemPrompt({ ...base, sms: true })).toMatch(/under 300 characters/)
         expect(systemPrompt({ ...base, sms: true })).not.toMatch(/emoji/)

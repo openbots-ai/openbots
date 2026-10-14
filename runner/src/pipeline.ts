@@ -4,7 +4,7 @@ import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from 
 import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey } from '../../convex/lib/usage'
-import { complete as completeWith, ReplyError, type Brains, type Prompt } from './brain'
+import { complete as completeWith, ReplyError, SEARCHES, type Brains, type Prompt } from './brain'
 import type { Conversation, Store } from './store'
 import type { Channel, Incoming, Transport } from './transports/types'
 
@@ -209,6 +209,7 @@ export class Pipeline {
                 group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
                 withOwner: owner,
                 sms: conversation.channel === 'twilio',
+                canSearch: SEARCHES.includes(models.brain.option.provider),
             }),
             turns: this.turns(conversation),
             temperature: agent.temperature,
