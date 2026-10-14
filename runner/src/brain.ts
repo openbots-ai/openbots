@@ -37,6 +37,8 @@ export type CloudProvider = keyof typeof PROVIDER_KEYS
 
 // The providers whose replies can search the web (xAI and local model servers can't yet)
 export const SEARCHES: readonly string[] = ['openai', 'anthropic', 'google']
+// The providers whose replies can use the agent's tools
+export const TOOL_PROVIDERS: readonly string[] = ['openai', 'anthropic']
 
 // What the engine was started with (see config.ts)
 export type Brains = {

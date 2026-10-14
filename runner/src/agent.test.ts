@@ -266,6 +266,71 @@ describe('agent', () => {
         expect(transport.sent.at(-1)).toMatchObject({ to: OWNER, body: 'back now' })
     })
 
+    it('lets you set a reminder by text, in your timezone, and texts you when it’s due', async () => {
+        const complete = model(async (_b, _o, p) => {
+            const remind = p.tools?.find((t) => t.name === 'set_reminder')
+            return remind ? await remind.run({ at: '2026-10-14T17:00:00-06:00', text: 'call mom' }) : 'no tools'
+        })
+        const { text, transport, store } = setup(config({ workspace: { timezone: 'America/Regina' } }), complete)
+        vi.setSystemTime(Date.parse('2026-10-14T20:00:00Z'))
+        await text('remind me at 5 to call mom', OWNER)
+        await vi.runAllTimersAsync()
+        const [job] = store.jobsFor(AGENT)
+        expect(job).toMatchObject({ kind: 'reminder', text: 'call mom', dueAt: Date.parse('2026-10-14T23:00:00Z') })
+        expect(transport.sent.at(-1)?.body).toMatch(/Reminder set/)
+    })
+
+    it('refuses a reminder in the past or without text, and stores nothing', async () => {
+        const answers: string[] = []
+        const complete = model(async (_b, _o, p) => {
+            const remind = p.tools!.find((t) => t.name === 'set_reminder')!
+            answers.push(await remind.run({ at: '2020-01-01T00:00:00Z', text: 'x' }).catch((e: Error) => `Error: ${e.message}`))
+            answers.push(await remind.run({ in_minutes: 5 }).catch((e: Error) => `Error: ${e.message}`))
+            return 'ok'
+        })
+        const { text, store } = setup(config(), complete)
+        await text('remind me', OWNER)
+        await vi.runAllTimersAsync()
+        expect(answers[0]).toMatch(/already passed/)
+        expect(answers[1]).toMatch(/what to remind/)
+        expect(store.jobsFor(AGENT)).toEqual([])
+    })
+
+    it('gives someone else no scheduling tools', async () => {
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const { text, transport } = setup(config(), complete)
+        await text('remind me tomorrow', '+1 212 555 0187')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tools')
+    })
+
+    it('offers no scheduling tools when your Brain can’t run them', async () => {
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const gemini: KeyModel[] = [{ provider: 'google', id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }]
+        const { text, transport } = setup(config({ agent: { models: { brain: 'google:gemini-2.5-flash', backup: 'none' } } }), complete, { brains: { keys: { google: 'k' }, demo: false }, models: gemini })
+        await text('remind me tomorrow', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tools')
+        expect(complete.mock.calls[0]?.[1].provider).toBe('google')
+        expect(complete.mock.calls[0]?.[2].system).not.toMatch(/set reminders/)
+    })
+
+    it('fires a reminder from the number you used, and a watch only when something changed', async () => {
+        const complete = model(async (_b, _o, p) => (p.turns.at(-1)!.content.includes('Last time: #1') ? '[[no-change]]' : 'Now #2 in Canada'))
+        const { pipeline, transport, store } = setup(config(), complete)
+        const reminder = store.addJob({ kind: 'reminder', agentId: AGENT, to: OWNER, number: '+1 (415) 555-0101', channel: 'relay', dueAt: 0, everyMin: null, until: null, text: 'stretch' })
+        expect(await pipeline.fireJob(store.jobsFor(AGENT).find((j) => j.id === reminder)!)).toEqual({ outcome: 'sent' })
+        expect(transport.sent.at(-1)).toMatchObject({ from: '+1 (415) 555-0101', to: OWNER, body: 'Reminder: stretch' })
+
+        const watchId = store.addJob({ kind: 'watch', agentId: AGENT, to: OWNER, number: '+1 (415) 555-0101', channel: 'relay', dueAt: 0, everyMin: 30, until: null, text: 'Uni ranking' })
+        store.updateJob(watchId, { last: '#1 in Canada' })
+        expect(await pipeline.fireJob(store.jobsFor(AGENT).find((j) => j.id === watchId)!)).toEqual({ outcome: 'unchanged' })
+        store.updateJob(watchId, { last: '#3 in Canada' })
+        const sent = transport.sent.length
+        expect(await pipeline.fireJob(store.jobsFor(AGENT).find((j) => j.id === watchId)!)).toEqual({ outcome: 'sent', result: 'Now #2 in Canada' })
+        expect(transport.sent).toHaveLength(sent + 1)
+    })
+
     it("refuses texts to numbers that aren't yours", async () => {
         const { pipeline } = setup()
         await expect(pipeline.receive({ channel: 'relay', to: '5550000000', from: '2125550187', body: 'hi' })).rejects.toThrow(/isn't one of your/)

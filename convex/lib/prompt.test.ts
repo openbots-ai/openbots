@@ -16,4 +16,9 @@ describe('agent instructions', () => {
         expect(systemPrompt({ ...base, sms: true })).not.toMatch(/emoji/)
         expect(systemPrompt(base)).not.toMatch(/under 300 characters/)
     })
+
+    it('tells the agent about its scheduling tools only when it has them', () => {
+        expect(systemPrompt({ ...base, canSchedule: true })).toMatch(/set reminders/)
+        expect(systemPrompt(base)).not.toMatch(/set reminders/)
+    })
 })
