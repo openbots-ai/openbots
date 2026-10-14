@@ -1,15 +1,16 @@
 // @vitest-environment node
+import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { PowerShell, winCommand } from './windows'
 
 describe('Windows commands', () => {
     it('clicks, double-clicks with modifiers held, and releases them in reverse', () => {
-        expect(winCommand({ op: 'click', at: { x: 10, y: 20 }, button: 'left', count: 1, mods: [] })).toBe('[OB]::Move(10, 20); [OB]::Click(0, 1)')
+        expect(winCommand({ op: 'click', at: { x: 10, y: 20 }, button: 'left', count: 1, mods: [] })).toBe('[OB]::Move(10, 20); [OB]::Click(0, 1, [uint16[]]@())')
         expect(winCommand({ op: 'click', at: { x: 5, y: 6 }, button: 'right', count: 2, mods: ['ctrl', 'shift'] })).toBe(
-            '[OB]::Move(5, 6); [OB]::Hold([uint16[]]@(17,16), $false); [OB]::Click(1, 2); [OB]::Hold([uint16[]]@(17,16), $true)',
+            '[OB]::Move(5, 6); [OB]::Click(1, 2, [uint16[]]@(17,16))',
         )
-        expect(winCommand({ op: 'click', button: 'middle', count: 1, mods: [] })).toBe('[OB]::Click(2, 1)')
+        expect(winCommand({ op: 'click', button: 'middle', count: 1, mods: [] })).toBe('[OB]::Click(2, 1, [uint16[]]@())')
     })
 
     it('types any text literally, never as code', () => {
@@ -20,19 +21,19 @@ describe('Windows commands', () => {
     })
 
     it('presses named keys, characters and combinations, repeated', () => {
-        expect(winCommand({ op: 'key', combo: 'ctrl+s', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::Vk([char]115))')
+        expect(winCommand({ op: 'key', combo: 'ctrl+s', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::VkFull([char]115))')
         expect(winCommand({ op: 'key', combo: 'Return', repeat: 3 })).toBe('for ($i = 0; $i -lt 3; $i++) { [OB]::Combo([uint16[]]@(), 13) }')
-        expect(winCommand({ op: 'key', combo: 'super+e', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(91), [OB]::Vk([char]101))')
+        expect(winCommand({ op: 'key', combo: 'super+e', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(91), [OB]::VkFull([char]101))')
         expect(winCommand({ op: 'key', combo: 'alt+F4', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(18), 115)')
         expect(winCommand({ op: 'key', combo: 'Super_L', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(), 91)')
         expect(winCommand({ op: 'key', combo: 'Insert', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(), 45)')
-        expect(winCommand({ op: 'key', combo: 'ctrl+equal', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::Vk([char]61))')
+        expect(winCommand({ op: 'key', combo: 'ctrl+equal', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::VkFull([char]61))')
     })
 
     it('scrolls, drags, moves, and reads the screen', () => {
-        expect(winCommand({ op: 'scroll', at: { x: 1, y: 2 }, direction: 'down', amount: 3, mods: [] })).toBe('[OB]::Move(1, 2); [OB]::Scroll(0, -3)')
-        expect(winCommand({ op: 'scroll', direction: 'right', amount: 2, mods: [] })).toBe('[OB]::Scroll(2, 0)')
-        expect(winCommand({ op: 'drag', from: { x: 1, y: 1 }, to: { x: 9, y: 9 }, mods: [] })).toBe('[OB]::Move(1, 1); [OB]::Down(); [OB]::Move(9, 9); [OB]::Up()')
+        expect(winCommand({ op: 'scroll', at: { x: 1, y: 2 }, direction: 'down', amount: 3, mods: [] })).toBe('[OB]::Move(1, 2); [OB]::Scroll(0, -3, [uint16[]]@())')
+        expect(winCommand({ op: 'scroll', direction: 'right', amount: 2, mods: [] })).toBe('[OB]::Scroll(2, 0, [uint16[]]@())')
+        expect(winCommand({ op: 'drag', from: { x: 1, y: 1 }, to: { x: 9, y: 9 }, mods: [] })).toBe('[OB]::Drag(1, 1, 9, 9, [uint16[]]@())')
         expect(winCommand({ op: 'move', at: { x: 3, y: 4 } })).toBe('[OB]::Move(3, 4)')
         expect(winCommand({ op: 'shot', target: { width: 1280, height: 720 } })).toBe('[OB]::Shot(1280, 720)')
         expect(winCommand({ op: 'size' })).toBe('[OB]::Size()')
@@ -60,6 +61,80 @@ function fakeShell(answer: (command: string) => string) {
     setTimeout(() => stdout.write('Loading…\r\n@@OB ready\r\n'))
     return { stdin, stdout, on: () => {}, kill: () => {} }
 }
+
+describe('limits', () => {
+    it('keeps counts in range and never sends a bad number', () => {
+        expect(winCommand({ op: 'key', combo: 'Return', repeat: 9999 })).toContain('$i -lt 100')
+        expect(winCommand({ op: 'click', button: 'left', count: 50, mods: [] })).toBe('[OB]::Click(0, 3, [uint16[]]@())')
+        expect(winCommand({ op: 'click', button: 'left', count: 0, mods: [] })).toBe('[OB]::Click(0, 1, [uint16[]]@())')
+        expect(() => winCommand({ op: 'move', at: { x: NaN, y: 1 } })).toThrow('Bad number')
+        expect(() => winCommand({ op: 'scroll', direction: 'up', amount: Infinity, mods: [] })).toThrow('Bad number')
+    })
+})
+
+// A helper that starts fine and then says nothing, until the test speaks for it
+function quietChild() {
+    const events = new EventEmitter()
+    const stdin = new PassThrough()
+    const stdout = new PassThrough()
+    const child = {
+        stdin,
+        stdout,
+        events,
+        killed: false,
+        on: (event: string, cb: (e?: unknown) => void) => void events.on(event, cb),
+        kill: () => void (child.killed = true),
+        say: (text: string) => void stdout.write(`${text}\r\n`),
+    }
+    setTimeout(() => child.say('@@OB ready'))
+    return child
+}
+const pause = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
+
+describe('a helper that breaks', () => {
+    it('fails the command instead of crashing when it can’t start or can’t be written to', async () => {
+        const broken = quietChild()
+        const shell = new PowerShell(() => broken)
+        const run = shell.run('x')
+        await pause(1)
+        broken.events.emit('error', new Error('spawn powershell.exe ENOENT'))
+        await expect(run).rejects.toThrow('ENOENT')
+
+        const stuck = quietChild()
+        const again = new PowerShell(() => stuck)
+        const second = again.run('x')
+        await pause()
+        stuck.stdin.emit('error', new Error('write EPIPE'))
+        await expect(second).rejects.toThrow('EPIPE')
+    })
+
+    it('throws the stuck helper away so the next command gets a fresh one', async () => {
+        const children = [quietChild(), fakeShell(() => 'fine')]
+        let spawned = 0
+        const shell = new PowerShell(() => children[spawned++] as never, 50)
+        await expect(shell.run('hangs')).rejects.toThrow('in time')
+        expect((children[0] as ReturnType<typeof quietChild>).killed).toBe(true)
+        expect(await shell.run('next')).toBe('fine')
+        expect(spawned).toBe(2)
+    })
+
+    it('ignores a late exit from a closed helper', async () => {
+        const first = quietChild()
+        const second = quietChild()
+        const children = [first, second]
+        let spawned = 0
+        const shell = new PowerShell(() => children[spawned++] as never)
+        const a = shell.run('a')
+        await pause()
+        shell.close()
+        await expect(a).rejects.toThrow('closed')
+        const b = shell.run('b')
+        await pause()
+        first.events.emit('exit')
+        second.say('@@OB 2 ok done')
+        expect(await b).toBe('done')
+    })
+})
 
 describe('the PowerShell helper process', () => {
     it('runs commands one at a time and returns their output or error', async () => {
