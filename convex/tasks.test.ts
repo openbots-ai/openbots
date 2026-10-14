@@ -4,6 +4,7 @@ import { convexTest } from 'convex-test'
 import { describe, expect, it } from 'vitest'
 import { api } from './_generated/api'
 import schema from './schema'
+import { insertNumber } from './lib/numbers'
 import { hashToken, newToken } from './lib/tokens'
 
 const modules = import.meta.glob('./**/*.ts')
@@ -19,8 +20,9 @@ async function setup() {
     const workspaceId = (await owner.query(api.workspace.get, {}))!._id
     // A Twilio number as the engine adds it after buying one, and a relay number
     await base.run(async (ctx) => {
-        await ctx.db.insert('numbers', { workspaceId, handle: '+16395550100', key: '16395550100', kind: 'phone', channel: 'twilio', externalId: 'PN1' })
-        await ctx.db.insert('numbers', { workspaceId, handle: '+16395550111', key: '16395550111', kind: 'phone', channel: 'relay' })
+        // Through the same code the app uses, so keys are stored the real way (a leading 1 dropped)
+        await insertNumber(ctx, { workspaceId, handle: '+16395550100', channel: 'twilio', externalId: 'PN1' })
+        await insertNumber(ctx, { workspaceId, handle: '+16395550111', channel: 'relay' })
     })
     return { base, owner, token }
 }
