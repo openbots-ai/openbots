@@ -9,7 +9,7 @@ import type { KeyModel } from '../../convex/lib/models'
 import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
 import { listModels } from './models'
 import { Vault } from './crypto'
-import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Link } from './pipeline'
+import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
 import { RETRY_MS, Scheduler } from './scheduler'
 import { Store } from './store'
 import { MacTransport, textFromAttributedBody } from './transports/mac'
@@ -25,8 +25,9 @@ const KEYS: KeyModel[] = [
     { provider: 'anthropic', id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
 ]
 
-function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial<Config['workspace']> } = {}): Config {
+function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial<Config['workspace']>; computerUse?: boolean } = {}): Config {
     return {
+        computerUse: overrides.computerUse,
         workspace: { _id: WS, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ...overrides.workspace },
         agents: [{ _id: AGENT, _creationTime: 0, workspaceId: WS, name: 'Pip', role: 'Assistant', hue: 0, prompt: 'Be brief.', greeting: 'hi', status: 'live', updatedAt: 0, ...overrides.agent }],
         numbers: [
@@ -76,13 +77,13 @@ afterEach(() => {
 type Complete = typeof complete
 const model = (impl: Complete) => vi.fn<Complete>(impl)
 
-function setup(cfg = config(), complete = model(async () => 'sure, booked for friday'), keys: { brains?: Brains; models?: KeyModel[] } = {}) {
+function setup(cfg = config(), complete = model(async () => 'sure, booked for friday'), keys: { brains?: Brains; models?: KeyModel[]; computer?: Deps['computer'] } = {}) {
     const vault = Vault.open(dir)
     const store = new Store(join(dir, 'openbots.db'), vault)
     const link = new FakeLink(cfg)
     const transport = new FakeTransport()
     const bubbles = new FakeTransport('bluebubbles')
-    const pipeline = new Pipeline({ store, link, transports: { relay: transport, bluebubbles: bubbles }, brains: keys.brains ?? brains, models: () => keys.models ?? KEYS, complete, log: () => {} })
+    const pipeline = new Pipeline({ store, link, transports: { relay: transport, bluebubbles: bubbles }, brains: keys.brains ?? brains, models: () => keys.models ?? KEYS, computer: keys.computer, complete, log: () => {} })
     const text = (body: string, from = '+1 212 555 0187') => pipeline.receive({ channel: 'relay', to: '4155550101', from, body, name: 'Dana' })
     return { store, link, transport, bubbles, pipeline, complete, text, vault }
 }
@@ -363,6 +364,115 @@ describe('agent', () => {
         expect(transport.sent.at(-1)?.body).toBe('no tools')
         expect(complete.mock.calls[0]?.[1].provider).toBe('google')
         expect(complete.mock.calls[0]?.[2].system).not.toMatch(/set reminders/)
+    })
+
+    it('offers use_computer in your own chat when computer use is on, and starts the task', async () => {
+        const started: { task: string; agentId: string; conversationId: number }[] = []
+        let send: ((body: string) => Promise<void>) | undefined
+        const computer = {
+            busy: () => false,
+            current: () => null,
+            handle: () => false,
+            start: (task: string, ctx: { agentId: string; conversationId: number; send: (body: string) => Promise<void> }) => {
+                started.push({ task, agentId: ctx.agentId, conversationId: ctx.conversationId })
+                send = ctx.send
+                return 'Started'
+            },
+        }
+        const complete = model(async (_b, _o, p) => {
+            const tool = p.tools?.find((t) => t.name === 'use_computer')
+            if (!tool) return 'no tool'
+            return tool.run({ task: 'open Notepad and type hello' })
+        })
+        const { text, transport } = setup(config({ computerUse: true }), complete, { computer })
+        await text('open notepad and type hello', OWNER)
+        await vi.runAllTimersAsync()
+        expect(started).toEqual([{ task: 'open Notepad and type hello', agentId: AGENT, conversationId: expect.any(Number) }])
+        expect(complete.mock.calls[0]?.[2].system).toMatch(/do tasks on their computer/)
+        // Its texts go to you, from the number you used
+        await send!('Done.')
+        expect(transport.sent.at(-1)).toEqual({ from: '+1 (415) 555-0101', to: OWNER, body: 'Done.', threadKey: undefined })
+    })
+
+    describe('doesn’t offer use_computer', () => {
+        const cases: { name: string; computerUse: boolean; from?: string; brains?: Brains; noComputer?: boolean }[] = [
+            { name: 'to a stranger', computerUse: true, from: '+1 212 555 0187' },
+            { name: 'when computer use is off', computerUse: false },
+            { name: 'without an Anthropic key', computerUse: true, brains: { keys: { openai: 'k' }, demo: false } },
+            { name: 'when this engine has no computer (Linux)', computerUse: true, noComputer: true },
+        ]
+        for (const c of cases) {
+            it(c.name, async () => {
+                const computer = { busy: () => false, current: () => null, handle: () => false, start: vi.fn(() => 'Started') }
+                const tools: string[][] = []
+                const systems: string[] = []
+                const complete = model(async (_b, _o, p) => {
+                    tools.push(p.tools?.map((t) => t.name) ?? [])
+                    systems.push(p.system)
+                    return 'ok'
+                })
+                const { text, transport } = setup(config({ computerUse: c.computerUse }), complete, { computer: c.noComputer ? undefined : computer, brains: c.brains })
+                await text('open notepad', c.from ?? OWNER)
+                await vi.runAllTimersAsync()
+                expect(transport.sent.at(-1)?.body).toBe('ok')
+                expect(tools.length).toBeGreaterThan(0)
+                for (const names of tools) expect(names).not.toContain('use_computer')
+                for (const s of systems) expect(s).not.toMatch(/do tasks on their computer/)
+                expect(computer.start).not.toHaveBeenCalled()
+            })
+        }
+    })
+
+    it('doesn’t offer use_computer in a group chat you started', async () => {
+        const computer = { busy: () => false, current: () => null, handle: vi.fn(() => true), start: vi.fn(() => 'Started') }
+        const complete = model(async (_b, _o, p) => (p.tools?.some((t) => t.name === 'use_computer') ? 'had it' : 'ok'))
+        const { bubbles, pipeline } = setup(config({ computerUse: true }), complete, { computer })
+        await pipeline.receive({ channel: 'bluebubbles', from: OWNER, body: 'Pip, open notepad', name: 'Sam', thread: { key: 'iMessage;+;chat7', title: 'Plans' } })
+        await vi.runAllTimersAsync()
+        expect(bubbles.sent.at(-1)?.body).toBe('ok')
+        // A group text is never taken as the task's answer
+        expect(computer.handle).not.toHaveBeenCalled()
+    })
+
+    it('reads the Anthropic key when it replies, so a key added later turns use_computer on', async () => {
+        const computer = { busy: () => false, current: () => null, handle: () => false, start: () => 'Started' }
+        const complete = model(async (_b, _o, p) => (p.tools?.some((t) => t.name === 'use_computer') ? 'had it' : 'no tool'))
+        const { text, transport, pipeline } = setup(config({ computerUse: true }), complete, { computer, brains: { keys: { openai: 'k' }, demo: false } })
+        await text('open notepad', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tool')
+        pipeline.update({ brains: { keys: { openai: 'k', anthropic: 'a' }, demo: false } })
+        await text('open notepad', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('had it')
+    })
+
+    it('takes your text as the answer while a task waits, instead of replying', async () => {
+        const handled: [number, string][] = []
+        const computer = { busy: () => true, current: () => null, start: () => 'Started', handle: (id: number, text: string) => (handled.push([id, text]), true) }
+        const complete = model(async () => 'should not reply')
+        const { text, transport, link } = setup(config({ computerUse: true }), complete, { computer })
+        expect(await text('YES', OWNER)).toEqual({ markRead: true })
+        await vi.runAllTimersAsync()
+        expect(handled.map(([, t]) => t)).toEqual(['YES'])
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent).toHaveLength(0)
+        // Still counted as a text in
+        expect(link.total('messagesIn')).toBe(1)
+    })
+
+    it('replies as usual while a task runs and isn’t waiting, and says the task is in progress', async () => {
+        const computer = { busy: () => true, current: () => ({ task: 'book a table at Nopa', conversationId: 1 }), start: () => 'Started', handle: () => false }
+        const complete = model(async () => 'still on it')
+        const { text, transport } = setup(config({ computerUse: true }), complete, { computer })
+        await text('how’s it going?', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('still on it')
+        expect(complete.mock.calls[0]?.[2].system).toContain("You're already doing a task on their computer (“book a table at Nopa”). Tell them it's in progress; they can text stop to cancel it.")
+        // Someone else's chat doesn't hear about it
+        await text('hi', '+1 212 555 0187')
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/doing a task on their computer/)
     })
 
     it('fires a reminder from the number you used, and a watch only when something changed', async () => {

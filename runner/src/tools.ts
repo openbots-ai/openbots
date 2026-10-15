@@ -78,3 +78,13 @@ export function schedulingTools(ctx: Ctx): Tool[] {
         },
     ]
 }
+
+// Starts a task on the computer the engine runs on (your own chat only; see computer/tasks.ts)
+export function computerTool(start: (task: string) => string): Tool {
+    return {
+        name: 'use_computer',
+        description: 'Do a task on the owner’s computer: open apps and websites, click, type. Runs in the background and texts the owner when done or when it needs a YES. Give the whole task in plain words.',
+        parameters: { type: 'object', properties: { task: { type: 'string', description: 'What to do, e.g. "find a table for 2 at Nopa on Friday at 7pm and book it"' } }, required: ['task'] },
+        run: async (input) => start(typeof input.task === 'string' ? input.task : ''),
+    }
+}
