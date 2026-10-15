@@ -384,7 +384,7 @@ describe('agent', () => {
             if (!tool) return 'no tool'
             return tool.run({ task: 'open Notepad and type hello' })
         })
-        const { text, transport } = setup(config({ computerUse: true }), complete, { computer })
+        const { text, transport, store, link } = setup(config({ computerUse: true }), complete, { computer })
         await text('open notepad and type hello', OWNER)
         await vi.runAllTimersAsync()
         expect(started).toEqual([{ task: 'open Notepad and type hello', agentId: AGENT, conversationId: expect.any(Number) }])
@@ -392,6 +392,40 @@ describe('agent', () => {
         // Its texts go to you, from the number you used
         await send!('Done.')
         expect(transport.sent.at(-1)).toEqual({ from: '+1 (415) 555-0101', to: OWNER, body: 'Done.', threadKey: undefined })
+        // And into the chat's history and counts, like any reply
+        const out = link.total('messagesOut')
+        await send!('Booked it.')
+        expect(store.history(started[0].conversationId, 10).at(-1)).toMatchObject({ from: 'agent', body: 'Booked it.' })
+        expect(link.total('messagesOut')).toBe(out + 1)
+    })
+
+    it('passes the model a start that fails, and offers no use_computer while a task runs', async () => {
+        const answers: string[] = []
+        const computer = {
+            busy: () => false,
+            current: () => null,
+            handle: () => false,
+            start: () => {
+                throw new Error('I\'m still working on “book Nopa”. Text stop to cancel it first.')
+            },
+        }
+        const complete = model(async (_b, _o, p) => {
+            const tool = p.tools?.find((t) => t.name === 'use_computer')
+            answers.push(tool ? await tool.run({ task: 'open notepad' }).catch((e: Error) => `Error: ${e.message}`) : 'no tool')
+            return 'ok'
+        })
+        const { text } = setup(config({ computerUse: true }), complete, { computer })
+        await text('open notepad', OWNER)
+        await vi.runAllTimersAsync()
+        expect(answers).toEqual(['Error: I\'m still working on “book Nopa”. Text stop to cancel it first.'])
+
+        const busy = { busy: () => true, current: () => ({ task: 'book Nopa', conversationId: 1 }), handle: () => false, start: vi.fn(() => 'Started') }
+        const tools: string[][] = []
+        const second = setup(config({ computerUse: true }), model(async (_b, _o, p) => (tools.push(p.tools?.map((t) => t.name) ?? []), 'ok')), { computer: busy })
+        await second.text('open notepad', OWNER)
+        await vi.runAllTimersAsync()
+        expect(tools[0]).toContain('set_reminder')
+        expect(tools[0]).not.toContain('use_computer')
     })
 
     describe('doesn’t offer use_computer', () => {
@@ -473,6 +507,15 @@ describe('agent', () => {
         await text('hi', '+1 212 555 0187')
         await vi.runAllTimersAsync()
         expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/doing a task on their computer/)
+    })
+
+    it('says a task is in progress only in the chat it reports to', async () => {
+        const computer = { busy: () => true, current: () => ({ task: 'book a table at Nopa', conversationId: 999 }), start: () => 'Started', handle: () => false }
+        const complete = model(async () => 'hi')
+        const { text } = setup(config({ computerUse: true }), complete, { computer })
+        await text('hey', OWNER)
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls[0]?.[2].system).not.toMatch(/doing a task on their computer/)
     })
 
     it('fires a reminder from the number you used, and a watch only when something changed', async () => {

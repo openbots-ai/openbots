@@ -246,12 +246,22 @@ export class Pipeline {
         // first sender may not be you), and only for a model that can run them. use_computer joins them when this engine
         // can use your computer and has an Anthropic key (read now: keys saved in Connections arrive while it runs).
         const computer = this.deps.computer
+        // A task running from this chat: the agent says it's in progress (and how to stop it) instead of offering another
         const running = owner && !conversation.threadKey ? computer?.current() : null
+        const busyHere = running?.conversationId === conversation.id ? running : null
+        // The task's questions and result go into this chat's history and counts, like any reply
+        const taskSend = async (body: string) => {
+            await this.send(conversation, contact.handle, body)
+            const at = this.now()
+            store.addMessage(conversationId, 'agent', body, at)
+            store.updateConversation(conversationId, { lastAt: at })
+            void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
+        }
         const promptFor = (option: ModelOption): Prompt => {
             const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
-            const computing = scheduling && !!computer && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
+            const computing = scheduling && !!computer && !computer.busy() && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
             const tools = scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now, timeZone: ws.timezone ?? 'UTC' }) : []
-            if (computing) tools.push(computerTool((task) => computer.start(task, { agentId: agent._id, agentName: agent.name, conversationId, send: (b) => this.send(conversation, contact.handle, b) })))
+            if (computing) tools.push(computerTool((task) => computer.start(task, { agentId: agent._id, agentName: agent.name, conversationId, send: taskSend })))
             return {
                 system: systemPrompt({
                     agent,
@@ -265,7 +275,7 @@ export class Pipeline {
                     canSearch: SEARCHES.includes(option.provider),
                     canSchedule: scheduling,
                     canUseComputer: computing,
-                    computerBusy: running ? short(running.task, 80) : undefined,
+                    computerBusy: busyHere ? short(busyHere.task, 80) : undefined,
                 }),
                 turns,
                 temperature: agent.temperature,
