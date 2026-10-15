@@ -69,7 +69,8 @@ function key(code, flags) {
 
 // Whether Screen Recording and Accessibility are allowed: true, false, or null when this macOS can't say (never
 // "allowed" by default). Without CGPreflightScreenCaptureAccess, Screen Recording is probed: only with it allowed do
-// other apps' windows show their titles. The Dock's windows show theirs regardless, so they don't count.
+// other apps' windows show their titles. The Dock's and Window Server's windows (the menu bar) show theirs regardless,
+// and so do windows of anything that isn't a running app, so none of those count.
 // Desk-checked only (no Mac to run it on); see runner/README.md.
 const READY = `ObjC.import('CoreGraphics')
 ObjC.import('ApplicationServices')
@@ -78,11 +79,14 @@ function screen() {
     if (typeof $.CGPreflightScreenCaptureAccess === 'function') return !!$.CGPreflightScreenCaptureAccess()
     try {
         if (typeof $.CGWindowListCopyWindowInfo !== 'function') return null
-        // 1: on-screen windows only, 0: no window to start from
-        const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)))
+        // 1 | 16: on-screen windows only, without desktop elements; 0: no window to start from
+        const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17, 0)))
         if (!Array.isArray(list)) return null
         const me = Number($.NSProcessInfo.processInfo.processIdentifier)
-        const named = list.some((w) => !!w && w.kCGWindowOwnerPID !== me && w.kCGWindowOwnerName !== 'Dock' && typeof w.kCGWindowName === 'string')
+        const app = (pid) => !$.NSRunningApplication.runningApplicationWithProcessIdentifier(pid).isNil()
+        const named = list.some(
+            (w) => !!w && w.kCGWindowOwnerPID !== me && w.kCGWindowOwnerName !== 'Dock' && w.kCGWindowOwnerName !== 'Window Server' && typeof w.kCGWindowName === 'string' && w.kCGWindowName !== '' && app(w.kCGWindowOwnerPID),
+        )
         return named ? true : null
     } catch (e) {
         return null
@@ -295,9 +299,10 @@ export class MacDriver implements Driver {
         const { screen, input } = JSON.parse(await this.run({ op: 'ready' })) as { screen: boolean | null; input: boolean | null }
         const missing = [screen !== true && 'Screen Recording', input !== true && 'Accessibility'].filter(Boolean)
         if (!missing.length) return null
-        const allow = `Allow ${missing.join(' and ')} for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.`
-        const unsure = [screen == null && 'Screen Recording', input == null && 'Accessibility'].filter(Boolean)
-        return unsure.length ? `Couldn't confirm ${unsure.join(' and ')} ${unsure.length > 1 ? 'are' : 'is'} allowed. ${allow}` : allow
+        // Kept short: it can end up inside a text message
+        const allow = `Allow ${missing.join(' and ')} for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen it.`
+        const unsure = screen == null || input == null
+        return unsure ? `Couldn't confirm it's allowed. ${allow}` : allow
     }
     close() {}
 }
