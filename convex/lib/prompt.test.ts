@@ -22,6 +22,19 @@ describe('agent instructions', () => {
         expect(systemPrompt(base)).not.toMatch(/set reminders/)
     })
 
+    it('tells the agent it can use your computer only when it can, and in your own chat', () => {
+        expect(systemPrompt({ ...base, withOwner: true, canUseComputer: true })).toMatch(/do tasks on their computer/)
+        expect(systemPrompt({ ...base, withOwner: true })).not.toMatch(/do tasks on their computer/)
+        expect(systemPrompt({ ...base, canUseComputer: true })).not.toMatch(/do tasks on their computer/)
+    })
+
+    it('says a computer task is already running, in your own chat only', () => {
+        const busy = "You're already doing a task on their computer (“book Nopa”). Tell them it's in progress; they can text stop to cancel it."
+        expect(systemPrompt({ ...base, withOwner: true, computerBusy: 'book Nopa' })).toContain(busy)
+        expect(systemPrompt({ ...base, computerBusy: 'book Nopa' })).not.toContain('book Nopa')
+        expect(systemPrompt({ ...base, withOwner: true })).not.toMatch(/already doing a task/)
+    })
+
     it('gives the UTC offset with the timezone, and asks for the offset on the target date', () => {
         const regina = { ...base, workspace: { ownerName: 'Sam', timezone: 'America/Regina' }, now: Date.parse('2026-10-14T20:00:00Z') }
         expect(systemPrompt(regina)).toContain('(America/Regina, UTC-06:00)')

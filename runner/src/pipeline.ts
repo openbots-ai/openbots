@@ -5,9 +5,10 @@ import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
+import { short, type ComputerTasks } from './computer/tasks'
 import type { Fired } from './scheduler'
 import type { Conversation, Job, Store } from './store'
-import { schedulingTools } from './tools'
+import { computerTool, schedulingTools } from './tools'
 import type { Channel, Incoming, Transport } from './transports/types'
 
 // What the engine reads from Convex: your settings, agents, numbers and knowledge (see convex/runner.ts:config)
@@ -16,6 +17,8 @@ export type Config = {
     agents: Doc<'agents'>[]
     numbers: Doc<'numbers'>[]
     knowledge: Doc<'knowledge'>[]
+    // This engine may do tasks on your computer (Settings, for a Windows or Mac engine)
+    computerUse?: boolean
 }
 
 // Counts sent to Convex for Analytics and the budget. Never names, numbers or text.
@@ -38,6 +41,8 @@ export type Deps = {
     models: () => KeyModel[]
     // Emails you, when the engine has Resend set up
     email?: (to: string, subject: string, text: string) => Promise<void>
+    // Runs computer tasks on this machine, when it's a Windows or Mac computer (see computer/tasks.ts)
+    computer?: Pick<ComputerTasks, 'busy' | 'current' | 'start' | 'handle'>
     complete?: typeof completeWith
     now?: () => number
     log?: (line: string) => void
@@ -152,6 +157,8 @@ export class Pipeline {
 
         // Who and which agent, never what they wrote
         this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? ' (you)' : ''}`)
+        // While a computer task waits for your answer (or you say stop), your text is for the task, not a new reply
+        if (fromOwner && !text.thread && this.deps.computer?.handle(conversation.id, body)) return { markRead: true }
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
         return { markRead: true }
     }
@@ -236,9 +243,15 @@ export class Pipeline {
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
         const turns = this.turns(conversation)
         // Each model gets its own prompt: scheduling tools only in your own one-to-one chat (in a group the chat's
-        // first sender may not be you), and only for a model that can run them
+        // first sender may not be you), and only for a model that can run them. use_computer joins them when this engine
+        // can use your computer and has an Anthropic key (read now: keys saved in Connections arrive while it runs).
+        const computer = this.deps.computer
+        const running = owner && !conversation.threadKey ? computer?.current() : null
         const promptFor = (option: ModelOption): Prompt => {
             const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
+            const computing = scheduling && !!computer && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
+            const tools = scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now, timeZone: ws.timezone ?? 'UTC' }) : []
+            if (computing) tools.push(computerTool((task) => computer.start(task, { agentId: agent._id, agentName: agent.name, conversationId, send: (b) => this.send(conversation, contact.handle, b) })))
             return {
                 system: systemPrompt({
                     agent,
@@ -251,11 +264,13 @@ export class Pipeline {
                     sms: conversation.channel === 'twilio',
                     canSearch: SEARCHES.includes(option.provider),
                     canSchedule: scheduling,
+                    canUseComputer: computing,
+                    computerBusy: running ? short(running.task, 80) : undefined,
                 }),
                 turns,
                 temperature: agent.temperature,
                 maxTokens: MAX_TOKENS[agent.replyLength ?? 'short'],
-                tools: scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now, timeZone: ws.timezone ?? 'UTC' }) : undefined,
+                tools: tools.length ? tools : undefined,
             }
         }
 
