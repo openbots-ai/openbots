@@ -536,7 +536,7 @@ const costOf = (slot: SlotId) => COSTS.find((c) => c.slot === slot)!.split.reduc
 const MONTH = COSTS.reduce((sum, c) => sum + costOf(c.slot), 0)
 const TILES: [SlotId, string][] = [
     ['brain', 'Replies'],
-    ['computer', 'Browser actions'],
+    ['computer', 'Computer steps'],
     ['calls', 'Calls'],
     ['voice', 'Voice notes'],
 ]

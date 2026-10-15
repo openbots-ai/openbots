@@ -41,7 +41,7 @@ function script(...responses: Block[][]) {
 }
 
 function deps(over: Partial<LoopDeps> & Pick<LoopDeps, 'create' | 'driver'>): LoopDeps {
-    return { model: 'claude-sonnet-5-5', os: 'windows', ask: async () => 'YES', stopped: () => false, overBudget: async () => null, record: () => {}, now: () => 0, sleep: async () => {}, ...over }
+    return { model: 'claude-sonnet-5-5', os: 'windows', ask: async () => 'YES', stopped: () => null, overBudget: async () => null, record: () => {}, now: () => 0, sleep: async () => {}, ...over }
 }
 
 describe('the computer loop', () => {
@@ -94,7 +94,7 @@ describe('the computer loop', () => {
         const { driver, actions } = fakeDriver()
         let stop = false
         const { create } = script([call('a', 'type', { text: 'one' }), call('b', 'type', { text: 'two' })])
-        const end = await runTask('t', deps({ create, driver: { ...driver, type: async (t) => ((stop = true), void actions.push(t)) }, stopped: () => stop }))
+        const end = await runTask('t', deps({ create, driver: { ...driver, type: async (t) => ((stop = true), void actions.push(t)) }, stopped: () => (stop ? 'You stopped it' : null) }))
         expect(end.outcome).toBe('stopped')
         expect(actions).toEqual(['one'])
     })
@@ -127,6 +127,40 @@ describe('the computer loop', () => {
         expect(images).toHaveLength(5)
         for (let i = 0; i + 1 < bodies.length; i++) expect(bodies[i + 1].messages.slice(0, bodies[i].messages.length)).toEqual(bodies[i].messages)
         expect(bodies[0].tools.at(-1).cache_control).toEqual({ type: 'ephemeral' })
+    })
+
+    it('caches the conversation so far with a top-level breakpoint, and uses at most 4 in all', async () => {
+        const { driver } = fakeDriver()
+        const { create, bodies } = script([call('a', 'screenshot')], [own('f', 'finish', { summary: 'ok' })])
+        await runTask('t', deps({ create, driver }))
+        for (const b of bodies) {
+            expect(b.cache_control).toEqual({ type: 'ephemeral' })
+            expect(b.context_management.edits.some((e: { type: string }) => e.type.startsWith('clear_thinking'))).toBe(false)
+            const breakpoints = JSON.stringify(b).match(/"cache_control"/g) ?? []
+            expect(breakpoints.length).toBeLessThanOrEqual(4)
+        }
+    })
+
+    it('carries the reason it was stopped into the summary', async () => {
+        const { driver, actions } = fakeDriver()
+        let off = false
+        const { create } = script([call('a', 'type', { text: 'one' }), call('b', 'type', { text: 'two' })])
+        const end = await runTask('t', deps({ create, driver: { ...driver, type: async (t) => ((off = true), void actions.push(t)) }, stopped: () => (off ? 'computer use was turned off' : null) }))
+        expect(end).toMatchObject({ outcome: 'stopped', summary: 'computer use was turned off' })
+        expect(actions).toEqual(['one'])
+        // Checked before the first model call too
+        let called = false
+        const before = await runTask('t', deps({ create: async () => ((called = true), { stop_reason: 'end_turn', content: [] }), driver, stopped: () => 'the agent was paused' }))
+        expect(before).toMatchObject({ outcome: 'stopped', summary: 'the agent was paused' })
+        expect(called).toBe(false)
+    })
+
+    it('fails the task when the budget check hangs', async () => {
+        const { driver } = fakeDriver()
+        let called = false
+        const end = await runTask('t', deps({ create: async () => ((called = true), { stop_reason: 'end_turn', content: [] }), driver, overBudget: () => new Promise(() => {}), budgetTimeoutMs: 20 }))
+        expect(end).toMatchObject({ outcome: 'failed', summary: 'Couldn’t check your usage budget' })
+        expect(called).toBe(false)
     })
 
     it('answers members it doesn’t do with an error instead of failing the task', async () => {

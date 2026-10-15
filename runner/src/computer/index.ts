@@ -8,7 +8,8 @@ import { WindowsDriver } from './windows'
 
 // Calls Claude: the loop's request carries `betas` and `context_management`, so it goes to the beta endpoint
 type Client = (apiKey: string) => { beta: { messages: { create: (body: never) => Promise<unknown> } } }
-const realClient: Client = (apiKey) => new Anthropic({ apiKey, maxRetries: 1, timeout: 90_000 })
+// A computer turn can think for a while before it answers, so each call gets up to 5 minutes
+const realClient: Client = (apiKey) => new Anthropic({ apiKey, maxRetries: 1, timeout: 300_000 })
 
 export type ComputerDeps = {
     // Read at each call, so a key saved in Connections works without a restart
@@ -19,6 +20,8 @@ export type ComputerDeps = {
     // One model call, counted on the agent that started the task under the model's option id
     record: (agentId: string, modelId: string) => void
     log: (line: string) => void
+    // Why the agent may not go on with its task right now, or null (see computerAllowed)
+    allowed?: (agentId: string) => string | null
     persist?: Persist
     driver?: Driver
     create?: Create
@@ -44,6 +47,7 @@ export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | un
     return new ComputerTasks({
         log: deps.log,
         persist: deps.persist,
+        allowed: deps.allowed,
         run: async (task, hooks, ctx) => {
             driver ??= driverFor(os)!
             const missing = await driver.ready()
@@ -69,6 +73,13 @@ export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | un
     })
 }
 
+// A task goes on only while computer use is on and the agent that started it isn't paused
+export function computerAllowed(config: { computerUse?: boolean; agents: { _id: string; status?: string }[] } | null | undefined, agentId: string): string | null {
+    if (config?.computerUse !== true) return 'computer use was turned off'
+    if (config.agents.find((a) => a._id === agentId)?.status === 'paused') return 'the agent was paused'
+    return null
+}
+
 const KEY = 'computer.task'
 type Saved = { agentId: string; conversationId: number; task: string }
 
@@ -79,12 +90,12 @@ export const taskMemory = (store: Pick<Store, 'setSealedMeta' | 'deleteMeta'>): 
 })
 
 // A task the engine's restart ended: texts you once, in the chat it reported to. While that chat's channel isn't
-// running (`canSend`), it's kept for the next start.
+// running it's kept for a later check (each dashboard change runs this again); a deleted chat forgets it.
 export async function tellAboutRestart(
     store: Pick<Store, 'getSealedMeta' | 'deleteMeta'>,
     send: (agentId: string, conversationId: number, body: string) => Promise<void>,
     log: (line: string) => void = () => {},
-    canSend: (conversationId: number) => boolean = () => true,
+    reach: (conversationId: number) => 'ready' | 'waiting' | 'gone' = () => 'ready',
 ) {
     let saved: Saved
     try {
@@ -95,7 +106,12 @@ export async function tellAboutRestart(
         log(`Couldn’t read the computer task the restart stopped: ${e instanceof Error ? e.message : String(e)}`)
         return store.deleteMeta(KEY)
     }
-    if (!canSend(saved.conversationId)) return log('The computer task the restart stopped is waiting for its chat’s channel; you’ll hear about it after the next start')
+    const where = reach(saved.conversationId)
+    if (where === 'gone') {
+        log('The chat of the computer task the restart stopped is gone, so it’s forgotten')
+        return store.deleteMeta(KEY)
+    }
+    if (where === 'waiting') return log('The computer task the restart stopped is waiting for its chat’s channel; you’ll hear about it once it runs')
     // Forgotten first, so a failing text can't repeat at every start
     store.deleteMeta(KEY)
     await send(saved.agentId, saved.conversationId, `I was restarted, so I stopped “${saved.task}”. Text me to start it again.`).catch((e) =>

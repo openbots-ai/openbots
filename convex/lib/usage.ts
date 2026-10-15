@@ -3,7 +3,7 @@ import type { SlotId } from './models'
 // What one unit of work is for each model slot, and how many usage credits it costs against your budget
 export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: number }> = {
     brain: { one: 'reply', many: 'replies', weight: 1 },
-    computer: { one: 'action', many: 'actions', weight: 2 },
+    computer: { one: 'step', many: 'steps', weight: 2 },
     voice: { one: 'voice note', many: 'voice notes', weight: 1 },
     listening: { one: 'note heard', many: 'notes heard', weight: 0.5 },
     calls: { one: 'call minute', many: 'call minutes', weight: 3 },

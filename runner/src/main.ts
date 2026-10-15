@@ -6,7 +6,7 @@ import type { SealedService } from '../../convex/lib/sealed'
 import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { startTunnel } from './tunnel'
-import { driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
+import { computerAllowed, driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
 import { Vault } from './crypto'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
@@ -71,6 +71,8 @@ async function main() {
         budget: () => link.budget(dayKey(Date.now())),
         record: (agentId, model) => void link.record(agentId as Id<'agents'>, { usage: { slot: 'computer', model } }).catch((e) => console.error(`Couldn't record usage: ${message(e)}`)),
         log: (line) => console.log(line),
+        // Turning Computer use off or pausing the agent in the dashboard stops a running task at its next step
+        allowed: (agentId) => computerAllowed(link.config(), agentId),
         persist: taskMemory(store),
         driver,
     })
@@ -194,6 +196,15 @@ async function main() {
         const computing: Status['services'] = computerProblem ? [{ service: 'computer', error: computerProblem }] : []
         return link.heartbeat({ ...status, services: perService([...status.services, ...waiting, ...computing]), jobs }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
     }
+    // A computer task the last run left unfinished: tell you in its chat once its channel is up. Runs at start and
+    // after each dashboard change (a channel may start later); it texts at most once.
+    const restartNotice = () =>
+        tellAboutRestart(
+            store,
+            (_agentId, conversationId, body) => pipeline.textInChat(conversationId, body),
+            (line) => console.error(line),
+            (conversationId) => pipeline.chatReach(conversationId),
+        ).catch((e) => console.error(`Couldn't check for a computer task the restart stopped: ${message(e)}`))
     // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
     const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
     let applied = ''
@@ -216,6 +227,7 @@ async function main() {
                         } else takeKeys(next)
                         await checkAll()
                         await beat()
+                        await restartNotice()
                     })
                     .catch((e) => console.error(`Couldn't apply your dashboard keys: ${message(e)}`))
                     // Even if the first change failed, queued replies go out with whatever is running
@@ -246,13 +258,8 @@ async function main() {
         )
     })
     await ready
-    // A computer task the last run left unfinished: tell you in its chat, now that the channels are up
-    await tellAboutRestart(
-        store,
-        (_agentId, conversationId, body) => pipeline.textInChat(conversationId, body),
-        (line) => console.error(line),
-        (conversationId) => pipeline.canTextInChat(conversationId),
-    )
+    // Again now that everything is up, in case the first change failed part way
+    await restartNotice()
     const timers = [setInterval(beat, HEARTBEAT_MS), setInterval(() => void checkAll().then(beat), CHECK_MS)]
 
     // Requests from the dashboard: check keys again, or anything that needs your Twilio login

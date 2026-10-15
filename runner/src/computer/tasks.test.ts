@@ -185,7 +185,7 @@ describe('computer tasks', () => {
     it('halts on shutdown: stops the clicks but keeps the task remembered and texts nothing', async () => {
         const sent: string[] = []
         let cleared = 0
-        let stopped!: () => boolean
+        let stopped!: () => string | null
         let finish!: (e: TaskEnd) => void
         const tasks = new ComputerTasks({
             run: (_t, hooks) => ((stopped = hooks.stopped), new Promise((r) => (finish = r))),
@@ -193,7 +193,7 @@ describe('computer tasks', () => {
         })
         tasks.start('book Nopa', { agentId: 'a1', agentName: 'Iris', conversationId: 7, send: async (b) => void sent.push(b) })
         tasks.halt()
-        expect(stopped()).toBe(true)
+        expect(stopped()).toBe('You stopped it')
         finish({ outcome: 'stopped', summary: 'You stopped it', actions: 1 })
         await new Promise((r) => setTimeout(r, 0))
         expect(cleared).toBe(0)
@@ -205,5 +205,37 @@ describe('computer tasks', () => {
         asking.halt()
         await new Promise((r) => setTimeout(r, 0))
         expect(cleared).toBe(0)
+    })
+
+    it('stops at once when computer use is turned off or the agent is paused, and says why', async () => {
+        const sent: string[] = []
+        let why: string | null = null
+        let stopped!: () => string | null
+        let finish!: (e: TaskEnd) => void
+        const asked: string[] = []
+        const tasks = new ComputerTasks({
+            run: (_t, hooks) => ((stopped = hooks.stopped), new Promise((r) => (finish = r))),
+            allowed: (agentId) => (asked.push(agentId), why),
+        })
+        tasks.start('book Nopa', { agentId: 'a1', agentName: 'Iris', conversationId: 7, send: async (b) => void sent.push(b) })
+        expect(stopped()).toBeNull()
+        why = 'computer use was turned off'
+        expect(stopped()).toBe('computer use was turned off')
+        expect(asked).toContain('a1')
+        finish({ outcome: 'stopped', summary: stopped()!, actions: 1 })
+        await new Promise((r) => setTimeout(r, 0))
+        expect(sent).toEqual(['Stopped “book Nopa”: computer use was turned off.'])
+        // A paused agent asks no new questions
+        why = 'the agent was paused'
+        const paused = new ComputerTasks({
+            run: async (_t, h) => h.ask('Pay?').then(
+                () => ({ outcome: 'done', summary: 'Paid.', actions: 1 }),
+                (e) => ({ outcome: 'stopped', summary: e instanceof Stopped ? e.message : 'x', actions: 0 }),
+            ),
+            allowed: () => why,
+        })
+        paused.start('pay', { agentId: 'a1', agentName: 'Iris', conversationId: 7, send: async (b) => void sent.push(b) })
+        await new Promise((r) => setTimeout(r, 0))
+        expect(sent.at(-1)).toBe('Stopped “pay”: the agent was paused.')
     })
 })

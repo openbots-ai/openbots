@@ -60,7 +60,7 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
 - **The dashboard** requires the workspace owner's sign-in (Convex Auth) for every function.
 - **Computer use** is off until the owner turns it on for a Windows or Mac computer in Connections. Only the owner,
   in their own one-to-one chat with the agent, can start a task. Claude must ask the owner ("Reply YES") before
-  anything that can't be undone, each task stops after 200 actions or 30 minutes, and texting "stop" cancels it. Web
+  anything that can't be undone, each task stops after 200 steps or 30 minutes, and texting "stop" cancels it. Web
   pages and documents on the screen can try to mislead Claude into doing something else; the system prompt treats
   screen text as information, not instructions, but that's a mitigation, not a guarantee, so watch what it does.
 
@@ -82,6 +82,10 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
   backup alone doesn't reveal them, but the OpenBots operators hold `ENCRYPTION_KEY` and could decrypt them, and a
   leaked engine token can read them until it's revoked. If you'd rather nobody else could, set your keys as environment
   variables on the engine instead; they never leave that machine.
+- **The owner is recognised by their phone number**, and caller ID can be spoofed on SMS. Someone faking the owner's
+  number could text the agent as the owner. Computer use raises the stakes, since the owner can start tasks on the
+  computer, but a task's questions and results always go to the owner's real number, so the owner sees them and can
+  text "stop".
 - **Counts reveal volume:** the backend knows how many conversations, texts and handoffs each agent had per day.
 - This design hasn't had an external security review yet.
 

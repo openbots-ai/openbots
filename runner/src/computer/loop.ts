@@ -14,12 +14,15 @@ export type LoopDeps = {
     driver: Driver
     // Texts you the question and resolves with your answer; rejects with Stopped if you say stop or don't answer
     ask: (question: string) => Promise<string>
-    stopped: () => boolean
+    // Why the task must end now (you said stop, computer use was turned off, the agent was paused), or null
+    stopped: () => string | null
     overBudget: () => Promise<string | null>
     // One model call, for the usage count
     record: () => void
     now: () => number
     sleep?: (ms: number) => Promise<void>
+    // How long the budget check may take (15 seconds unless a test says otherwise)
+    budgetTimeoutMs?: number
 }
 
 export const MAX_ACTIONS = 200
@@ -27,6 +30,7 @@ export const MAX_TASK_MS = 30 * 60_000
 export const KEEP_SHOTS = 3
 // Recent tool calls the API keeps when it clears old ones: about KEEP_SHOTS batches, each a few actions and a screenshot
 export const KEEP_TOOL_USES = 15
+export const BUDGET_TIMEOUT_MS = 15_000
 export const SKIPPED = 'Not executed: an earlier computer action in this turn failed.'
 
 // You said stop, or didn't answer a question in time
@@ -140,9 +144,14 @@ export async function runTask(task: string, deps: LoopDeps): Promise<TaskEnd> {
 
     const messages: Message[] = [{ role: 'user', content: task }]
     while (true) {
-        if (deps.stopped()) return end('stopped', 'You stopped it')
+        const halt = deps.stopped()
+        if (halt) return end('stopped', halt)
         if (deps.now() - started - waited > MAX_TASK_MS) return end('failed', 'It took longer than 30 minutes')
-        const blocked = await deps.overBudget()
+        // A budget check that hangs ends the task rather than letting it run unchecked
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const late = new Promise<'late'>((r) => (timer = setTimeout(() => r('late'), deps.budgetTimeoutMs ?? BUDGET_TIMEOUT_MS)))
+        const blocked = await Promise.race([deps.overBudget(), late]).finally(() => clearTimeout(timer))
+        if (blocked === 'late') return end('failed', 'Couldn’t check your usage budget')
         if (blocked) return end('failed', blocked)
         deps.record()
         const res = await deps.create({
@@ -152,6 +161,8 @@ export async function runTask(task: string, deps: LoopDeps): Promise<TaskEnd> {
             output_config: { effort: 'medium' },
             betas: ['context-management-2025-06-27'],
             context_management: CONTEXT_MANAGEMENT,
+            // Caches the conversation so far (the last block that can be cached); with `finish`'s, two of the four breakpoints
+            cache_control: { type: 'ephemeral' },
             system: system(deps.os),
             messages,
             tools: [{ type: 'computer_toolset_20260801', configs: { zoom: { enabled: false }, hold_key: { enabled: false }, left_mouse_down: { enabled: false }, left_mouse_up: { enabled: false } } }, ...OWN_TOOLS],
@@ -183,7 +194,8 @@ export async function runTask(task: string, deps: LoopDeps): Promise<TaskEnd> {
                     results.push({ type: 'tool_result', tool_use_id: use.id, toolset_name: 'computer', is_error: true, content: SKIPPED })
                     continue
                 }
-                if (deps.stopped()) return end('stopped', 'You stopped it')
+                const why = deps.stopped()
+                if (why) return end('stopped', why)
                 if (actions >= MAX_ACTIONS) return end('failed', `It took more than ${MAX_ACTIONS} steps`)
                 try {
                     const content = await act(use.name ?? '', input)
