@@ -248,12 +248,13 @@ export class Pipeline {
         // first sender may not be you), and only for a model that can run them. use_computer joins them when this engine
         // can use your computer and has an Anthropic key (read now: keys saved in Connections arrive while it runs).
         const computer = this.deps.computer
-        // A task running from this chat: the agent says it's in progress (and how to stop it) instead of offering another
-        const running = owner && !conversation.threadKey ? computer?.current() : null
-        const busyHere = running?.conversationId === conversation.id ? running : null
         // The task's questions and result go into this chat's history and counts, like any reply
         const taskSend = (body: string) => this.textInChat(conversationId, body)
         const promptFor = (option: ModelOption): Prompt => {
+            // Read for each model, so a Backup sees a task the Brain's tool call just started.
+            // A task running from this chat: the agent says it's in progress (and how to stop it) instead of offering another
+            const running = owner && !conversation.threadKey ? computer?.current() : null
+            const busyHere = running?.conversationId === conversation.id ? running : null
             const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
             const offerable = scheduling && !!computer && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
             // A Mac missing a permission: no use_computer, and the agent can say what's missing
@@ -437,10 +438,11 @@ export class Pipeline {
         return text.trim()
     }
 
-    // Whether the chat exists and its channel is running, so textInChat can reach it
-    canTextInChat(conversationId: number) {
+    // Whether textInChat can reach the chat: 'ready', 'waiting' for its channel to run, or 'gone' (the chat was deleted)
+    chatReach(conversationId: number): 'ready' | 'waiting' | 'gone' {
         const conversation = this.deps.store.getConversation(conversationId)
-        return !!conversation && !!this.deps.transports[conversation.channel]
+        if (!conversation || !this.deps.store.getContact(conversation.contactId)) return 'gone'
+        return this.deps.transports[conversation.channel] ? 'ready' : 'waiting'
     }
 
     // A text from the agent into one chat (a computer task's question or result), kept in its history and counts.

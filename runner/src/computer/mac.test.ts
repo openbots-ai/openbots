@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { MacDriver, macScript, typeTimeout } from './mac'
+import { MacDriver, macScript, quiet, typeTimeout } from './mac'
 
 describe('Mac scripts', () => {
     it('types any text literally, never as code', () => {
@@ -56,8 +56,23 @@ describe('Mac scripts', () => {
 
     it('uses the main display and guards the permission checks', () => {
         expect(macScript({ op: 'size' })).toContain('CGDisplayBounds($.CGMainDisplayID())')
-        expect(macScript({ op: 'ready' })).toContain("typeof $.AXIsProcessTrusted === 'function' ? !!$.AXIsProcessTrusted() : true")
-        expect(macScript({ op: 'ready' })).toContain("typeof $.CGPreflightScreenCaptureAccess === 'function' ? !!$.CGPreflightScreenCaptureAccess() : true")
+        const ready = macScript({ op: 'ready' })
+        // A check this macOS doesn't have is never taken as allowed
+        expect(ready).not.toMatch(/: true\b/)
+        expect(ready).toContain("typeof $.AXIsProcessTrusted === 'function' ? !!$.AXIsProcessTrusted() : null")
+        expect(ready).toContain("if (typeof $.CGPreflightScreenCaptureAccess === 'function') return !!$.CGPreflightScreenCaptureAccess()")
+    })
+
+    it('without the Screen Recording check, probes other apps’ window titles instead', () => {
+        const ready = macScript({ op: 'ready' })
+        expect(ready).toContain('ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)))')
+        expect(ready).toContain('$.NSProcessInfo.processInfo.processIdentifier')
+        expect(ready).toContain("w.kCGWindowOwnerPID !== me && w.kCGWindowOwnerName !== 'Dock' && typeof w.kCGWindowName === 'string'")
+        // No titled window, a missing function or an error: can't confirm
+        expect(ready).toContain('return named ? true : null')
+        expect(ready).toContain("if (typeof $.CGWindowListCopyWindowInfo !== 'function') return null")
+        expect(ready).toMatch(/catch \(e\) \{\s*return null/)
+        expect(ready).toContain('JSON.stringify({ screen: screen(), input: input() })')
     })
 
     it('moves to the point before clicking', () => {
@@ -132,9 +147,33 @@ describe('the Mac driver', () => {
 
     it('says what permission is missing', async () => {
         const driver = new MacDriver(async () => '{"screen":false,"input":true}')
-        expect(await driver.ready()).toMatch(/Screen Recording/)
+        expect(await driver.ready()).toBe("Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.")
         const ok = new MacDriver(async () => '{"screen":true,"input":true}')
         expect(await ok.ready()).toBeNull()
+    })
+
+    it('reports a permission it can’t confirm as missing', async () => {
+        const unsure = new MacDriver(async () => '{"screen":null,"input":true}')
+        expect(await unsure.ready()).toBe("Couldn't confirm Screen Recording is allowed. Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.")
+        const neither = new MacDriver(async () => '{"screen":null,"input":null}')
+        expect(await neither.ready()).toMatch(/^Couldn't confirm Screen Recording and Accessibility are allowed\. Allow Screen Recording and Accessibility/)
+    })
+
+    it('fails with only a short reason, never the command line', async () => {
+        const fail = (stderr: string) =>
+            quiet(async (file, args) => {
+                throw Object.assign(new Error(`Command failed: ${file} ${args.join(' ')}`), { stderr })
+            })
+        const typing = new MacDriver(fail('execution error: Not authorized to send Apple events. (-1743)\n'))
+        const err = await typing.type('my secret note').catch((e: Error) => e)
+        expect(err).toBeInstanceOf(Error)
+        expect((err as Error).message).toBe('execution error: Not authorized to send Apple events. (-1743)')
+        expect((err as Error).message).not.toContain('secret')
+        expect((err as Error).message).not.toContain('osascript')
+        const silent = new MacDriver(fail(''))
+        await expect(silent.type('my secret note')).rejects.toThrow(/^The Mac didn’t run the action$/)
+        const long = new MacDriver(fail('x'.repeat(1000)))
+        expect(((await long.click(undefined, 'left', 1, []).catch((e: Error) => e)) as Error).message).toHaveLength(300)
     })
 })
 

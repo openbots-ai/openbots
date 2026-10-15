@@ -11,6 +11,7 @@ import { listModels } from './models'
 import { Vault } from './crypto'
 import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
 import { RETRY_MS, Scheduler } from './scheduler'
+import { ComputerTasks } from './computer/tasks'
 import { Store } from './store'
 import { MacTransport, textFromAttributedBody } from './transports/mac'
 import type { Channel, Outgoing, Transport } from './transports/types'
@@ -457,6 +458,55 @@ describe('agent', () => {
         }
     })
 
+    it('lets a Backup see a task the Brain started before it failed', async () => {
+        let running: { task: string; conversationId: number } | null = null
+        const computer = {
+            busy: () => !!running,
+            current: () => running,
+            handle: () => false,
+            start: (task: string, ctx: { conversationId: number }) => ((running = { task, conversationId: ctx.conversationId }), 'Started'),
+        }
+        const backup: { system: string; tools: string[] }[] = []
+        const complete = model(async (_b, option, p) => {
+            if (option.id === 'openai:gpt-5.1') {
+                await p.tools!.find((t) => t.name === 'use_computer')!.run({ task: 'book Nopa' })
+                throw new Error('rate limited')
+            }
+            backup.push({ system: p.system, tools: p.tools?.map((t) => t.name) ?? [] })
+            return 'on it'
+        })
+        const { text, transport } = setup(config({ computerUse: true }), complete, { computer })
+        await text('book nopa', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('on it')
+        expect(backup[0].system).toContain("You're already doing a task on their computer (“book Nopa”)")
+        expect(backup[0].tools).not.toContain('use_computer')
+    })
+
+    it('never takes your text in a group as a task’s answer or as stop', async () => {
+        const tasks = new ComputerTasks({ run: async (_t, h) => ((await h.ask('Pay $40?')), { outcome: 'done', summary: 'Paid.', actions: 1 }) })
+        const handle = vi.spyOn(tasks, 'handle')
+        const complete = model(async () => 'ok')
+        const { bubbles, pipeline, store } = setup(config({ computerUse: true }), complete, { computer: tasks })
+        const group = { key: 'iMessage;+;chat7', title: 'Plans' }
+        await pipeline.receive({ channel: 'bluebubbles', from: OWNER, body: 'Pip, hi all', name: 'Sam', thread: group })
+        await vi.runAllTimersAsync()
+        // A task reporting to the group's own chat, waiting for an answer
+        const id = 1
+        expect(store.getConversation(id)?.threadKey).toBe(group.key)
+        tasks.start('pay', { agentId: AGENT, agentName: 'Pip', conversationId: id, send: async () => {} })
+        await vi.advanceTimersByTimeAsync(0)
+        for (const body of ['stop', 'YES']) {
+            await pipeline.receive({ channel: 'bluebubbles', from: OWNER, body, name: 'Sam', thread: group })
+            // Long enough for a reply, well short of the 30 minutes a question waits
+            await vi.advanceTimersByTimeAsync(60_000)
+        }
+        expect(handle).not.toHaveBeenCalled()
+        // Still waiting for an answer
+        expect(tasks.busy()).toBe(true)
+        expect(bubbles.sent.map((m) => m.body)).toEqual(['ok'])
+    })
+
     it('doesn’t offer use_computer in a group chat you started', async () => {
         const computer = { busy: () => false, current: () => null, handle: vi.fn(() => true), start: vi.fn(() => 'Started') }
         const complete = model(async (_b, _o, p) => (p.tools?.some((t) => t.name === 'use_computer') ? 'had it' : 'ok'))
@@ -549,10 +599,10 @@ describe('agent', () => {
         const { text, pipeline } = setup(config(), model(async () => 'hi'))
         await text('hey', OWNER)
         await vi.runAllTimersAsync()
-        expect(pipeline.canTextInChat(1)).toBe(true)
-        expect(pipeline.canTextInChat(404)).toBe(false)
+        expect(pipeline.chatReach(1)).toBe('ready')
+        expect(pipeline.chatReach(404)).toBe('gone')
         pipeline.update({ transports: {} })
-        expect(pipeline.canTextInChat(1)).toBe(false)
+        expect(pipeline.chatReach(1)).toBe('waiting')
     })
 
     it('texts you in a chat and keeps it in that chat’s history and counts', async () => {

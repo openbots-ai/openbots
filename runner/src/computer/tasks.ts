@@ -3,7 +3,8 @@ import { Stopped, type TaskEnd } from './loop'
 // The task running on this computer, if any. Runs in the background after the agent replies "on it", takes your
 // texts in that chat while it waits for an answer (or "stop"), and texts you how it ended. One at a time.
 
-export type Hooks = { ask: (question: string) => Promise<string>; stopped: () => boolean }
+// `stopped` returns why the task must end now (you said stop, computer use was turned off, the agent was paused), or null
+export type Hooks = { ask: (question: string) => Promise<string>; stopped: () => string | null }
 // `agentId` is the agent that started the task: its Computer use model runs it and its usage is recorded on it
 export type TaskCtx = { agentId: string; agentName: string; conversationId: number; send: (body: string) => Promise<void> }
 
@@ -24,10 +25,21 @@ type Waiting = { resolve: (answer: string) => void; reject: (e: Error) => void; 
 // `halted`: the engine is shutting down, so the task stays remembered and nothing is texted
 type Running = { task: string; ctx: TaskCtx; stop: boolean; halted?: boolean; waiting?: Waiting }
 
+export const YOU_STOPPED = 'You stopped it'
+
 export class ComputerTasks {
     private running: Running | null = null
 
-    constructor(private deps: { run: (task: string, hooks: Hooks, ctx: TaskCtx) => Promise<TaskEnd>; log?: (line: string) => void; answerTimeoutMs?: number; persist?: Persist }) {}
+    constructor(
+        private deps: {
+            run: (task: string, hooks: Hooks, ctx: TaskCtx) => Promise<TaskEnd>
+            log?: (line: string) => void
+            answerTimeoutMs?: number
+            persist?: Persist
+            // Why the agent may not go on with a task right now (computer use turned off, the agent paused), or null
+            allowed?: (agentId: string) => string | null
+        },
+    ) {}
 
     busy() {
         return !!this.running
@@ -55,12 +67,22 @@ export class ComputerTasks {
         } catch (e) {
             log(`Couldn't remember the computer task: ${describe(e)}`)
         }
+        // Read at each step, so turning computer use off or pausing the agent stops the task at the next action
+        const stopped = (): string | null => {
+            if (running.stop) return YOU_STOPPED
+            try {
+                return this.deps.allowed?.(ctx.agentId) ?? null
+            } catch (e) {
+                return `I couldn’t check computer use is still on (${describe(e)})`
+            }
+        }
         const hooks: Hooks = {
-            stopped: () => running.stop,
+            stopped,
             ask: (question) =>
                 new Promise<string>((resolve, reject) => {
-                    // You already said stop: no new questions
-                    if (running.stop) return reject(new Stopped('You stopped it'))
+                    // Already stopped: no new questions
+                    const why = stopped()
+                    if (why) return reject(new Stopped(why))
                     const timer = setTimeout(() => {
                         running.waiting = undefined
                         reject(new Stopped('you didn’t answer in 30 minutes'))
@@ -89,7 +111,7 @@ export class ComputerTasks {
                     end.outcome === 'done'
                         ? end.summary
                         : end.outcome === 'stopped'
-                        ? end.summary === 'You stopped it'
+                        ? end.summary === YOU_STOPPED
                             ? `Stopped ${quoted}.`
                             : `Stopped ${quoted}: ${end.summary}.`
                         : `I couldn’t finish ${quoted}: ${end.summary.replace(/\.$/, '')}.`
@@ -123,7 +145,7 @@ export class ComputerTasks {
             if (waiting) {
                 clearTimeout(waiting.timer)
                 running.waiting = undefined
-                waiting.reject(new Stopped('You stopped it'))
+                waiting.reject(new Stopped(YOU_STOPPED))
             }
             return true
         }

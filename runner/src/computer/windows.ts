@@ -193,7 +193,10 @@ export function winCommand(o: WinOp): string {
         case 'type':
             return `[OB]::Type([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(o.text, 'utf8').toString('base64')}')))`
         case 'key': {
-            const { mods: held, key } = parseCombo(o.combo)
+            const { mods: given, key } = parseCombo(o.combo)
+            // A bare capital ("A") is shift+a, as on a Mac; with other modifiers held it's just the key, so "ctrl+C" copies
+            const typed = o.combo.split('+').pop() ?? ''
+            const held: Mod[] = !given.length && /^[A-Z]$/.test(typed) ? ['shift'] : given
             const vk = KEY_VK[key] ?? `[OB]::VkFull([char]${key.codePointAt(0)})`
             const one = `[OB]::Combo(${mods(held)}, ${vk})`
             const repeat = within(o.repeat, 1, 100)

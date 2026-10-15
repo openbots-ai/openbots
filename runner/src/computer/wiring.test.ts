@@ -7,7 +7,7 @@ import { Vault } from '../crypto'
 import { Store } from '../store'
 import type { Driver } from './driver'
 import type { Create } from './loop'
-import { makeComputer, taskMemory, tellAboutRestart, type ComputerDeps } from './index'
+import { computerAllowed, makeComputer, taskMemory, tellAboutRestart, type ComputerDeps } from './index'
 
 let dir: string
 beforeEach(() => {
@@ -105,6 +105,34 @@ describe('choosing how to drive this computer', () => {
     })
 })
 
+describe('turning computer use off or pausing the agent', () => {
+    it('is read from the dashboard config', () => {
+        const agents = [{ _id: 'a1', status: 'live' }, { _id: 'a2', status: 'paused' }]
+        expect(computerAllowed({ computerUse: true, agents }, 'a1')).toBeNull()
+        expect(computerAllowed({ computerUse: false, agents }, 'a1')).toBe('computer use was turned off')
+        expect(computerAllowed({ agents }, 'a1')).toBe('computer use was turned off')
+        expect(computerAllowed(null, 'a1')).toBe('computer use was turned off')
+        expect(computerAllowed({ computerUse: true, agents }, 'a2')).toBe('the agent was paused')
+    })
+
+    it('stops a running task at its next step and texts why', async () => {
+        const sent: string[] = []
+        const config = { computerUse: true, agents: [{ _id: 'a1', status: 'live' }] }
+        let calls = 0
+        // Claude keeps taking screenshots; computer use is turned off after the first call
+        const create: Create = async () => {
+            calls++
+            config.computerUse = false
+            return { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `s${calls}`, name: 'screenshot', input: {}, toolset_name: 'computer' }] }
+        }
+        const tasks = makeComputer('windows', { ...base, driver: fakeDriver(), create, allowed: (agentId) => computerAllowed(config, agentId) })!
+        tasks.start('open Notepad', { agentId: 'a1', agentName: 'Iris', conversationId: 1, send: async (b) => void sent.push(b) })
+        await settle()
+        expect(calls).toBe(1)
+        expect(sent).toEqual(['Stopped “open Notepad”: computer use was turned off.'])
+    })
+})
+
 describe('a task the engine’s restart ended', () => {
     it('is remembered sealed, and you get one text about it in its chat', async () => {
         const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
@@ -125,10 +153,23 @@ describe('a task the engine’s restart ended', () => {
         const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
         taskMemory(store).save({ agentId: 'a1', conversationId: 4, task: 'book Nopa' })
         let sends = 0
-        await tellAboutRestart(store, async () => void sends++, () => {}, () => false)
+        await tellAboutRestart(store, async () => void sends++, () => {}, () => 'waiting')
         expect(sends).toBe(0)
-        await tellAboutRestart(store, async () => void sends++, () => {}, (id) => id === 4)
+        await tellAboutRestart(store, async () => void sends++, () => {}, (id) => (id === 4 ? 'ready' : 'gone'))
         expect(sends).toBe(1)
+        store.close()
+    })
+
+    it('forgets the task when its chat was deleted', async () => {
+        const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
+        taskMemory(store).save({ agentId: 'a1', conversationId: 4, task: 'book Nopa' })
+        let sends = 0
+        await tellAboutRestart(store, async () => void sends++, () => {}, () => 'gone')
+        expect(sends).toBe(0)
+        expect(store.getMeta('computer.task')).toBeFalsy()
+        // Nothing left for a later check
+        await tellAboutRestart(store, async () => void sends++)
+        expect(sends).toBe(0)
         store.close()
     })
 

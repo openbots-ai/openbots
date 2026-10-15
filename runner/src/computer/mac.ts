@@ -67,6 +67,32 @@ function key(code, flags) {
     }
 }`
 
+// Whether Screen Recording and Accessibility are allowed: true, false, or null when this macOS can't say (never
+// "allowed" by default). Without CGPreflightScreenCaptureAccess, Screen Recording is probed: only with it allowed do
+// other apps' windows show their titles. The Dock's windows show theirs regardless, so they don't count.
+// Desk-checked only (no Mac to run it on); see runner/README.md.
+const READY = `ObjC.import('CoreGraphics')
+ObjC.import('ApplicationServices')
+ObjC.import('Foundation')
+function screen() {
+    if (typeof $.CGPreflightScreenCaptureAccess === 'function') return !!$.CGPreflightScreenCaptureAccess()
+    try {
+        if (typeof $.CGWindowListCopyWindowInfo !== 'function') return null
+        // 1: on-screen windows only, 0: no window to start from
+        const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)))
+        if (!Array.isArray(list)) return null
+        const me = Number($.NSProcessInfo.processInfo.processIdentifier)
+        const named = list.some((w) => !!w && w.kCGWindowOwnerPID !== me && w.kCGWindowOwnerName !== 'Dock' && typeof w.kCGWindowName === 'string')
+        return named ? true : null
+    } catch (e) {
+        return null
+    }
+}
+function input() {
+    return typeof $.AXIsProcessTrusted === 'function' ? !!$.AXIsProcessTrusted() : null
+}
+JSON.stringify({ screen: screen(), input: input() })`
+
 const at = (p: Point | undefined) => (p ? `const at = { x: ${num(p.x)}, y: ${num(p.y)} }` : 'const at = here()')
 
 export type MacOp =
@@ -87,11 +113,8 @@ export function macScript(o: MacOp): string {
             return `ObjC.import('CoreGraphics'); const b = $.CGDisplayBounds($.CGMainDisplayID()); JSON.stringify({ width: b.size.width, height: b.size.height })`
         case 'cursor':
             return `${MOUSE}\nJSON.stringify(here())`
-        case 'ready': {
-            // A check this macOS doesn't have counts as allowed
-            const check = (name: string) => `typeof $.${name} === 'function' ? !!$.${name}() : true`
-            return `ObjC.import('CoreGraphics'); ObjC.import('ApplicationServices'); JSON.stringify({ screen: ${check('CGPreflightScreenCaptureAccess')}, input: ${check('AXIsProcessTrusted')} })`
-        }
+        case 'ready':
+            return READY
         case 'move':
             return `${MOUSE}\nmouse(5, ${xy(o.at)}, 0, 0, 0)`
         case 'click': {
@@ -200,7 +223,23 @@ export function macScript(o: MacOp): string {
 }
 
 export type Exec = (file: string, args: string[], timeoutMs?: number) => Promise<string>
-const realExec: Exec = async (file, args, timeoutMs = 30_000) => (await promisify(execFile)(file, args, { timeout: timeoutMs, maxBuffer: 1 << 20 })).stdout
+const execOnce: Exec = async (file, args, timeoutMs = 30_000) => (await promisify(execFile)(file, args, { timeout: timeoutMs, maxBuffer: 1 << 20 })).stdout
+
+// A failed command throws only a short reason: what it printed to stderr, never the command line (which holds the
+// script, and so any text being typed)
+export const quiet =
+    (exec: Exec): Exec =>
+    async (file, args, timeoutMs) => {
+        try {
+            return await exec(file, args, timeoutMs)
+        } catch (e) {
+            const stderr = e && typeof e === 'object' && 'stderr' in e ? String((e as { stderr: unknown }).stderr ?? '').trim() : ''
+            // No `cause`: the original error carries the command line
+            // eslint-disable-next-line preserve-caught-error
+            throw new Error(stderr ? stderr.slice(0, 300) : 'The Mac didn’t run the action')
+        }
+    }
+const realExec = quiet(execOnce)
 
 // Typing pastes piece by piece, so longer text gets longer: 30s plus 1s per 200 characters and half a second per line, up to 2 minutes
 export const typeTimeout = (text: string) => Math.min(120_000, 30_000 + Math.ceil(text.length / 200) * 1000 + (text.split(/\r\n|\r|\n/).length - 1) * 500)
@@ -251,10 +290,14 @@ export class MacDriver implements Driver {
     async cursor() {
         return JSON.parse(await this.run({ op: 'cursor' })) as Point
     }
+    // What's missing, or null. A permission this Mac can't confirm counts as missing.
     async ready() {
-        const { screen, input } = JSON.parse(await this.run({ op: 'ready' })) as { screen: boolean; input: boolean }
-        const missing = [!screen && 'Screen Recording', !input && 'Accessibility'].filter(Boolean)
-        return missing.length ? `Allow ${missing.join(' and ')} for the engine in System Settings → Privacy & Security, then restart it.` : null
+        const { screen, input } = JSON.parse(await this.run({ op: 'ready' })) as { screen: boolean | null; input: boolean | null }
+        const missing = [screen !== true && 'Screen Recording', input !== true && 'Accessibility'].filter(Boolean)
+        if (!missing.length) return null
+        const allow = `Allow ${missing.join(' and ')} for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.`
+        const unsure = [screen == null && 'Screen Recording', input == null && 'Accessibility'].filter(Boolean)
+        return unsure.length ? `Couldn't confirm ${unsure.join(' and ')} ${unsure.length > 1 ? 'are' : 'is'} allowed. ${allow}` : allow
     }
     close() {}
 }

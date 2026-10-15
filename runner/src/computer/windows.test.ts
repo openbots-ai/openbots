@@ -28,6 +28,10 @@ describe('Windows commands', () => {
         expect(winCommand({ op: 'key', combo: 'Super_L', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(), 91)')
         expect(winCommand({ op: 'key', combo: 'Insert', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(), 45)')
         expect(winCommand({ op: 'key', combo: 'ctrl+equal', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::VkFull([char]61))')
+        // A bare capital is shift and the letter, as on a Mac; with other modifiers it's the plain key
+        expect(winCommand({ op: 'key', combo: 'A', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(16), [OB]::VkFull([char]97))')
+        expect(winCommand({ op: 'key', combo: 'a', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(), [OB]::VkFull([char]97))')
+        expect(winCommand({ op: 'key', combo: 'ctrl+C', repeat: 1 })).toBe('[OB]::Combo([uint16[]]@(17), [OB]::VkFull([char]99))')
     })
 
     it('scrolls, drags, moves, and reads the screen', () => {

@@ -109,7 +109,8 @@ What the engine can use, all with the person's own accounts:
 - **Computer use (Windows and Mac):** text your agent a task ("find a table at Nopa for Friday 7pm and book it") and
   it does it on the computer its engine runs on with Claude (Sonnet 5.5 or Opus 5.5, set on the Models page or the
   agent's page), asking "Reply YES" before anything that can't be undone and texting you the result. Turn it on per
-  computer in Connections. Needs an Anthropic key.
+  computer in Connections. Needs an Anthropic key, and the agent's Brain must be an OpenAI or Anthropic model (it's
+  the Brain that hands the task over).
 
 ### How a text flows
 
