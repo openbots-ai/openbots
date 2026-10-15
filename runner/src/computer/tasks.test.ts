@@ -75,6 +75,51 @@ describe('computer tasks', () => {
         expect(tasks.handle(7, 'stop')).toBe(false)
     })
 
+    it('takes a text that only starts with stop as the answer', async () => {
+        let answer = ''
+        const { tasks, ctx, settle } = harness(async (h) => {
+            answer = await h.ask('Which result?')
+            return { outcome: 'done', summary: 'ok', actions: 1 }
+        })
+        tasks.start('search', ctx)
+        await settle()
+        expect(tasks.handle(7, 'Stop at the second result')).toBe(true)
+        await settle()
+        expect(answer).toBe('Stop at the second result')
+    })
+
+    it('asks nothing more once you said stop', async () => {
+        let go!: () => void
+        const gate = new Promise<void>((r) => (go = r))
+        const { tasks, ctx, sent, settle } = harness(async (h) => {
+            await gate
+            try {
+                await h.ask('Delete 30 emails?')
+            } catch (e) {
+                if (e instanceof Stopped) return { outcome: 'stopped', summary: e.message, actions: 1 }
+                throw e
+            }
+            return { outcome: 'done', summary: 'x', actions: 1 }
+        })
+        tasks.start('clean inbox', ctx)
+        expect(tasks.handle(7, 'stop!')).toBe(true)
+        go()
+        await settle()
+        expect(sent).toEqual(['Stopped “clean inbox”.'])
+    })
+
+    it('keeps the reply instructions on a long question', async () => {
+        const { tasks, ctx, sent, settle } = harness(async (h) => {
+            await h.ask('q'.repeat(400)).catch(() => '')
+            return { outcome: 'done', summary: 'x', actions: 1 }
+        })
+        tasks.start('t', ctx)
+        await settle()
+        expect(sent[0].length).toBeLessThanOrEqual(300)
+        expect(sent[0]).toMatch(/q… Reply YES to go ahead, or tell me what to do instead\.$/)
+        tasks.handle(7, 'no')
+    })
+
     it('stops when you text stop, or when you don’t answer in time', async () => {
         const { tasks, ctx, sent, settle } = harness(async (h) => {
             try {
