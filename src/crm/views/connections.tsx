@@ -12,11 +12,11 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { ProviderMark } from '@/components/agent-config-bar'
-import runner from '../../../runner/package.json'
 import { KeyForm, type Saved } from '../key-form'
 import { OrgoControls, OrgoCreate } from '../orgo'
 import { TestText } from '../test-text'
 import { relativeTime } from '../lib/time'
+import { setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
 import { useRun } from '../use-run'
@@ -477,20 +477,38 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
     )
 }
 
-// Shown once after adding an engine: the token and how to start it. Versions are pinned so an engine only changes
-// when you choose to upgrade it.
+// Shown once after adding an engine: the token and how to start it on that computer. The engine is one file this site
+// serves (built from the same code as the dashboard); the commands carry the token so nothing needs editing.
 function Setup({ token, onDone }: { token: string; onDone: () => void }) {
-    const mac = `OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\nOPENBOTS_TOKEN=${token} \\\nnpx openbots-runner@${runner.version}`
-    const docker = `docker run -d --name openbots -v openbots:/data -p 8787:8787 \\\n  -e OPENBOTS_CONVEX_URL=${CONVEX_URL} \\\n  -e OPENBOTS_TOKEN=${token} \\\n  -e OPENBOTS_PUBLIC_URL=https://<where your accounts reach it> \\\n  ghcr.io/shidhartha-sen/openbots-runner:${runner.version}`
+    const [system, setSystem] = useState<System>(thisSystem)
+    const steps = setupSteps(system, token, CONVEX_URL, `${window.location.origin}/engine/openbots-engine.mjs`)
     return (
         <div className="space-y-3 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                Copy this token now. It isn’t stored anywhere, so it can’t be shown again. Run one of the commands below on the computer to connect it. Your keys come from the cards below.
+                Run these on the computer you’re adding. They include its token, which is shown only now and isn’t stored anywhere, so copy them before you close this. Needs Node.js 22 or newer.
             </p>
-            <CopyBlock label="Token" text={token} />
-            <CopyBlock label="On a VM or server, with Docker" text={docker} />
-            <CopyBlock label="Without Docker (needs Node.js)" text={mac} />
-            <Btn onClick={onDone}>I’ve copied it</Btn>
+            <div className="flex gap-1" role="group" aria-label="Computer’s system">
+                {SYSTEMS.map((s) => (
+                    <button
+                        key={s.id}
+                        type="button"
+                        aria-pressed={system === s.id}
+                        onClick={() => setSystem(s.id)}
+                        className={cn('rounded-md px-3 py-1.5 text-[12px]', system === s.id ? 'bg-primary text-primary-foreground' : 'bg-white text-neutral-600 ring-1 ring-neutral-200')}>
+                        {s.label}
+                    </button>
+                ))}
+            </div>
+            <CopyBlock label={`1. If you text through Twilio or Sendblue, install the tunnel they reach it through (${steps.shell})`} text={steps.tunnel} />
+            <CopyBlock label={`2. Download and start the engine (${steps.shell})`} text={steps.start} />
+            <p className="text-[12px] text-neutral-500">
+                Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
+                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Your keys come from the cards below.
+            </p>
+            <CopyBlock label="Just the token" text={token} />
+            <Btn variant="primary" onClick={onDone}>
+                I’ve copied it
+            </Btn>
         </div>
     )
 }

@@ -16,38 +16,46 @@ so it can write the reply. Use a local model server if nothing should leave your
 
 ## Start it
 
-1. In the dashboard, open **Connections**, name the machine and click **Add engine**. Copy the token. It's shown
-   once and never stored, because Convex keeps only its hash.
-2. Run the engine with that token. Add your AI key(s) and a way to text in Connections, or as environment variables
-   on the engine (see Settings below).
+1. In the dashboard, open **Connections**, name the computer and add it. Connections then shows, once, the commands
+   to start the engine on Windows, Mac or Linux, with this computer's token already in them. The token is never
+   stored, because Convex keeps only its hash.
+2. Run those commands on the computer (Node.js 22 or newer). They download the engine, a single file this site
+   serves, and start it. Add your AI key(s) and a way to text in Connections, or as environment variables on the
+   engine (see Settings below).
+
+By hand, on a Mac or Linux:
 
 ```sh
+mkdir -p ~/openbots && cd ~/openbots
+curl -L -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
 OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud \
 OPENBOTS_TOKEN=obr_... \
-OPENAI_API_KEY=sk-... \
-npx openbots-runner@0.2.0
+OPENBOTS_TUNNEL=true \
+node openbots-engine.mjs
 ```
+
+On Windows, in PowerShell:
+
+```powershell
+mkdir -Force $HOME\openbots | Out-Null; cd $HOME\openbots
+curl.exe -L -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
+$env:OPENBOTS_CONVEX_URL = "https://<your-deployment>.convex.cloud"
+$env:OPENBOTS_TOKEN = "obr_..."
+$env:OPENBOTS_TUNNEL = "true"
+node openbots-engine.mjs
+```
+
+Keep the window open: the engine runs while it's open. Start it from your normal desktop session, not as a
+service, if you want computer use (it needs to see the screen).
 
 On a Mac signed in to Messages with nothing else set up, it texts through Messages on that Mac. Give the app that
 runs it (Terminal, iTerm, or your launchd job's binary) **Full Disk Access** in System Settings → Privacy & Security,
 so it can read `~/Library/Messages`, and allow it to control **Messages** when macOS asks. It answers one-to-one
-chats and starts from the newest message, so old history isn't answered. Keep it running with a `launchd` agent or
-`pm2`.
+chats and starts from the newest message, so old history isn't answered.
 
-Anywhere else, use Docker with Twilio, Sendblue, BlueBubbles or a relay:
-
-```sh
-docker run -d --name openbots -v openbots:/data -p 8787:8787 \
-  -e OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud \
-  -e OPENBOTS_TOKEN=obr_... \
-  -e OPENBOTS_PUBLIC_URL=https://<where your accounts reach it> \
-  -e OPENAI_API_KEY=sk-... \
-  -e TWILIO_ACCOUNT_SID=AC... -e TWILIO_AUTH_TOKEN=... \
-  ghcr.io/shidhartha-sen/openbots-runner:0.2.0
-```
-
-Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL: a tunnel such as Cloudflare
-Tunnel or Tailscale Funnel to port 8787 is enough. BlueBubbles only needs the Mac to reach the engine, so a private
+Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL. `OPENBOTS_TUNNEL=true` gets one
+from Cloudflare (install `cloudflared` first: `winget install --id Cloudflare.cloudflared` on Windows, `brew install
+cloudflared` on a Mac); your own tunnel or Tailscale Funnel to port 8787 works too. BlueBubbles only needs the Mac to reach the engine, so a private
 network address works. Every webhook path carries a random secret, and Twilio's requests are checked against its
 signature.
 
