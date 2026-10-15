@@ -80,7 +80,7 @@ to get one, both under **Connections → Computer use**:
   `/engine/openbots-engine.mjs`, built with every deploy), and keeps it running. Incoming texts reach it through
   Cloudflare's quick tunnel, so it needs no open ports.
 - **Your own computer:** a laptop, a server or any VM. Add it to get a token and run the command shown. Computer use
-  works on Windows and Mac; a Linux computer (like Fedora) answers texts but can't be picked for computer use.
+  works on Windows and Mac; a Linux computer (like Fedora) answers texts only.
 
 Either way they save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
 that machine. It keeps contacts, conversations and messages in a local encrypted SQLite file. Setup, settings and
@@ -106,6 +106,10 @@ What the engine can use, all with the person's own accounts:
   changes"; set check-ins on the agent's page. Reminders and watches are stored on the engine, sealed like messages;
   Convex only counts them. Setting reminders and watches by text needs an OpenAI or Anthropic Brain model; check-ins
   and watch checks work with any Brain.
+- **Computer use (Windows and Mac):** text your agent a task ("find a table at Nopa for Friday 7pm and book it") and
+  it does it on the computer its engine runs on with Claude (Sonnet 5.5 or Opus 5.5, set on the Models page), asking
+  "Reply YES" before anything that can't be undone and texting you the result. Turn it on per computer in
+  Connections. Needs an Anthropic key.
 
 ### How a text flows
 
@@ -123,5 +127,5 @@ What the engine can use, all with the person's own accounts:
    owner's phone (Settings → General), and emails them if Resend is set up, naming the contact but never quoting
    them. Then it stays out of that chat for 24 hours.
 
-Only the Brain and Backup model slots run today, so the dashboard offers only those. The other parts shown on
-the landing page (voice notes, listening, calls, vision, computer use, decisions, router) are not built yet.
+Only the Brain, Backup and Computer use model slots run today, so the dashboard offers only those. The other parts
+shown on the landing page (voice notes, listening, calls, vision, decisions, router) are not built yet.

@@ -26,6 +26,11 @@ database backup) cannot read messages, because they never receive them, not even
 | Twilio, Sendblue, BlueBubbles (whichever the owner uses) | Yes, they carry the texts | Yes | Yes | No |
 | Orgo, when the owner's computer runs there | Yes, it hosts the computer and its disk | Yes | Yes | The engine's settings file and token |
 | Cloudflare, for an Orgo computer's tunnel | Yes, incoming texts pass through it | Yes | Yes | No |
+| Anthropic, during a computer use task | The task you texted, the questions it asks you and your answers | Only what's on the screen | No | The task's instructions, not the agent's prompt or knowledge |
+
+During a computer use task, Anthropic sees screenshots of the computer's whole screen, step by step, and the task.
+OpenBots and Convex never do: screenshots aren't saved, logged or sent to the backend, and the task text stays on the
+engine (sealed, and only while the task runs).
 
 Reminders and watches you set by texting your agent stay on the engine, sealed like messages; Convex sees only how
 many each agent has. Check-ins (days, time and what to send) are agent settings, stored in Convex like the agent's
@@ -53,6 +58,11 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
 - **Releases** of the engine are built by GitHub Actions: npm with provenance, Docker signed with cosign plus a build
   attestation. The engine never updates itself. See [runner/README.md](runner/README.md) for how to verify.
 - **The dashboard** requires the workspace owner's sign-in (Convex Auth) for every function.
+- **Computer use** is off until the owner turns it on for a Windows or Mac computer in Connections. Only the owner,
+  in their own one-to-one chat with the agent, can start a task. Claude must ask the owner ("Reply YES") before
+  anything that can't be undone, each task stops after 200 actions or 30 minutes, and texting "stop" cancels it. Web
+  pages and documents on the screen can try to mislead Claude into doing something else; the system prompt treats
+  screen text as information, not instructions, but that's a mitigation, not a guarantee, so watch what it does.
 
 ## Known limits
 

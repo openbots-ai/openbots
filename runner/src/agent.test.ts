@@ -509,13 +509,33 @@ describe('agent', () => {
         expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/doing a task on their computer/)
     })
 
-    it('says a task is in progress only in the chat it reports to', async () => {
+    it('says a task is in progress only in the chat it reports to; your other chats hear one runs elsewhere', async () => {
         const computer = { busy: () => true, current: () => ({ task: 'book a table at Nopa', conversationId: 999 }), start: () => 'Started', handle: () => false }
         const complete = model(async () => 'hi')
         const { text } = setup(config({ computerUse: true }), complete, { computer })
         await text('hey', OWNER)
         await vi.runAllTimersAsync()
-        expect(complete.mock.calls[0]?.[2].system).not.toMatch(/doing a task on their computer/)
+        const system = complete.mock.calls[0]?.[2].system
+        expect(system).not.toContain('Nopa')
+        expect(system).toContain("You're already doing a task on their computer from another chat; only one runs at a time.")
+        // Someone else's chat hears nothing about it
+        await text('hi', '+1 212 555 0187')
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/task on their computer/)
+    })
+
+    it('texts you in a chat and keeps it in that chat’s history and counts', async () => {
+        const { text, transport, store, link, pipeline } = setup(config(), model(async () => 'hi'))
+        await text('hey', OWNER)
+        await vi.runAllTimersAsync()
+        // Your chat is the first one
+        const id = 1
+        const before = link.total('messagesOut')
+        await pipeline.textInChat(id, 'I was restarted, so I stopped “x”. Text me to start it again.')
+        expect(transport.sent.at(-1)?.body).toBe('I was restarted, so I stopped “x”. Text me to start it again.')
+        expect(store.history(id, 10).at(-1)?.body).toBe('I was restarted, so I stopped “x”. Text me to start it again.')
+        expect(link.total('messagesOut')).toBe(before + 1)
+        await expect(pipeline.textInChat(404, 'x')).rejects.toThrow()
     })
 
     it('fires a reminder from the number you used, and a watch only when something changed', async () => {

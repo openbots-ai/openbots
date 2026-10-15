@@ -160,4 +160,25 @@ describe('computer tasks', () => {
         await crash.settle()
         expect(crash.sent).toEqual(['I couldn’t finish “t”: Anthropic is down.'])
     })
+
+    it('remembers the running task on this computer until it ends, so a restart can tell you', async () => {
+        let finish!: (e: TaskEnd) => void
+        const saved: unknown[] = []
+        let cleared = 0
+        const tasks = new ComputerTasks({ run: () => new Promise((r) => (finish = r)), persist: { save: (t) => void saved.push(t), clear: () => void cleared++ } })
+        const ctx = { agentId: 'agent1', agentName: 'Iris', conversationId: 7, send: async () => {} }
+        tasks.start(`book ${'a very long place name '.repeat(5)}`, ctx)
+        expect(saved).toEqual([{ agentId: 'agent1', conversationId: 7, task: expect.stringMatching(/^book a very long place name/) }])
+        expect((saved[0] as { task: string }).task.length).toBeLessThanOrEqual(80)
+        expect(cleared).toBe(0)
+        finish({ outcome: 'done', summary: 'ok', actions: 1 })
+        await new Promise((r) => setTimeout(r, 0))
+        expect(cleared).toBe(1)
+
+        // A run that throws is cleared too
+        const crash = new ComputerTasks({ run: async () => Promise.reject(new Error('down')), persist: { save: () => {}, clear: () => void cleared++ } })
+        crash.start('t', ctx)
+        await new Promise((r) => setTimeout(r, 0))
+        expect(cleared).toBe(2)
+    })
 })

@@ -250,13 +250,7 @@ export class Pipeline {
         const running = owner && !conversation.threadKey ? computer?.current() : null
         const busyHere = running?.conversationId === conversation.id ? running : null
         // The task's questions and result go into this chat's history and counts, like any reply
-        const taskSend = async (body: string) => {
-            await this.send(conversation, contact.handle, body)
-            const at = this.now()
-            store.addMessage(conversationId, 'agent', body, at)
-            store.updateConversation(conversationId, { lastAt: at })
-            void link.record(agent._id, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
-        }
+        const taskSend = (body: string) => this.textInChat(conversationId, body)
         const promptFor = (option: ModelOption): Prompt => {
             const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
             const computing = scheduling && !!computer && !computer.busy() && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
@@ -276,6 +270,7 @@ export class Pipeline {
                     canSchedule: scheduling,
                     canUseComputer: computing,
                     computerBusy: busyHere ? short(busyHere.task, 80) : undefined,
+                    computerBusyElsewhere: !!running && !busyHere,
                 }),
                 turns,
                 temperature: agent.temperature,
@@ -434,6 +429,20 @@ export class Pipeline {
         const text = await this.complete(brains, models.brain.option, { system, turns: [{ role: 'user', content: instruction }], temperature: agent.temperature, maxTokens: MAX_TOKENS.short })
         void link.record(agent._id, { usage: { slot: 'brain', model: models.brain.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
         return text.trim()
+    }
+
+    // A text from the agent into one chat (a computer task's question or result), kept in its history and counts.
+    // Throws if the chat or its channel is gone.
+    async textInChat(conversationId: number, body: string) {
+        const { store, link } = this.deps
+        const conversation = store.getConversation(conversationId)
+        const contact = conversation && store.getContact(conversation.contactId)
+        if (!conversation || !contact) throw new Error('That chat is gone')
+        await this.send(conversation, contact.handle, body)
+        const at = this.now()
+        store.addMessage(conversationId, 'agent', body, at)
+        store.updateConversation(conversationId, { lastAt: at })
+        void link.record(conversation.agentId as Id<'agents'>, { activity: { messagesOut: 1 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
     }
 
     // Sends through the channel the conversation came in on (to the group, for a group chat)

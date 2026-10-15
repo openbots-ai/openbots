@@ -100,6 +100,27 @@ alerts; reminders go out at the time you asked for. A reminder or watch whose ch
 watches by text needs the agent's Brain to be an OpenAI or Anthropic model; check-ins and watch checks work with any
 Brain. Reminders and watches are kept in the engine's sealed database: back it up with your history.
 
+## Computer use
+
+On a Windows or Mac computer, your agent can do tasks on this computer's screen: text it from your own phone "open
+Notepad and type hello" or "find a table at Nopa for Friday 7pm and book it". Claude (Sonnet 5.5 or Opus 5.5, set on
+the Models page or the agent's page) looks at screenshots and clicks and types. Turn it on for this computer in
+Connections, and save an Anthropic key there.
+
+- **Windows** needs nothing else.
+- **Mac** needs **Screen Recording** and **Accessibility** allowed for the app the engine runs in (Terminal, or the
+  service that starts it) in System Settings → Privacy & Security. Restart the engine after allowing them. Until then
+  Connections shows what's missing.
+- It texts "Reply YES to …" before anything that can't be undone (sending, paying, booking, deleting, posting) and
+  waits for your answer; it texts you the result when it's done or stuck. Text **stop** in that chat to cancel.
+- One task at a time, with at most 200 actions or 30 minutes per task.
+- It moves your real mouse and keyboard, so don't use the computer while a task runs.
+- On a Mac, key presses use US key positions, so on other keyboard layouts some shortcuts land on different keys.
+- On a Mac, typed text is pasted, so the clipboard briefly holds it and is then restored.
+- If the engine restarts mid-task, the task ends and you get a text about it once the engine is back.
+- Screenshots go only to Anthropic, step by step. They're never saved, logged or sent to Convex; the engine logs only
+  which agent ran a task, how many actions it took and how it ended.
+
 ## Back up your history
 
 Everything is in `OPENBOTS_DATA_DIR`: `openbots.db` and `key`. **Back up both.** The database is unreadable without

@@ -195,6 +195,20 @@ export class Store {
         this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value)
     }
 
+    // For values that are yours to keep private, like a computer task's text
+    getSealedMeta(key: string) {
+        const value = this.getMeta(key)
+        return value === undefined ? undefined : this.vault.open(value, `meta:${key}`)
+    }
+
+    setSealedMeta(key: string, value: string) {
+        this.setMeta(key, this.vault.seal(value, `meta:${key}`))
+    }
+
+    deleteMeta(key: string) {
+        this.db.prepare('DELETE FROM meta WHERE key = ?').run(key)
+    }
+
     // Watches check at most every 30 minutes. The row stays inactive until its text is sealed, so a crash can't leave a blank job running.
     addJob(j: Omit<Job, 'id' | 'last' | 'failures' | 'createdAt'>) {
         const everyMin = j.kind === 'watch' && j.everyMin !== null ? Math.max(j.everyMin, 30) : j.everyMin

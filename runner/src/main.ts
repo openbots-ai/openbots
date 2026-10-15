@@ -1,9 +1,12 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { Id } from '../../convex/_generated/dataModel'
+import { keyModels, resolveModels } from '../../convex/lib/models'
 import type { SealedService } from '../../convex/lib/sealed'
+import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { startTunnel } from './tunnel'
+import { driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
 import { Vault } from './crypto'
 import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
@@ -47,8 +50,27 @@ async function main() {
     // The Orgo key stays with the backend, so its service never appears here
     type EngineService = Exclude<SealedService, 'orgo'>
     let keyProblems: { service: EngineService; error: string }[] = []
-    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, os: osName() }
-    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models })
+    const os = osName()
+    let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, os }
+
+    // Computer use on this machine's own screen, mouse and keyboard (Windows or Mac); undefined elsewhere
+    const driver = driverFor(os)
+    const computer = makeComputer(os, {
+        // `settings` is replaced when keys change in Connections, so this reads the current key
+        anthropicKey: () => settings.brains.keys.anthropic,
+        // The Computer use model of the agent that started the task, as set now (its own choice, or the workspace's)
+        model: (agentId) => {
+            const c = link.config()
+            const agent = c?.agents.find((a) => a._id === agentId)
+            return resolveModels(c?.workspace.models, agent?.models, agent?.model, keyModels(status.models)).computer.option.api ?? 'claude-sonnet-5-5'
+        },
+        budget: () => link.budget(dayKey(Date.now())),
+        record: (agentId, model) => void link.record(agentId as Id<'agents'>, { usage: { slot: 'computer', model } }).catch((e) => console.error(`Couldn't record usage: ${message(e)}`)),
+        log: (line) => console.log(line),
+        persist: taskMemory(store),
+        driver,
+    })
+    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models, computer })
 
     // Runs reminders, watches and check-ins when they're due
     const scheduler = new Scheduler({
@@ -144,7 +166,17 @@ async function main() {
         for (const s of list) if (!seen.has(s.service) || (s.error && !seen.get(s.service)!.error)) seen.set(s.service, s)
         return [...seen.values()]
     }
-    const beat = () => {
+    // A Mac needs Screen Recording and Accessibility for computer use: checked at start and each heartbeat, and reported
+    // until it has them. Only whether they're allowed is checked; nothing on the screen is read or logged.
+    let computerProblem: string | null = null
+    const checkComputer = async () => {
+        if (os !== 'mac' || !driver || link.config()?.computerUse !== true) return void (computerProblem = null)
+        const problem = await driver.ready().catch((e) => `Couldn't check this Mac's permissions: ${message(e)}`)
+        if (problem && problem !== computerProblem) console.error(`Computer use: ${problem}`)
+        computerProblem = problem
+    }
+    const beat = async () => {
+        await checkComputer()
         const agents = link.config()?.agents ?? []
         // Only agents the dashboard still has, so a job left from a deleted agent can't get the heartbeat refused
         const jobs = store.jobCounts().filter((j) => agents.some((a) => a._id === j.agentId)) as { agentId: Id<'agents'>; reminders: number; watches: number }[]
@@ -156,7 +188,8 @@ async function main() {
             if (!agent || services.transports[channel] || (channel !== 'twilio' && channel !== 'sendblue' && channel !== 'bluebubbles')) continue
             waiting.push({ service: channel, error: `${agent.name} has reminders or watches waiting for ${channel}, which isn't running` })
         }
-        return link.heartbeat({ ...status, services: perService([...status.services, ...waiting]), jobs }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
+        const computing: Status['services'] = computerProblem ? [{ service: 'computer', error: computerProblem }] : []
+        return link.heartbeat({ ...status, services: perService([...status.services, ...waiting, ...computing]), jobs }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
     }
     // Each change from the dashboard is applied in turn. The channels restart only when their own settings change.
     const channelSettings = (s: Settings) => JSON.stringify([s.mac, s.relay, s.twilio, s.sendblue, s.bluebubbles, s.publicUrl])
@@ -210,6 +243,8 @@ async function main() {
         )
     })
     await ready
+    // A computer task the last run left unfinished: tell you in its chat, now that the channels are up
+    await tellAboutRestart(store, (_agentId, conversationId, body) => pipeline.textInChat(conversationId, body), (line) => console.error(line))
     const timers = [setInterval(beat, HEARTBEAT_MS), setInterval(() => void checkAll().then(beat), CHECK_MS)]
 
     // Requests from the dashboard: check keys again, or anything that needs your Twilio login
