@@ -65,9 +65,10 @@ describe('Mac scripts', () => {
 
     it('without the Screen Recording check, probes other apps’ window titles instead', () => {
         const ready = macScript({ op: 'ready' })
-        expect(ready).toContain('ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)))')
+        expect(ready).toContain('ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17, 0)))')
         expect(ready).toContain('$.NSProcessInfo.processInfo.processIdentifier')
-        expect(ready).toContain("w.kCGWindowOwnerPID !== me && w.kCGWindowOwnerName !== 'Dock' && typeof w.kCGWindowName === 'string'")
+        expect(ready).toContain("w.kCGWindowOwnerName !== 'Window Server'")
+        expect(ready).toContain('runningApplicationWithProcessIdentifier')
         // No titled window, a missing function or an error: can't confirm
         expect(ready).toContain('return named ? true : null')
         expect(ready).toContain("if (typeof $.CGWindowListCopyWindowInfo !== 'function') return null")
@@ -147,16 +148,19 @@ describe('the Mac driver', () => {
 
     it('says what permission is missing', async () => {
         const driver = new MacDriver(async () => '{"screen":false,"input":true}')
-        expect(await driver.ready()).toBe("Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.")
+        expect(await driver.ready()).toBe("Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen it.")
         const ok = new MacDriver(async () => '{"screen":true,"input":true}')
         expect(await ok.ready()).toBeNull()
     })
 
     it('reports a permission it can’t confirm as missing', async () => {
         const unsure = new MacDriver(async () => '{"screen":null,"input":true}')
-        expect(await unsure.ready()).toBe("Couldn't confirm Screen Recording is allowed. Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen that app.")
+        expect(await unsure.ready()).toBe("Couldn't confirm it's allowed. Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen it.")
         const neither = new MacDriver(async () => '{"screen":null,"input":null}')
-        expect(await neither.ready()).toMatch(/^Couldn't confirm Screen Recording and Accessibility are allowed\. Allow Screen Recording and Accessibility/)
+        const both = (await neither.ready())!
+        expect(both).toMatch(/^Couldn't confirm it's allowed\. Allow Screen Recording and Accessibility/)
+        // Short enough to fit in a text with the task's name
+        expect(both.length).toBeLessThan(180)
     })
 
     it('fails with only a short reason, never the command line', async () => {
