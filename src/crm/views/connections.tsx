@@ -392,6 +392,8 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                         const online = !!r.lastSeenAt && now - r.lastSeenAt < ONLINE_MS
                         // Made through Create on Orgo, even if Orgo refused before the computer existed
                         const onOrgo = !!(r.orgo || r.setup)
+                        // What's stopping computer use here, like a Mac permission that isn't allowed yet
+                        const computerError = r.services?.find((s) => s.service === 'computer')?.error
                         return (
                             <div key={r._id} className="flex items-center gap-3 px-4 py-3">
                                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-neutral-100 text-neutral-700">
@@ -421,6 +423,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                                     Agents can see this computer’s screen and use its mouse and keyboard while doing a task you text them. They ask before
                                                     anything that can’t be undone. Pages they visit can try to mislead them, so keep an eye on what they do.
                                                 </p>
+                                                {r.computerUse && computerError && <p className="mt-1 text-amber-700">{computerError}</p>}
                                             </div>
                                         </div>
                                     )}

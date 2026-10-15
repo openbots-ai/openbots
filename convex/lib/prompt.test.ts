@@ -35,6 +35,13 @@ describe('agent instructions', () => {
         expect(systemPrompt({ ...base, withOwner: true })).not.toMatch(/already doing a task/)
     })
 
+    it('says a task runs from another chat, in your own chat only', () => {
+        const elsewhere = "You're already doing a task on their computer from another chat; only one runs at a time."
+        expect(systemPrompt({ ...base, withOwner: true, computerBusyElsewhere: true })).toContain(elsewhere)
+        expect(systemPrompt({ ...base, computerBusyElsewhere: true })).not.toContain(elsewhere)
+        expect(systemPrompt({ ...base, withOwner: true })).not.toContain(elsewhere)
+    })
+
     it('gives the UTC offset with the timezone, and asks for the offset on the target date', () => {
         const regina = { ...base, workspace: { ownerName: 'Sam', timezone: 'America/Regina' }, now: Date.parse('2026-10-14T20:00:00Z') }
         expect(systemPrompt(regina)).toContain('(America/Regina, UTC-06:00)')

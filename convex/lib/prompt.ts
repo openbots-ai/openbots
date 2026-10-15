@@ -68,8 +68,10 @@ export function systemPrompt(args: {
     canUseComputer?: boolean
     // The computer task already running, shortened, so the agent says it's in progress instead of starting another
     computerBusy?: string
+    // A computer task is running from another of the owner's chats
+    computerBusyElsewhere?: boolean
 }) {
-    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch, canSchedule, canUseComputer, computerBusy } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch, canSchedule, canUseComputer, computerBusy, computerBusyElsewhere } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -100,6 +102,7 @@ export function systemPrompt(args: {
             canUseComputer &&
             "You can do tasks on their computer with use_computer (opening apps and websites, clicking, typing). It runs in the background: say you're on it, and it texts them when it's done or needs their YES. Only one task runs at a time.",
         withOwner && computerBusy && `You're already doing a task on their computer (“${computerBusy}”). Tell them it's in progress; they can text stop to cancel it.`,
+        withOwner && computerBusyElsewhere && "You're already doing a task on their computer from another chat; only one runs at a time.",
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
         language ? `Reply in ${language}.` : 'Reply in the language the person writes in.',

@@ -17,13 +17,16 @@ const ASK_SUFFIX = 'Reply YES to go ahead, or tell me what to do instead.'
 export const short = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text)
 const describe = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+// The running task, kept on this computer so a restart can tell you it stopped (see index.ts:taskMemory)
+export type Persist = { save: (t: { agentId: string; conversationId: number; task: string }) => void; clear: () => void }
+
 type Waiting = { resolve: (answer: string) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
 type Running = { task: string; ctx: TaskCtx; stop: boolean; waiting?: Waiting }
 
 export class ComputerTasks {
     private running: Running | null = null
 
-    constructor(private deps: { run: (task: string, hooks: Hooks, ctx: TaskCtx) => Promise<TaskEnd>; log?: (line: string) => void; answerTimeoutMs?: number }) {}
+    constructor(private deps: { run: (task: string, hooks: Hooks, ctx: TaskCtx) => Promise<TaskEnd>; log?: (line: string) => void; answerTimeoutMs?: number; persist?: Persist }) {}
 
     busy() {
         return !!this.running
@@ -45,6 +48,12 @@ export class ComputerTasks {
         // Logs say who and how it went, never the task, questions or answers
         const log = this.deps.log ?? (() => {})
         log(`${ctx.agentName} started a computer task`)
+        const persist = this.deps.persist
+        try {
+            persist?.save({ agentId: ctx.agentId, conversationId: ctx.conversationId, task: short(text, 80) })
+        } catch (e) {
+            log(`Couldn't remember the computer task: ${describe(e)}`)
+        }
         const hooks: Hooks = {
             stopped: () => running.stop,
             ask: (question) =>
@@ -67,6 +76,11 @@ export class ComputerTasks {
             .then(async (end) => {
                 if (running.waiting) clearTimeout(running.waiting.timer)
                 this.running = null
+                try {
+                    persist?.clear()
+                } catch (e) {
+                    log(`Couldn't forget the computer task: ${describe(e)}`)
+                }
                 log(`${ctx.agentName}'s computer task ended (${end.outcome}, ${end.actions} actions)`)
                 const body =
                     end.outcome === 'done'

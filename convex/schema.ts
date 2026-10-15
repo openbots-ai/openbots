@@ -63,6 +63,8 @@ export const service = v.union(
     v.literal('sendblue'),
     v.literal('bluebubbles'),
     v.literal('resend'),
+    // Computer use on this engine's computer (a Mac missing a permission)
+    v.literal('computer'),
 )
 
 // A model a connected key can use, as the engine found it
