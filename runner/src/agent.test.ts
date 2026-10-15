@@ -524,6 +524,37 @@ describe('agent', () => {
         expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/task on their computer/)
     })
 
+    it('doesn’t offer use_computer while this computer has a problem, and tells the agent what’s missing', async () => {
+        const computer = { busy: () => false, current: () => null, handle: () => false, start: vi.fn(() => 'Started') }
+        let problem: string | null = 'Allow Screen Recording for the engine in System Settings → Privacy & Security, then restart it.'
+        const complete = model(async (_b, _o, p) => (p.tools?.some((t) => t.name === 'use_computer') ? 'had it' : 'no tool'))
+        const { text, transport, pipeline } = setup(config({ computerUse: true }), complete, { computer })
+        pipeline.update({ computerProblem: () => problem })
+        await text('open Notes', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tool')
+        expect(complete.mock.calls[0]?.[2].system).toContain(`Computer use isn't available yet: ${problem}`)
+        expect(complete.mock.calls[0]?.[2].system).not.toMatch(/do tasks on their computer/)
+        // Strangers never hear about it
+        await text('hi', '+1 212 555 0187')
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/Computer use/)
+        problem = null
+        await text('open Notes', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('had it')
+    })
+
+    it('says whether it can text into a chat', async () => {
+        const { text, pipeline } = setup(config(), model(async () => 'hi'))
+        await text('hey', OWNER)
+        await vi.runAllTimersAsync()
+        expect(pipeline.canTextInChat(1)).toBe(true)
+        expect(pipeline.canTextInChat(404)).toBe(false)
+        pipeline.update({ transports: {} })
+        expect(pipeline.canTextInChat(1)).toBe(false)
+    })
+
     it('texts you in a chat and keeps it in that chat’s history and counts', async () => {
         const { text, transport, store, link, pipeline } = setup(config(), model(async () => 'hi'))
         await text('hey', OWNER)

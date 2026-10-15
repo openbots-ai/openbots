@@ -53,6 +53,8 @@ async function main() {
     const os = osName()
     let status: Status = { version: VERSION, services: [], models: [], channels: [], lines: [], demo: base.brains.demo, os }
 
+    // What's stopping computer use on this Mac (a permission), from the last heartbeat
+    let computerProblem: string | null = null
     // Computer use on this machine's own screen, mouse and keyboard (Windows or Mac); undefined elsewhere
     const driver = driverFor(os)
     const computer = makeComputer(os, {
@@ -62,7 +64,9 @@ async function main() {
         model: (agentId) => {
             const c = link.config()
             const agent = c?.agents.find((a) => a._id === agentId)
-            return resolveModels(c?.workspace.models, agent?.models, agent?.model, keyModels(status.models)).computer.option.api ?? 'claude-sonnet-5-5'
+            const option = resolveModels(c?.workspace.models, agent?.models, agent?.model, keyModels(status.models)).computer.option
+            // An option without a provider name isn't a Computer use model: fall back to the default
+            return option.api ? { api: option.api, id: option.id } : { api: 'claude-sonnet-5-5', id: 'claude-sonnet-5.5-computer-use' }
         },
         budget: () => link.budget(dayKey(Date.now())),
         record: (agentId, model) => void link.record(agentId as Id<'agents'>, { usage: { slot: 'computer', model } }).catch((e) => console.error(`Couldn't record usage: ${message(e)}`)),
@@ -70,7 +74,7 @@ async function main() {
         persist: taskMemory(store),
         driver,
     })
-    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models, computer })
+    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models, computer, computerProblem: () => computerProblem })
 
     // Runs reminders, watches and check-ins when they're due
     const scheduler = new Scheduler({
@@ -168,7 +172,6 @@ async function main() {
     }
     // A Mac needs Screen Recording and Accessibility for computer use: checked at start and each heartbeat, and reported
     // until it has them. Only whether they're allowed is checked; nothing on the screen is read or logged.
-    let computerProblem: string | null = null
     const checkComputer = async () => {
         if (os !== 'mac' || !driver || link.config()?.computerUse !== true) return void (computerProblem = null)
         const problem = await driver.ready().catch((e) => `Couldn't check this Mac's permissions: ${message(e)}`)
@@ -244,7 +247,12 @@ async function main() {
     })
     await ready
     // A computer task the last run left unfinished: tell you in its chat, now that the channels are up
-    await tellAboutRestart(store, (_agentId, conversationId, body) => pipeline.textInChat(conversationId, body), (line) => console.error(line))
+    await tellAboutRestart(
+        store,
+        (_agentId, conversationId, body) => pipeline.textInChat(conversationId, body),
+        (line) => console.error(line),
+        (conversationId) => pipeline.canTextInChat(conversationId),
+    )
     const timers = [setInterval(beat, HEARTBEAT_MS), setInterval(() => void checkAll().then(beat), CHECK_MS)]
 
     // Requests from the dashboard: check keys again, or anything that needs your Twilio login
@@ -284,6 +292,8 @@ async function main() {
     link.onTasks((task) => void run(task))
 
     const shutdown = async () => {
+        // A running task stops clicking; it stays remembered, so the next start texts you about it
+        computer?.halt()
         timers.forEach(clearInterval)
         stopTunnel()
         scheduler.stop()

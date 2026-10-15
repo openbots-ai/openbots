@@ -13,11 +13,11 @@ const realClient: Client = (apiKey) => new Anthropic({ apiKey, maxRetries: 1, ti
 export type ComputerDeps = {
     // Read at each call, so a key saved in Connections works without a restart
     anthropicKey: () => string | undefined
-    // The Computer use model of the agent that started the task
-    model: (agentId: string) => string
+    // The Computer use model of the agent that started the task: the provider's name for it, and the option id usage is counted under
+    model: (agentId: string) => { api: string; id: string }
     budget: () => Promise<string | null>
-    // One model call, counted on the agent that started the task
-    record: (agentId: string, model: string) => void
+    // One model call, counted on the agent that started the task under the model's option id
+    record: (agentId: string, modelId: string) => void
     log: (line: string) => void
     persist?: Persist
     driver?: Driver
@@ -52,13 +52,13 @@ export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | un
             try {
                 return await runTask(task, {
                     create,
-                    model,
+                    model: model.api,
                     os,
                     driver,
                     ask: hooks.ask,
                     stopped: hooks.stopped,
                     overBudget: deps.budget,
-                    record: () => deps.record(ctx.agentId, model),
+                    record: () => deps.record(ctx.agentId, model.id),
                     now: Date.now,
                 })
             } finally {
@@ -78,8 +78,14 @@ export const taskMemory = (store: Pick<Store, 'setSealedMeta' | 'deleteMeta'>): 
     clear: () => store.deleteMeta(KEY),
 })
 
-// A task the engine's restart ended: texts you once, in the chat it reported to
-export async function tellAboutRestart(store: Pick<Store, 'getSealedMeta' | 'deleteMeta'>, send: (agentId: string, conversationId: number, body: string) => Promise<void>, log: (line: string) => void = () => {}) {
+// A task the engine's restart ended: texts you once, in the chat it reported to. While that chat's channel isn't
+// running (`canSend`), it's kept for the next start.
+export async function tellAboutRestart(
+    store: Pick<Store, 'getSealedMeta' | 'deleteMeta'>,
+    send: (agentId: string, conversationId: number, body: string) => Promise<void>,
+    log: (line: string) => void = () => {},
+    canSend: (conversationId: number) => boolean = () => true,
+) {
     let saved: Saved
     try {
         const raw = store.getSealedMeta(KEY)
@@ -89,6 +95,7 @@ export async function tellAboutRestart(store: Pick<Store, 'getSealedMeta' | 'del
         log(`Couldn’t read the computer task the restart stopped: ${e instanceof Error ? e.message : String(e)}`)
         return store.deleteMeta(KEY)
     }
+    if (!canSend(saved.conversationId)) return log('The computer task the restart stopped is waiting for its chat’s channel; you’ll hear about it after the next start')
     // Forgotten first, so a failing text can't repeat at every start
     store.deleteMeta(KEY)
     await send(saved.agentId, saved.conversationId, `I was restarted, so I stopped “${saved.task}”. Text me to start it again.`).catch((e) =>

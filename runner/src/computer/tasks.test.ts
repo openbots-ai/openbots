@@ -181,4 +181,29 @@ describe('computer tasks', () => {
         await new Promise((r) => setTimeout(r, 0))
         expect(cleared).toBe(2)
     })
+
+    it('halts on shutdown: stops the clicks but keeps the task remembered and texts nothing', async () => {
+        const sent: string[] = []
+        let cleared = 0
+        let stopped!: () => boolean
+        let finish!: (e: TaskEnd) => void
+        const tasks = new ComputerTasks({
+            run: (_t, hooks) => ((stopped = hooks.stopped), new Promise((r) => (finish = r))),
+            persist: { save: () => {}, clear: () => void cleared++ },
+        })
+        tasks.start('book Nopa', { agentId: 'a1', agentName: 'Iris', conversationId: 7, send: async (b) => void sent.push(b) })
+        tasks.halt()
+        expect(stopped()).toBe(true)
+        finish({ outcome: 'stopped', summary: 'You stopped it', actions: 1 })
+        await new Promise((r) => setTimeout(r, 0))
+        expect(cleared).toBe(0)
+        expect(sent).toEqual([])
+        // A question waiting for an answer is dropped too
+        const asking = new ComputerTasks({ run: async (_t, h) => (await h.ask('Pay?').catch(() => ''), { outcome: 'stopped', summary: 'x', actions: 0 }), persist: { save: () => {}, clear: () => void cleared++ } })
+        asking.start('pay', { agentId: 'a1', agentName: 'Iris', conversationId: 7, send: async () => {} })
+        await new Promise((r) => setTimeout(r, 0))
+        asking.halt()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(cleared).toBe(0)
+    })
 })

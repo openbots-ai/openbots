@@ -43,6 +43,8 @@ export type Deps = {
     email?: (to: string, subject: string, text: string) => Promise<void>
     // Runs computer tasks on this machine, when it's a Windows or Mac computer (see computer/tasks.ts)
     computer?: Pick<ComputerTasks, 'busy' | 'current' | 'start' | 'handle'>
+    // What's stopping computer use right now (a Mac missing a permission), or null
+    computerProblem?: () => string | null
     complete?: typeof completeWith
     now?: () => number
     log?: (line: string) => void
@@ -103,7 +105,7 @@ export class Pipeline {
     }
 
     // New channels, keys or email after a change in the dashboard; texts already queued use them when they go out
-    update(parts: Partial<Pick<Deps, 'transports' | 'brains' | 'email'>>) {
+    update(parts: Partial<Pick<Deps, 'transports' | 'brains' | 'email' | 'computerProblem'>>) {
         Object.assign(this.deps, parts)
     }
 
@@ -253,7 +255,10 @@ export class Pipeline {
         const taskSend = (body: string) => this.textInChat(conversationId, body)
         const promptFor = (option: ModelOption): Prompt => {
             const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
-            const computing = scheduling && !!computer && !computer.busy() && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
+            const offerable = scheduling && !!computer && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
+            // A Mac missing a permission: no use_computer, and the agent can say what's missing
+            const problem = offerable ? (this.deps.computerProblem?.() ?? null) : null
+            const computing = offerable && !problem && !!computer && !computer.busy()
             const tools = scheduling ? schedulingTools({ store, agentId: agent._id, owner: contact.handle, number: conversation.number, channel: conversation.channel, now: this.now, timeZone: ws.timezone ?? 'UTC' }) : []
             if (computing) tools.push(computerTool((task) => computer.start(task, { agentId: agent._id, agentName: agent.name, conversationId, send: taskSend })))
             return {
@@ -271,6 +276,7 @@ export class Pipeline {
                     canUseComputer: computing,
                     computerBusy: busyHere ? short(busyHere.task, 80) : undefined,
                     computerBusyElsewhere: !!running && !busyHere,
+                    computerProblem: problem ?? undefined,
                 }),
                 turns,
                 temperature: agent.temperature,
@@ -429,6 +435,12 @@ export class Pipeline {
         const text = await this.complete(brains, models.brain.option, { system, turns: [{ role: 'user', content: instruction }], temperature: agent.temperature, maxTokens: MAX_TOKENS.short })
         void link.record(agent._id, { usage: { slot: 'brain', model: models.brain.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
         return text.trim()
+    }
+
+    // Whether the chat exists and its channel is running, so textInChat can reach it
+    canTextInChat(conversationId: number) {
+        const conversation = this.deps.store.getConversation(conversationId)
+        return !!conversation && !!this.deps.transports[conversation.channel]
     }
 
     // A text from the agent into one chat (a computer task's question or result), kept in its history and counts.
