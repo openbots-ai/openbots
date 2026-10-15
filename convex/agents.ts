@@ -34,9 +34,10 @@ async function check(ctx: MutationCtx, ws: Doc<'workspace'>, { name, temperature
     if (!name.trim()) throw new Error('Give your agent a name')
     if (temperature !== undefined && (temperature < 0 || temperature > 1)) throw new Error('Creativity must be between 0 and 1')
     for (const [slot, choice] of Object.entries(models ?? {})) {
+        // A saved choice can stay as it is, even one the keys stopped offering or that no longer exists; only new picks are checked
+        if (before?.[slot] === choice) continue
         if (!isValidChoice(slot, choice)) throw new Error(`${choice} can't be used for ${slot}`)
-        // A saved choice the key stopped offering can stay; only new picks are checked against the keys
-        if (before?.[slot] !== choice) await requireKeyOffers(ctx, ws._id, slot, choice)
+        await requireKeyOffers(ctx, ws._id, slot, choice)
     }
 }
 

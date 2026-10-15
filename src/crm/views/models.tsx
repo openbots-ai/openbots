@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { LIVE_SLOTS as SLOTS, resolveModels, type Provider } from '@convex/lib/models'
+import { isValidChoice, LIVE_SLOTS as SLOTS, resolveModels, type Provider } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -90,7 +90,9 @@ export function ModelsView() {
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {SLOTS.map((slot) => {
                             const Icon = SLOT_ICONS[slot.id]
-                            const chosen = workspace?.models?.[slot.id] ?? defaults[slot.id].option.id
+                            const saved = workspace?.models?.[slot.id]
+                            // A saved choice that no longer exists shows the default it falls back to
+                            const chosen = saved && isValidChoice(slot.id, saved) ? saved : defaults[slot.id].option.id
                             const own = mixes.filter((m) => m.models[slot.id].overridden)
                             const onDefault = mixes.filter((m) => !m.models[slot.id].overridden)
                             return (
