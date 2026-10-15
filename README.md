@@ -107,9 +107,9 @@ What the engine can use, all with the person's own accounts:
   Convex only counts them. Setting reminders and watches by text needs an OpenAI or Anthropic Brain model; check-ins
   and watch checks work with any Brain.
 - **Computer use (Windows and Mac):** text your agent a task ("find a table at Nopa for Friday 7pm and book it") and
-  it does it on the computer its engine runs on with Claude (Sonnet 5.5 or Opus 5.5, set on the Models page), asking
-  "Reply YES" before anything that can't be undone and texting you the result. Turn it on per computer in
-  Connections. Needs an Anthropic key.
+  it does it on the computer its engine runs on with Claude (Sonnet 5.5 or Opus 5.5, set on the Models page or the
+  agent's page), asking "Reply YES" before anything that can't be undone and texting you the result. Turn it on per
+  computer in Connections. Needs an Anthropic key.
 
 ### How a text flows
 

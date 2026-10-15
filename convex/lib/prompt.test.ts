@@ -35,6 +35,11 @@ describe('agent instructions', () => {
         expect(systemPrompt({ ...base, withOwner: true })).not.toMatch(/already doing a task/)
     })
 
+    it('says what computer use is missing, in your own chat only', () => {
+        expect(systemPrompt({ ...base, withOwner: true, computerProblem: 'Allow Accessibility.' })).toContain("Computer use isn't available yet: Allow Accessibility.")
+        expect(systemPrompt({ ...base, computerProblem: 'Allow Accessibility.' })).not.toMatch(/Computer use/)
+    })
+
     it('says a task runs from another chat, in your own chat only', () => {
         const elsewhere = "You're already doing a task on their computer from another chat; only one runs at a time."
         expect(systemPrompt({ ...base, withOwner: true, computerBusyElsewhere: true })).toContain(elsewhere)

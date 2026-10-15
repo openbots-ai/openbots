@@ -37,7 +37,7 @@ const twoSteps = (): Create => {
             ? { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'a', name: 'screenshot', input: {}, toolset_name: 'computer' }] }
             : { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'b', name: 'finish', input: { summary: 'Notepad says hello.' } }] }
 }
-const base: ComputerDeps = { anthropicKey: () => 'a', model: () => 'claude-sonnet-5-5', budget: async () => null, record: () => {}, log: () => {} }
+const base: ComputerDeps = { anthropicKey: () => 'a', model: () => ({ api: 'claude-sonnet-5-5', id: 'claude-sonnet-5.5-computer-use' }), budget: async () => null, record: () => {}, log: () => {} }
 
 describe('choosing how to drive this computer', () => {
     it('drives Windows and Mac, and nothing else', () => {
@@ -56,7 +56,7 @@ describe('choosing how to drive this computer', () => {
         const create: Create = async (body) => (bodies.push(body), steps(body))
         const tasks = makeComputer('windows', {
             ...base,
-            model: (agentId) => (asked.push(agentId), agentId === 'opus-agent' ? 'claude-opus-5-5' : 'claude-sonnet-5-5'),
+            model: (agentId) => (asked.push(agentId), agentId === 'opus-agent' ? { api: 'claude-opus-5-5', id: 'claude-opus-5.5-computer-use' } : { api: 'claude-sonnet-5-5', id: 'claude-sonnet-5.5-computer-use' }),
             record: (agentId, model) => void records.push([agentId, model]),
             driver: fakeDriver(),
             create,
@@ -66,9 +66,10 @@ describe('choosing how to drive this computer', () => {
         expect(sent).toEqual(['Notepad says hello.'])
         expect(asked).toEqual(['opus-agent'])
         expect(bodies.map((b) => b.model)).toEqual(['claude-opus-5-5', 'claude-opus-5-5'])
+        // Usage is counted under the option id, like the Brain's, so Analytics can name it
         expect(records).toEqual([
-            ['opus-agent', 'claude-opus-5-5'],
-            ['opus-agent', 'claude-opus-5-5'],
+            ['opus-agent', 'claude-opus-5.5-computer-use'],
+            ['opus-agent', 'claude-opus-5.5-computer-use'],
         ])
     })
 
@@ -117,6 +118,17 @@ describe('a task the engine’s restart ended', () => {
         // Only once
         await tellAboutRestart(store, send)
         expect(texts).toHaveLength(1)
+        store.close()
+    })
+
+    it('keeps the task for the next start while its chat’s channel isn’t running', async () => {
+        const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
+        taskMemory(store).save({ agentId: 'a1', conversationId: 4, task: 'book Nopa' })
+        let sends = 0
+        await tellAboutRestart(store, async () => void sends++, () => {}, () => false)
+        expect(sends).toBe(0)
+        await tellAboutRestart(store, async () => void sends++, () => {}, (id) => id === 4)
+        expect(sends).toBe(1)
         store.close()
     })
 

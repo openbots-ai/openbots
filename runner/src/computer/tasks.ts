@@ -21,7 +21,8 @@ const describe = (e: unknown) => (e instanceof Error ? e.message : String(e))
 export type Persist = { save: (t: { agentId: string; conversationId: number; task: string }) => void; clear: () => void }
 
 type Waiting = { resolve: (answer: string) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
-type Running = { task: string; ctx: TaskCtx; stop: boolean; waiting?: Waiting }
+// `halted`: the engine is shutting down, so the task stays remembered and nothing is texted
+type Running = { task: string; ctx: TaskCtx; stop: boolean; halted?: boolean; waiting?: Waiting }
 
 export class ComputerTasks {
     private running: Running | null = null
@@ -76,6 +77,8 @@ export class ComputerTasks {
             .then(async (end) => {
                 if (running.waiting) clearTimeout(running.waiting.timer)
                 this.running = null
+                // Shutting down: the next start texts you that the restart stopped it
+                if (running.halted) return log(`${ctx.agentName}'s computer task stopped for the shutdown`)
                 try {
                     persist?.clear()
                 } catch (e) {
@@ -93,6 +96,20 @@ export class ComputerTasks {
                 await ctx.send(short(body, TEXT_LIMIT)).catch((e) => log(`Couldn't text you the result: ${describe(e)}`))
             })
         return 'Started. Tell the owner you’re on it and will text when it’s done.'
+    }
+
+    // The engine is shutting down: stop at the next action, keep the task remembered and text nothing
+    halt() {
+        const running = this.running
+        if (!running) return
+        running.halted = true
+        running.stop = true
+        const waiting = running.waiting
+        if (waiting) {
+            clearTimeout(waiting.timer)
+            running.waiting = undefined
+            waiting.reject(new Stopped('The engine is shutting down'))
+        }
     }
 
     // Your text in the task's chat: a bare "stop" ends it, and while it waits for an answer any text is the answer.
