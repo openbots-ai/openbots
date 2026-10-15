@@ -53,3 +53,15 @@ describe('the Computer use model', () => {
         expect(resolveModels({ computer: 'gpt-5.1-computer-use' }, undefined, undefined, []).computer.option.api).toBe('claude-sonnet-5-5')
     })
 })
+
+describe('agents saved with an old Computer use choice', () => {
+    it('can still be edited, but a new bad pick is refused', async () => {
+        const { base, owner } = await setup()
+        const id = await owner.mutation(api.agents.create, { name: 'Iris', role: 'Assistant', hue: 1, prompt: '', greeting: 'hi', status: 'live' })
+        await base.run((ctx) => ctx.db.patch('agents', id, { models: { computer: 'gpt-5.1-computer-use' } }))
+        const fields = { id, name: 'Iris 2', role: 'Assistant', hue: 1, prompt: '', greeting: 'hi', status: 'live' as const }
+        await owner.mutation(api.agents.update, { ...fields, models: { computer: 'gpt-5.1-computer-use' } })
+        await expect(owner.mutation(api.agents.update, { ...fields, models: { computer: 'gemini-2.5-computer-use' } })).rejects.toThrow(/can't be used/)
+        await owner.mutation(api.agents.update, { ...fields, models: { computer: 'claude-opus-5.5-computer-use' } })
+    })
+})

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigBar } from '@/components/agent-config-bar'
-import { LIVE_SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
+import { isValidChoice, LIVE_SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
 import { INHERIT } from '@convex/lib/models'
 import { DEFAULT_CONFIG } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
@@ -47,7 +47,11 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
     const set = <K extends keyof AgentFields>(key: K, value: AgentFields[K]) => setForm((f) => ({ ...f, [key]: value }))
     const fieldsDirty = JSON.stringify(pickAgentFields(form)) !== JSON.stringify(pickAgentFields(agent))
     // What this agent picked for each slot (INHERIT when it follows the workspace)
-    const slotValue = (slot: SlotId) => form.models?.[slot] ?? (slot === 'brain' ? form.model : undefined) ?? INHERIT
+    const slotValue = (slot: SlotId) => {
+        const own = form.models?.[slot] ?? (slot === 'brain' ? form.model : undefined)
+        // A saved choice that no longer exists follows the workspace default
+        return own && isValidChoice(slot, own) ? own : INHERIT
+    }
     const setSlot = (slot: SlotId, id: string) => {
         const next = { ...form.models }
         if (id === INHERIT) delete next[slot]
