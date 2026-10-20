@@ -130,7 +130,9 @@ What the engine can use, all with the person's own accounts:
    New-contact alerts go out at most 3 an hour, then one note that more people are texting.
 5. When an agent can't reply (no key, paused, budget used up, provider error) or asks for a person, it texts the
    owner's phone (Settings → General), and emails them if Resend is set up, naming the contact but never quoting
-   them. Then it stays out of that chat for 24 hours.
+   them. When it asked for a person or a budget ran out, it then stays out of that chat for 24 hours. A provider
+   error is first retried after 1, 4 and 10 minutes; if it still fails the owner is told, and the agent answers
+   the chat's next text as usual.
 
 Only the Brain, Backup and Computer use model slots run today, so the dashboard offers only those. The other parts
 shown on the landing page (voice notes, listening, calls, vision, decisions, router) are not built yet.
