@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
-import { parseCombo, type Button, type Direction, type Driver, type Mod, type Point, type Shot, type Size } from './driver'
+import { parseCombo, windowName, type Button, type Direction, type Driver, type Mod, type Point, type Shot, type Size } from './driver'
 
 // Windows: one PowerShell process stays open with a small C# helper loaded (screenshots through .NET, mouse and
 // keyboard through SendInput), so each action is a single line instead of a new process. Nothing to install.
@@ -36,6 +36,9 @@ public static class OB {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern short VkKeyScan(char c);
     [DllImport("user32.dll")] static extern uint MapVirtualKey(uint code, uint mapType);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 
     static void Send(params INPUT[] inputs) {
         if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT))) != inputs.Length) throw new Exception("Windows blocked the input");
@@ -54,6 +57,15 @@ public static class OB {
     public static string Size() { var b = Screen.PrimaryScreen.Bounds; return "{\"width\":" + b.Width + ",\"height\":" + b.Height + "}"; }
     public static string Cursor() { POINT p; GetCursorPos(out p); return "{\"x\":" + p.X + ",\"y\":" + p.Y + "}"; }
     public static void Move(int x, int y) { SetCursorPos(x, y); }
+    // The app and title of the window with the keyboard, base64 so any title fits on one line
+    public static string Window() {
+        var h = GetForegroundWindow();
+        var title = new System.Text.StringBuilder(512);
+        if (h != IntPtr.Zero) GetWindowText(h, title, title.Capacity);
+        string app = "";
+        try { uint pid; GetWindowThreadProcessId(h, out pid); if (pid != 0) app = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { }
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(app + "\n" + title.ToString()));
+    }
     // Runs body with the modifier keys held, and always lets them go again
     static void With(ushort[] mods, Action body) {
         try { Hold(mods, false); body(); } finally { Hold(mods, true); }
@@ -150,6 +162,7 @@ const KEY_VK: Record<string, number> = {
 }
 const BUTTON: Record<Button, number> = { left: 0, right: 1, middle: 2 }
 
+
 // Numbers reach PowerShell as plain integers, never NaN or text
 const num = (n: number) => {
     if (!Number.isFinite(n) || Math.abs(n) >= 1e6) throw new Error('Bad number')
@@ -162,6 +175,7 @@ const move = (p: Point) => `[OB]::Move(${num(p.x)}, ${num(p.y)})`
 export type WinOp =
     | { op: 'size' }
     | { op: 'cursor' }
+    | { op: 'window' }
     | { op: 'shot'; target: Size }
     | { op: 'move'; at: Point }
     | { op: 'click'; at?: Point; button: Button; count: number; mods: Mod[] }
@@ -177,6 +191,8 @@ export function winCommand(o: WinOp): string {
             return '[OB]::Size()'
         case 'cursor':
             return '[OB]::Cursor()'
+        case 'window':
+            return '[OB]::Window()'
         case 'shot':
             return `[OB]::Shot(${num(o.target.width)}, ${num(o.target.height)})`
         case 'move':
@@ -364,6 +380,10 @@ export class WindowsDriver implements Driver {
     }
     async cursor() {
         return JSON.parse(await this.run({ op: 'cursor' })) as Point
+    }
+    async window() {
+        const [app = '', ...title] = Buffer.from(await this.run({ op: 'window' }), 'base64').toString('utf8').split('\n')
+        return windowName(app, title.join(' '))
     }
     // Windows needs no permission to see the screen or use the mouse
     async ready() {

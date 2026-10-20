@@ -153,6 +153,15 @@ describe('the Mac driver', () => {
         expect(await ok.ready()).toBeNull()
     })
 
+    it('names the frontmost app and window without asking System Events', async () => {
+        const scripts: string[] = []
+        const driver = new MacDriver(async (_f, args) => (scripts.push(args[3]), '{"app":"Mail","title":"Re: lunch"}'))
+        expect(await driver.window()).toBe('Mail — “Re: lunch”')
+        expect(scripts[0]).toContain('frontmostApplication')
+        expect(scripts[0]).not.toContain('System Events')
+        expect(await new MacDriver(async () => '{"app":"","title":""}').window()).toBeNull()
+    })
+
     it('reports a permission it can’t confirm as missing', async () => {
         const unsure = new MacDriver(async () => '{"screen":null,"input":true}')
         expect(await unsure.ready()).toBe("Couldn't confirm it's allowed. Allow Screen Recording for the engine's app (like Terminal) in System Settings → Privacy & Security, then quit and reopen it.")

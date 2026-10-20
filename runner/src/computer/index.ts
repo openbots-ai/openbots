@@ -60,6 +60,7 @@ export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | un
                     os,
                     driver,
                     ask: hooks.ask,
+                    approve: hooks.approve,
                     stopped: hooks.stopped,
                     overBudget: deps.budget,
                     record: () => deps.record(ctx.agentId, model.id),
