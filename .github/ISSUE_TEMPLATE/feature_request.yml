@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest something OpenBots should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: What you're trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part would it touch?
+      multiple: true
+      options:
+        - Dashboard
+        - Backend (Convex)
+        - Engine (runner)
+        - Docs
+        - Not sure
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: This keeps message text and contacts on the engine (see SECURITY.md), or I've explained below why it can't.
