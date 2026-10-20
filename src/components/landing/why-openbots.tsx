@@ -1,31 +1,31 @@
 import type { ReactNode } from 'react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
-import { AlwaysOnVisual, HostingVisual, LearningVisual, MemoryVisual } from '@/components/landing/why-openbots-visuals'
+import { AlwaysOnVisual, HostingVisual, KnowledgeVisual, RemindersVisual } from '@/components/landing/why-openbots-visuals'
 
 const reasons: { title: string; body: string; detail: string; visual: ReactNode }[] = [
     {
-        title: 'memory that never resets',
-        body: 'every agent keeps a long-term memory of you, your people and your rules. month six knows everything month one learned.',
-        detail: 'persistent by default',
-        visual: <MemoryVisual />,
+        title: 'it knows what you told it',
+        body: 'give each agent knowledge docs: your people, your rules, your preferences. it reads them, plus each contact’s notes, before every reply.',
+        detail: 'knowledge docs',
+        visual: <KnowledgeVisual />,
     },
     {
-        title: 'agents that improve themselves',
-        body: 'correct it once and it sticks. every reply, fix and approval becomes a lesson, so your team gets sharper every week.',
-        detail: 'self-improving',
-        visual: <LearningVisual />,
+        title: 'it follows up on its own',
+        body: 'text “remind me at 5” or “tell me if this changes” and it keeps track. set check-ins and it texts you first.',
+        detail: 'reminders · watches · check-ins',
+        visual: <RemindersVisual />,
     },
     {
-        title: 'always on, never starting over',
-        body: 'agents run around the clock on infrastructure built to stay up. schedules, follow-ups and half-finished work carry on without you.',
-        detail: 'built to run 24/7',
+        title: 'always on, while your engine is',
+        body: 'the engine runs on a computer you choose, so reminders and check-ins carry on while you’re away. if your AI provider goes down, a backup model takes over.',
+        detail: 'with a backup model',
         visual: <AlwaysOnVisual />,
     },
     {
-        title: 'our cloud or yours',
-        body: 'start in seconds on openbots cloud, where we handle updates, scaling and backups. need it in-house? self-host the same platform.',
-        detail: 'your choice',
+        title: 'yours to run',
+        body: 'openbots is free and open source. run the engine on your own computer and deploy your own copy of the dashboard to Convex and Vercel. there’s no hosted plan.',
+        detail: 'self-hosted · MIT licensed',
         visual: <HostingVisual />,
     },
 ]
@@ -37,8 +37,8 @@ export default function WhyOpenBots() {
             id="why-openbots"
             className="scroll-mt-24 px-6 py-44 md:py-52 lg:py-60">
             <SectionHeading
-                title="infrastructure for agents that get better every day"
-                description="most assistants forget you when the chat ends. openbots gives every agent a home: memory that lasts, a loop that learns from you, and a runtime that never switches off."
+                title="a home for agents you actually run"
+                description="most assistants live in someone else’s app. openbots gives every agent a home you own: docs it reads, follow-ups it keeps, and an engine on your own computer."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
