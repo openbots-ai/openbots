@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { setupSteps } from './setup-steps'
 
-const URL = 'https://posh-wildcat-504.convex.cloud'
+const URL = 'https://example-123.convex.cloud'
 const ENGINE = 'https://www.getopenbots.com/engine/openbots-engine.mjs'
 
 describe('starting the engine', () => {

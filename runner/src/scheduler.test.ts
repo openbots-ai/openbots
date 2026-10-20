@@ -21,7 +21,7 @@ function setup(fire: (job: Job) => Promise<Fired>) {
     const told: string[] = []
     const scheduler = new Scheduler({ store, now: () => now, fire, tellOwner: async (_j, text) => void told.push(text), checkIns: async () => {}, log: () => {} })
     const job = (over: Partial<Job> = {}) =>
-        store.addJob({ kind: 'reminder', agentId: 'a1', to: '+16395550100', number: '+18257731569', channel: 'twilio', dueAt: now + 60_000, everyMin: null, until: null, text: 'stretch', ...over })
+        store.addJob({ kind: 'reminder', agentId: 'a1', to: '+16395550100', number: '+12125550123', channel: 'twilio', dueAt: now + 60_000, everyMin: null, until: null, text: 'stretch', ...over })
     return { store, scheduler, told, job }
 }
 
