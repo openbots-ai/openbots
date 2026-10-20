@@ -24,6 +24,24 @@ export type TaskResult = NonNullable<Doc<'tasks'>['result']>
 
 const reason = (error: Error) => error.message.match(/Uncaught Error: (.*?)(?:\n|$)/)?.[1] ?? error.message
 
+// Takes each new request once: claims it, and runs it only if this engine won the claim. A lost or failed claim is
+// skipped, so with several engines each request runs on just one of them.
+export function claimEach(claim: (id: Id<'tasks'>) => Promise<boolean>, onTask: (task: Task) => void, onError: (error: Error) => void) {
+    const seen = new Set<string>()
+    return (tasks: Task[]) => {
+        for (const t of tasks) {
+            if (seen.has(t._id)) continue
+            seen.add(t._id)
+            claim(t._id).then(
+                (won) => {
+                    if (won) onTask(t)
+                },
+                (e: unknown) => onError(e instanceof Error ? e : new Error(String(e))),
+            )
+        }
+    }
+}
+
 // The engine's connection to Convex. It reads your configuration and requests (live) and sends back a heartbeat,
 // counts and task results. Nothing here carries message text, contact details or credentials.
 export class ConvexLink implements Link {
@@ -58,16 +76,14 @@ export class ConvexLink implements Link {
         })
     }
 
-    // Calls `onTask` for each request the dashboard queues for this agent
+    // Calls `onTask` for each request the dashboard queues that this engine claims (another engine may get it first)
     onTasks(onTask: (task: Task) => void) {
-        const started = new Set<string>()
-        const sub = this.client.onUpdate(api.runner.tasks, { token: this.token }, (tasks) => {
-            for (const t of tasks) {
-                if (started.has(t._id)) continue
-                started.add(t._id)
-                onTask(t)
-            }
-        })
+        const each = claimEach(
+            (id) => this.client.mutation(api.runner.claimTask, { token: this.token, id }),
+            onTask,
+            (e) => console.error(`Couldn't take a request from the dashboard: ${reason(e)}`),
+        )
+        const sub = this.client.onUpdate(api.runner.tasks, { token: this.token }, each)
         this.unsubscribers.push(() => sub.unsubscribe())
     }
 
