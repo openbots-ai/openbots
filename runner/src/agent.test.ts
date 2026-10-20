@@ -222,6 +222,63 @@ describe('agent', () => {
         expect(transport.sent.at(-1)?.body).toMatch(/Pip is paused/)
     })
 
+    it('stops replying to one contact past the hourly limit, tells you once, and never limits you', async () => {
+        const { transport, text, complete } = setup(config({ workspace: { contactRepliesPerHour: 3 } }))
+        const replies = (to: string) => transport.sent.filter((m) => m.to === to && !/needs you|first time/.test(m.body))
+        for (let i = 0; i < 6; i++) {
+            await text(`message ${i}`)
+            await vi.runAllTimersAsync()
+        }
+        expect(replies('+1 212 555 0187')).toHaveLength(3)
+        expect(complete).toHaveBeenCalledTimes(3)
+        const alerts = transport.sent.filter((m) => m.to === OWNER && /needs you/.test(m.body))
+        expect(alerts).toHaveLength(1)
+        expect(alerts[0].body).toMatch(/sent them 3 replies in the last hour/)
+        expect(alerts[0].body).not.toMatch(/24 hours|message \d/)
+
+        // Someone else still gets answers, and so do you
+        await text('hi', '+1 212 555 0999')
+        await vi.runAllTimersAsync()
+        expect(replies('+1 212 555 0999')).toHaveLength(1)
+        for (let i = 0; i < 5; i++) {
+            await text(`me ${i}`, OWNER)
+            await vi.runAllTimersAsync()
+        }
+        expect(replies(OWNER)).toHaveLength(5)
+
+        // An hour later the first contact is answered again
+        vi.setSystemTime(Date.now() + 61 * 60_000)
+        await text('back again')
+        await vi.runAllTimersAsync()
+        expect(replies('+1 212 555 0187')).toHaveLength(4)
+    })
+
+    it('limits each contact to 20 replies an hour when you haven’t set a limit', async () => {
+        const { text, complete } = setup()
+        for (let i = 0; i < 22; i++) {
+            await text(`message ${i}`)
+            await vi.runAllTimersAsync()
+        }
+        expect(complete).toHaveBeenCalledTimes(20)
+    })
+
+    it('sends at most 3 new-contact alerts an hour, then one note that more are texting', async () => {
+        const { transport, text } = setup()
+        for (let i = 0; i < 6; i++) await text('hello', `+1 212 555 010${i}`)
+        await vi.runAllTimersAsync()
+        const alerts = transport.sent.filter((m) => m.to === OWNER).map((m) => m.body)
+        expect(alerts.filter((b) => /first time/.test(b))).toHaveLength(3)
+        expect(alerts.filter((b) => /More new people are texting your agents: 4 in the last hour/.test(b))).toHaveLength(1)
+        expect(alerts).toHaveLength(4)
+        // Each of them still got a reply
+        expect(transport.sent.filter((m) => m.to !== OWNER)).toHaveLength(6)
+
+        vi.setSystemTime(Date.now() + 61 * 60_000)
+        await text('hello', '+1 212 555 0199')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.filter((m) => m.to === OWNER).at(-1)?.body).toMatch(/first time/)
+    })
+
     it('replies as soon as a draft agent is set live, without the 24-hour handoff pause', async () => {
         const { transport, link, text, complete } = setup()
         link.current = config({ agent: { status: 'draft' } })
