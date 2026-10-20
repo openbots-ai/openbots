@@ -13,6 +13,8 @@ export type Incoming = {
     name?: string
     // Group chats: the channel's thread id and the group's name
     thread?: { key: string; title?: string }
+    // It came as SMS rather than iMessage, so its sender is only caller ID, which can be faked (Twilio is always SMS)
+    sms?: boolean
 }
 
 // `threadKey` sends to a group instead of to one person

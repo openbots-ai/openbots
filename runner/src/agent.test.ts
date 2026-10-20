@@ -14,7 +14,7 @@ import { RETRY_MS, Scheduler } from './scheduler'
 import { ComputerTasks } from './computer/tasks'
 import { Store } from './store'
 import { MacTransport, textFromAttributedBody } from './transports/mac'
-import type { Channel, Outgoing, Transport } from './transports/types'
+import type { Channel, Incoming, Outgoing, Transport } from './transports/types'
 
 const AGENT = 'agent1' as Id<'agents'>
 const WS = 'ws' as Id<'workspace'>
@@ -355,6 +355,54 @@ describe('agent', () => {
         await text('remind me tomorrow', '+1 212 555 0187')
         await vi.runAllTimersAsync()
         expect(transport.sent.at(-1)?.body).toBe('no tools')
+    })
+
+    it('gives texts from your number over SMS no tools, computer use or task answers, since caller ID can be faked', async () => {
+        const answered: string[] = []
+        const computer = { busy: () => false, current: () => null, start: () => 'Started', handle: (_id: number, text: string) => (answered.push(text), false) }
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const cfg = config({ computerUse: true })
+        cfg.numbers.push({ _id: 'n3' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0199', key: '14155550199', kind: 'phone', channel: 'twilio', agentId: AGENT })
+        const { pipeline, transport, store } = setup(cfg, complete, { computer })
+        const twilio = new FakeTransport('twilio')
+        pipeline.update({ transports: { relay: transport, twilio } })
+
+        await pipeline.receive({ channel: 'twilio', to: '+14155550199', from: OWNER, body: 'YES' })
+        await vi.runAllTimersAsync()
+        expect(twilio.sent.at(-1)?.body).toBe('no tools')
+        expect(complete.mock.calls.at(-1)?.[2].system).toMatch(/came over SMS.*text you over iMessage/)
+        // SMS that reaches an iMessage channel (a Mac forwarding your iPhone's texts) is no better
+        await pipeline.receive({ channel: 'relay', to: '4155550101', from: OWNER, body: 'YES', sms: true })
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tools')
+        expect(answered).toEqual([])
+
+        // A reply still queued when the engine restarts remembers its text came over SMS
+        await pipeline.receive({ channel: 'twilio', to: '+14155550199', from: OWNER, body: 'remind me at 5' })
+        pipeline.stop()
+        const again = new Pipeline({ store, link: new FakeLink(cfg), transports: { relay: transport, twilio }, brains, models: () => KEYS, computer, complete, log: () => {} })
+        again.resume()
+        await vi.runAllTimersAsync()
+        expect(twilio.sent.at(-1)?.body).toBe('no tools')
+
+        // Over iMessage you get them all back
+        await again.receive({ channel: 'relay', to: '4155550101', from: OWNER, body: 'YES' })
+        await vi.runAllTimersAsync()
+        expect(answered).toEqual(['YES'])
+        expect(transport.sent.at(-1)?.body).toBe('had tools')
+        expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/came over SMS/)
+    })
+
+    it('never takes a number from another country for yours because the digits match', async () => {
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const { text, transport } = setup(config({ workspace: { ownerHandle: '+1 479 123 4567' } }), complete)
+        // Norway's +47 912 34 567 and the US +1 479 123 4567 share their digits
+        await text('remind me at 5', '+47 912 34 567')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.map((m) => m.body)).toEqual(['Dana texted Pip for the first time.', 'no tools'])
+        await text('remind me at 5', '(479) 123-4567')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('had tools')
     })
 
     it('gives no scheduling tools in a group chat, even one you started', async () => {
@@ -939,7 +987,7 @@ describe('mac transport', () => {
         // A tiny Messages database with two new texts
         const path = join(dir, 'chat.db')
         const chat = new DatabaseSync(path)
-        chat.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, text TEXT, attributedBody BLOB, handle_id INTEGER, destination_caller_id TEXT, is_from_me INTEGER, item_type INTEGER);
+        chat.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, text TEXT, attributedBody BLOB, handle_id INTEGER, destination_caller_id TEXT, is_from_me INTEGER, item_type INTEGER, service TEXT);
             CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT);
             CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER);
             CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
@@ -948,17 +996,18 @@ describe('mac transport', () => {
         const store = new Store(join(dir, 'openbots.db'), Vault.open(dir))
         store.setMeta('mac.lastRowId', '0')
         for (const id of [1, 2]) {
-            chat.prepare('INSERT INTO message VALUES (?, ?, NULL, 1, NULL, 0, 0)').run(id, `text ${id}`)
+            chat.prepare('INSERT INTO message VALUES (?, ?, NULL, 1, NULL, 0, 0, ?)').run(id, `text ${id}`, id === 1 ? 'iMessage' : 'SMS')
             chat.prepare('INSERT INTO chat_message_join VALUES (1, ?)').run(id)
         }
         chat.close()
 
         let answer!: () => void
-        const onText = vi.fn(() => new Promise<{ markRead: boolean }>((resolve) => (answer = () => resolve({ markRead: true }))))
+        const onText = vi.fn<(t: Incoming) => Promise<{ markRead: boolean }>>(() => new Promise((resolve) => (answer = () => resolve({ markRead: true }))))
         const mac = new MacTransport(store, path)
         void mac.start(onText)
         await vi.advanceTimersByTimeAsync(0)
         expect(onText).toHaveBeenCalledTimes(1)
+        expect(onText.mock.calls[0][0]).not.toHaveProperty('sms')
 
         // Stopped while the first text is still being answered: it waits for that one, then takes no more
         const stopped = mac.stop()
@@ -971,12 +1020,13 @@ describe('mac transport', () => {
 
         // A new one picks up where it left off
         const next = new MacTransport(store, path)
-        const seen: string[] = []
+        const seen: { body: string; sms?: boolean }[] = []
         await next.start(async (t) => {
-            seen.push(t.body)
+            seen.push({ body: t.body, sms: t.sms })
             return { markRead: true }
         })
-        expect(seen).toEqual(['text 2'])
+        // An SMS your iPhone forwarded to this Mac says so, so it never counts as you over iMessage
+        expect(seen).toEqual([{ body: 'text 2', sms: true }])
         await next.stop()
         store.close()
     })
