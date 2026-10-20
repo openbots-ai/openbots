@@ -12,7 +12,7 @@ const run = promisify(execFile)
 // the Messages app. Needs Full Disk Access (to read ~/Library/Messages) and permission to control Messages.
 // One-to-one chats only; group chats are left alone. No typing bubble or read receipts: Messages can't script them.
 
-type Row = { id: number; text: string | null; body: Uint8Array | null; sender: string; dest: string | null }
+type Row = { id: number; text: string | null; body: Uint8Array | null; sender: string; dest: string | null; service: string | null }
 
 const POLL_MS = 2_000
 
@@ -67,7 +67,7 @@ export class MacTransport implements Transport {
             for (const row of this.newTexts()) {
                 if (this.stopped) return
                 const body = row.text ?? (row.body ? textFromAttributedBody(row.body) : null)
-                if (body?.trim()) await onText({ channel: 'mac', to: cleanAddress(row.dest) ?? undefined, from: row.sender, body }).catch((e) => console.error(`Skipped a text: ${e instanceof Error ? e.message : e}`))
+                if (body?.trim()) await onText({ channel: 'mac', to: cleanAddress(row.dest) ?? undefined, from: row.sender, body, ...(row.service === 'iMessage' ? {} : { sms: true }) }).catch((e) => console.error(`Skipped a text: ${e instanceof Error ? e.message : e}`))
                 this.store.setMeta('mac.lastRowId', String(row.id))
             }
         }
@@ -83,9 +83,10 @@ export class MacTransport implements Transport {
     }
 
     private newTexts(): Row[] {
-        // style 45 is a one-to-one chat; item_type 0 is a normal message (not a tapback, rename or the like)
+        // style 45 is a one-to-one chat; item_type 0 is a normal message (not a tapback, rename or the like). `service`
+        // says iMessage or SMS (texts your iPhone forwards to this Mac): only iMessage vouches for who sent it.
         return this.db!.prepare(
-            `SELECT m.ROWID AS id, m.text AS text, m.attributedBody AS body, h.id AS sender, m.destination_caller_id AS dest
+            `SELECT m.ROWID AS id, m.text AS text, m.attributedBody AS body, h.id AS sender, m.destination_caller_id AS dest, m.service AS service
              FROM message m
              JOIN handle h ON h.ROWID = m.handle_id
              JOIN chat_message_join cmj ON cmj.message_id = m.ROWID

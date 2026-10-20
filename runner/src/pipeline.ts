@@ -89,6 +89,11 @@ export function zonedTime(date: string, time: string, timeZone: string) {
     return at
 }
 
+// Whether a text's sender rests on SMS caller ID, which anyone can fake: every Twilio text, and SMS that reaches an
+// iMessage channel (Sendblue's fallback, or a Mac or BlueBubbles server forwarding your phone's texts)
+export const smsSender = (text: Pick<Incoming, 'channel' | 'sms'>) => text.channel === 'twilio' || text.sms === true
+const unverifiedKey = (conversationId: number) => `owner.sms:${conversationId}`
+
 const describe = (e: unknown) => (e instanceof ReplyError ? e.message : `${e instanceof Error ? e.message : String(e)}`.slice(0, 200))
 const named = (name: string, text: string) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
 
@@ -153,15 +158,21 @@ export class Pipeline {
         const { conversation } = store.conversation({ contactId: contact.id, agentId: agent._id, number: number.handle, channel: number.channel, at, thread: text.thread })
         const messageId = store.addMessage(conversation.id, 'contact', body, at, { senderId: contact.id })
         store.updateConversation(conversation.id, { lastAt: at, number: number.handle, channel: number.channel })
+        // Your powers (computer use, reminders and watches, answering a task) need a sender iMessage vouches for.
+        // SMS caller ID can be faked, so a text from your number over SMS gets your chat but none of them; the
+        // flag is kept until your next text, so the queued reply (even after a restart) knows.
+        const verified = fromOwner && !smsSender(text)
+        if (fromOwner && !verified) store.setMeta(unverifiedKey(conversation.id), '1')
+        else if (fromOwner) store.deleteMeta(unverifiedKey(conversation.id))
 
         const counted = store.countOnce(dayKey(at), conversation.id)
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
         if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
         // Who and which agent, never what they wrote
-        this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? ' (you)' : ''}`)
+        this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? (verified ? ' (you)' : ' (your number, over SMS: no computer use, reminders or task answers)') : ''}`)
         // While a computer task waits for your answer (or you say stop), your text is for the task, not a new reply
-        if (fromOwner && !text.thread && this.deps.computer?.handle(conversation.id, body)) return { markRead: true }
+        if (verified && !text.thread && this.deps.computer?.handle(conversation.id, body)) return { markRead: true }
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
         return { markRead: true }
     }
@@ -237,6 +248,8 @@ export class Pipeline {
         const contact = store.getContact(conversation.contactId)
         const owner = !!contact && this.isOwner(contact.handle)
         if (!agent || !contact || (agent.status !== 'live' && !owner)) return
+        // Your powers only when your latest text came over iMessage (see receive)
+        const powers = owner && !store.getMeta(unverifiedKey(conversationId))
 
         const now = this.now()
         const blocked = await link.budget(dayKey(now))
@@ -254,9 +267,9 @@ export class Pipeline {
         const promptFor = (option: ModelOption): Prompt => {
             // Read for each model, so a Backup sees a task the Brain's tool call just started.
             // A task running from this chat: the agent says it's in progress (and how to stop it) instead of offering another
-            const running = owner && !conversation.threadKey ? computer?.current() : null
+            const running = powers && !conversation.threadKey ? computer?.current() : null
             const busyHere = running?.conversationId === conversation.id ? running : null
-            const scheduling = owner && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
+            const scheduling = powers && !conversation.threadKey && TOOL_PROVIDERS.includes(option.provider)
             const offerable = scheduling && !!computer && this.config.computerUse === true && !!this.deps.brains.keys.anthropic
             // A Mac missing a permission: no use_computer, and the agent can say what's missing
             const problem = offerable ? (this.deps.computerProblem?.() ?? null) : null
@@ -272,6 +285,7 @@ export class Pipeline {
                     now,
                     group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
                     withOwner: owner,
+                    ownerOverSms: owner && !powers,
                     sms: conversation.channel === 'twilio',
                     canSearch: SEARCHES.includes(option.provider),
                     canSchedule: scheduling,

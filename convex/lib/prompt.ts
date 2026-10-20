@@ -58,6 +58,8 @@ export function systemPrompt(args: {
     group?: string
     // The person texting is the owner, from the phone in Settings: help them directly, never hand off to them
     withOwner?: boolean
+    // The owner's number texted over SMS, which can be faked, so the chat has no tools or computer tasks
+    ownerOverSms?: boolean
     // The reply goes out as a regular text message (Twilio), where long messages cost more and can fail to deliver
     sms?: boolean
     // The model writing the reply can search the web (OpenAI, Anthropic and Gemini models can; see runner/src/brain.ts)
@@ -73,7 +75,7 @@ export function systemPrompt(args: {
     // What's stopping computer use on this engine right now (a Mac permission), so the agent can say so if asked
     computerProblem?: string
 }) {
-    const { agent, workspace, contact, knowledge, now, group, withOwner, sms, canSearch, canSchedule, canUseComputer, computerBusy, computerBusyElsewhere, computerProblem } = args
+    const { agent, workspace, contact, knowledge, now, group, withOwner, ownerOverSms, sms, canSearch, canSchedule, canUseComputer, computerBusy, computerBusyElsewhere, computerProblem } = args
     const owner = workspace?.ownerName ?? 'the owner'
     const timeZone = workspace?.timezone ?? 'UTC'
     let date: string
@@ -105,6 +107,9 @@ export function systemPrompt(args: {
             "You can do tasks on their computer with use_computer (opening apps and websites, clicking, typing). It runs in the background: say you're on it, and it texts them when it's done or needs their YES. Only one task runs at a time.",
         withOwner && computerBusy && `You're already doing a task on their computer (“${computerBusy}”). Tell them it's in progress; they can text stop to cancel it.`,
         withOwner && computerProblem && `Computer use isn't available yet: ${computerProblem}`,
+        withOwner &&
+            ownerOverSms &&
+            "This text came over SMS, where a sender's number can be faked, so you can't set reminders or watches, do tasks on their computer, or take answers for a task here. If they ask for any of that, say briefly that it works when they text you over iMessage.",
         withOwner && computerBusyElsewhere && "You're already doing a task on their computer from another chat; only one runs at a time.",
         `Write plain text only: no markdown, no lists with symbols, no signatures. ${LENGTHS[agent.replyLength ?? 'short']}`,
         sms && 'This goes out as a regular text message (SMS), so keep the whole reply under 300 characters.',
