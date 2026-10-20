@@ -336,6 +336,26 @@ describe('agent', () => {
         expect(backupCall?.[2].system).not.toMatch(/set reminders/)
     })
 
+    it('uses documents not shared with contacts only in your own one-to-one chat', async () => {
+        const doc = (title: string, shareWithContacts?: boolean) => ({ _id: title as Id<'knowledge'>, _creationTime: 0, workspaceId: WS, title, body: `${title} body`, shareWithContacts, updatedAt: 0 })
+        const cfg = { ...config(), knowledge: [doc('Opening hours', true), doc('Home address'), doc('Bank notes', false)] }
+        const { text, complete, pipeline } = setup(cfg)
+        await text('when are you open?')
+        await vi.runAllTimersAsync()
+        const stranger = complete.mock.calls[0]?.[2].system
+        expect(stranger).toContain('Opening hours body')
+        expect(stranger).not.toMatch(/Home address|Bank notes/)
+
+        await text('what do you know?', OWNER)
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls[1]?.[2].system).toMatch(/Opening hours body[\s\S]*Home address body[\s\S]*Bank notes body/)
+
+        // A group you started still has other people in it
+        await pipeline.receive({ channel: 'bluebubbles', from: OWNER, body: 'Pip, what do you know?', name: 'Sam', thread: { key: 'iMessage;+;chat9', title: 'Family' } })
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls[2]?.[2].system).not.toMatch(/Home address/)
+    })
+
     it('gives someone else no scheduling tools', async () => {
         const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
         const { text, transport } = setup(config(), complete)

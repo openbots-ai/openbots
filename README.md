@@ -120,8 +120,9 @@ What the engine can use, all with the person's own accounts:
    Convex, live), finds or creates the contact and conversation locally (one per group chat thread), and stores
    the message encrypted. In a group chat the engine answers only when someone uses its name.
 3. If the engine is live, the reply waits for the workspace's reply delay (or the end of quiet hours). Then the
-   Brain model writes it from its instructions, knowledge, the contact's notes and recent history. If that
-   provider fails, the Backup model takes over.
+   Brain model writes it from its instructions, knowledge, the contact's notes and recent history. Knowledge
+   documents are used with other people only when marked "Share with contacts"; the rest stay in the owner's own
+   one-to-one chats. If that provider fails, the Backup model takes over.
 4. The reply goes out the way the text came in, to the person or the group. Convex gets only counts: texts in and
    out, active conversations, new contacts, model usage. These feed Analytics and the usage budget.
 5. When an agent can't reply (no key, paused, budget used up, provider error) or asks for a person, it texts the

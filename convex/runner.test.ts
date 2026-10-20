@@ -96,6 +96,17 @@ describe('agent API', () => {
         expect(await base.query(api.runner.budget, { token, today })).toMatch(/Today's usage budget/)
     })
 
+    it('keeps a document private to you unless you share it with contacts', async () => {
+        const { base, owner, token } = await setup()
+        const id = await owner.mutation(api.knowledge.create, { title: 'Home address', body: '1 Main St' })
+        const shared = await owner.mutation(api.knowledge.create, { title: 'Hours', body: '9 to 5', shareWithContacts: true })
+        const docs = (await base.query(api.runner.config, { token }))!.knowledge
+        expect(docs.find((d) => d._id === id)?.shareWithContacts).toBeUndefined()
+        expect(docs.find((d) => d._id === shared)?.shareWithContacts).toBe(true)
+        await owner.mutation(api.knowledge.update, { id: shared, title: 'Hours', body: '9 to 5' })
+        expect((await base.query(api.runner.config, { token }))!.knowledge.find((d) => d._id === shared)?.shareWithContacts).toBeUndefined()
+    })
+
     it('keeps no messages, contacts or credentials in Convex', () => {
         const tables = Object.keys(schema.tables)
         for (const gone of ['messages', 'conversations', 'contacts', 'notifications', 'connections']) expect(tables).not.toContain(gone)
