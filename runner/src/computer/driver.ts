@@ -24,6 +24,9 @@ export interface Driver {
     // A key or combination ("ctrl+s"), pressed `repeat` times
     key(combo: string, repeat: number): Promise<void>
     cursor(): Promise<Point>
+    // The app and window that has the keyboard ("Chrome — “Inbox”"), or null when it can't tell. Shown to the owner
+    // when they're asked to approve typing.
+    window?(): Promise<string | null>
     // What's missing before it can work (a Mac's Screen Recording or Accessibility permission), or null
     ready(): Promise<string | null>
     close(): void
@@ -37,6 +40,14 @@ export const MAX_PIXELS = 1_150_000
 export function fitted(size: Size): Size {
     const scale = Math.min(1, MAX_EDGE / Math.max(size.width, size.height), Math.sqrt(MAX_PIXELS / (size.width * size.height)))
     return { width: Math.max(1, Math.floor(size.width * scale)), height: Math.max(1, Math.floor(size.height * scale)) }
+}
+
+// "Chrome — “Inbox”", or null when neither is known
+export function windowName(app: string, title: string): string | null {
+    const name = app.trim()
+    const t = title.replace(/\s+/g, ' ').trim()
+    if (!name && !t) return null
+    return name && t ? `${name} — “${t}”` : name || `“${t}”`
 }
 
 const clamp = (n: number, max: number) => Math.min(Math.max(0, n), max - 1)
