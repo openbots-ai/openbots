@@ -3,7 +3,7 @@ import { mutation, query } from './_generated/server'
 import { currentWorkspace, owned, requireUser, requireWorkspace } from './lib/access'
 import { handleKind } from './lib/handles'
 import { requireKeyOffers } from './lib/keyModels'
-import { isValidChoice } from './lib/models'
+import { isSavableChoice } from './lib/models'
 import { workspaceSettings } from './schema'
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -60,7 +60,7 @@ export const update = mutation({
 export const setModel = mutation({
     args: { slot: v.string(), model: v.string() },
     handler: async (ctx, { slot, model }) => {
-        if (!isValidChoice(slot, model)) throw new Error(`${model} can't be used for ${slot}`)
+        if (!isSavableChoice(slot, model)) throw new Error(`${model} can't be used for ${slot}`)
         const ws = await requireWorkspace(ctx)
         if (ws.models?.[slot] !== model) await requireKeyOffers(ctx, ws._id, slot, model)
         await ctx.db.patch('workspace', ws._id, { models: { ...ws.models, [slot]: model } })

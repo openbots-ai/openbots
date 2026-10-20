@@ -99,6 +99,8 @@ type Props = {
     onVoiceChange?: (id: string) => void
     onLanguageChange?: (id: string) => void
     onTemperatureChange?: (value: number) => void
+    // Set when the chosen model ignores Creativity: the slider is turned off and this says why
+    creativityOff?: string
     onReplyLengthChange?: (value: ReplyLength) => void
     onTogglePlay?: () => void
     // The other model slots (computer use, voice notes, …), each shown as its own picker after the language
@@ -177,6 +179,7 @@ export function AgentConfigBar({
     onVoiceChange = noop,
     onLanguageChange = noop,
     onTemperatureChange = noop,
+    creativityOff,
     onReplyLengthChange = noop,
     onTogglePlay,
     slots,
@@ -235,12 +238,14 @@ export function AgentConfigBar({
                                 max={1}
                                 step={0.1}
                                 value={[temperature]}
+                                disabled={!!creativityOff}
                                 onValueChange={(value) => onTemperatureChange(Array.isArray(value) ? value[0] : value)}
                             />
                             <div className="flex justify-between text-[11px] text-neutral-400">
                                 <span>Precise</span>
                                 <span>Creative</span>
                             </div>
+                            {creativityOff && <p className="text-[11px] leading-snug text-neutral-500">{creativityOff}</p>}
                         </div>
                         <div className="space-y-2">
                             <span className="block text-xs font-medium text-neutral-600">Reply length</span>
