@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { PROVIDER_NAMES, type AiProvider, type ModelOption } from '../../convex/lib/models'
+import { isClaude5, PROVIDER_NAMES, takesTemperature, type AiProvider, type ModelOption } from '../../convex/lib/models'
 import type { Turn } from '../../convex/lib/prompt'
 import { demoReply } from './demo'
 
@@ -54,8 +54,8 @@ export type Brains = {
 // A failure worth showing the owner as-is ("Add your OpenAI key in Connections or on your engine …")
 export class ReplyError extends Error {}
 
-// Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
-const isClaude5 = (model: string) => /^claude-[a-z]+-5/.test(model)
+// The agent's Creativity, for a model that takes it (see takesTemperature); others get no temperature at all
+const temperatureFor = (provider: string, model: string, p: Prompt) => (p.temperature !== undefined && takesTemperature(provider, model) ? { temperature: p.temperature } : {})
 
 // Web search answers can carry Markdown citations; a text message reads better without them
 export function plainCitations(text: string) {
@@ -81,7 +81,7 @@ async function anthropic(model: string, key: string, p: Prompt) {
             ...(isClaude5(model)
                 ? // Short chat replies: low effort; on a safety decline the API re-runs the request on a fallback model
                   { output_config: { effort: 'low' as const }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
-                : { temperature: p.temperature }),
+                : temperatureFor('anthropic', model, p)),
         })
         if (res.stop_reason === 'refusal') throw new ReplyError('The model declined to answer this one')
         // A long search can pause the turn; sending it back lets Claude carry on where it stopped
@@ -116,7 +116,7 @@ async function openai(model: string, key: string, p: Prompt) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
             // Searching and reasoning use output tokens too, so the cap is roomier than the reply itself
-            body: JSON.stringify({ model, instructions: p.system, input, max_output_tokens: p.maxTokens * 4, tools }),
+            body: JSON.stringify({ model, instructions: p.system, input, max_output_tokens: p.maxTokens * 4, tools, ...temperatureFor('openai', model, p) }),
             signal: AbortSignal.timeout(TIMEOUT_MS),
         })
         const data = (await res.json().catch(() => null)) as { output?: Item[]; error?: { message?: string } } | null
@@ -145,12 +145,12 @@ async function openai(model: string, key: string, p: Prompt) {
     throw new Error('The model kept using tools without answering')
 }
 
-// OpenAI, xAI and local model servers share the chat completions shape
-async function chatCompletions(url: string, model: string, key: string, p: Prompt) {
+// xAI and local model servers share the chat completions shape
+async function chatCompletions(provider: 'xai' | 'local', url: string, model: string, key: string, p: Prompt) {
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, messages: [{ role: 'system', content: p.system }, ...p.turns], max_completion_tokens: p.maxTokens }),
+        body: JSON.stringify({ model, messages: [{ role: 'system', content: p.system }, ...p.turns], max_completion_tokens: p.maxTokens, ...temperatureFor(provider, model, p) }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     const data = (await res.json().catch(() => null)) as { choices?: { message?: { content?: string } }[]; error?: { message?: string } } | null
@@ -165,7 +165,7 @@ async function gemini(model: string, key: string, p: Prompt) {
         body: JSON.stringify({
             systemInstruction: { parts: [{ text: p.system }] },
             contents: p.turns.map((t) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
-            generationConfig: { temperature: p.temperature, maxOutputTokens: p.maxTokens },
+            generationConfig: { ...temperatureFor('google', model, p), maxOutputTokens: p.maxTokens },
             // Grounded in Google Search when the question needs current information
             tools: [{ google_search: {} }],
         }),
@@ -188,7 +188,7 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
     let text: string
     if (option.provider === 'local') {
         if (!brains.local) throw new ReplyError(`Set OPENBOTS_LOCAL_URL in Connections or on your engine so ${option.label} can reply`)
-        text = await chatCompletions(`${brains.local.url.replace(/\/+$/, '')}/chat/completions`, option.api, brains.local.key ?? 'local', p)
+        text = await chatCompletions('local', `${brains.local.url.replace(/\/+$/, '')}/chat/completions`, option.api, brains.local.key ?? 'local', p)
     } else {
         if (!(option.provider in PROVIDER_KEYS)) throw new ReplyError(`${option.label} can't write replies`)
         const provider = option.provider as CloudProvider
@@ -199,7 +199,7 @@ export async function complete(brains: Brains, option: ModelOption, p: Prompt): 
         }
         if (provider === 'anthropic') text = await anthropic(option.api, key, p)
         else if (provider === 'openai') text = await openai(option.api, key, p)
-        else if (provider === 'xai') text = await chatCompletions('https://api.x.ai/v1/chat/completions', option.api, key, p)
+        else if (provider === 'xai') text = await chatCompletions('xai', 'https://api.x.ai/v1/chat/completions', option.api, key, p)
         else text = await gemini(option.api, key, p)
     }
     if (!text.trim()) throw new Error('The model sent back an empty reply')

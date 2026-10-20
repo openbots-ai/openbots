@@ -103,3 +103,32 @@ describe('tools', () => {
         expect(second.at(-1)).toEqual({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'Reminder set: stretch' }] })
     })
 })
+
+describe('creativity', () => {
+    const warm = { ...prompt, temperature: 0.7 }
+    const answer = { output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }] }
+
+    it("sends it to models that take it and leaves it off for OpenAI's reasoning models", async () => {
+        const gemini = fakeFetch({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] })
+        await complete(brains, option('google', 'gemini-2.5-flash'), warm)
+        expect((gemini[0].body.generationConfig as Record<string, unknown>).temperature).toBe(0.7)
+
+        const gpt5 = fakeFetch(answer)
+        await complete(brains, option('openai', 'gpt-5.1'), warm)
+        expect(gpt5[0].body).not.toHaveProperty('temperature')
+
+        const gpt4 = fakeFetch(answer)
+        await complete(brains, option('openai', 'gpt-4.1'), warm)
+        expect(gpt4[0].body.temperature).toBe(0.7)
+    })
+
+    it('sends it to xAI and local model servers', async () => {
+        const xai = fakeFetch({ choices: [{ message: { content: 'ok' } }] })
+        await complete({ ...brains, keys: { xai: 'x-1' } }, { id: 'grok-4', label: 'Grok 4', provider: 'xai', api: 'grok-4' }, warm)
+        expect(xai[0].body.temperature).toBe(0.7)
+
+        const local = fakeFetch({ choices: [{ message: { content: 'ok' } }] })
+        await complete({ ...brains, local: { url: 'http://localhost:11434/v1' } }, { id: 'local:llama3', label: 'llama3', provider: 'local', api: 'llama3' }, warm)
+        expect(local[0].body.temperature).toBe(0.7)
+    })
+})

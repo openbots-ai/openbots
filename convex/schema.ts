@@ -14,11 +14,13 @@ export const agentFields = {
     avatar: v.optional(v.string()),
     hue: v.number(),
     prompt: v.string(),
-    greeting: v.string(),
+    // Unused: agents made before it was dropped keep theirs until they're next saved
+    greeting: v.optional(v.string()),
     status: agentStatus,
     folder: v.optional(v.string()),
-    // Model and voice settings; optional so agents made before they existed stay valid (the UI shows defaults)
+    // Model settings; optional so agents made before they existed stay valid (the UI shows defaults)
     model: v.optional(v.string()),
+    // Unused while the voice slot doesn't run; the dashboard no longer sets it
     voice: v.optional(v.string()),
     language: v.optional(v.string()),
     temperature: v.optional(v.number()),

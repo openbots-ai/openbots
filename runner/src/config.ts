@@ -8,7 +8,8 @@ import type { Credentials } from './providers'
 // Keys, account logins and history stay on this machine; see runner/README.md.
 export type Settings = {
     convexUrl: string
-    token: string
+    // OPENBOTS_TOKEN when set; otherwise the engine asks for it once and saves it (see token.ts)
+    token?: string
     dataDir: string
     // The engine's web server, for your relay and your accounts' webhooks
     host: string
@@ -47,7 +48,7 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
     }
 
     const convexUrl = need('OPENBOTS_CONVEX_URL')
-    const token = need('OPENBOTS_TOKEN')
+    const token = get('OPENBOTS_TOKEN')
     const relay = get('OPENBOTS_INBOUND_SECRET') || get('OPENBOTS_RELAY_URL') ? { inboundSecret: need('OPENBOTS_INBOUND_SECRET'), relayUrl: need('OPENBOTS_RELAY_URL'), relaySecret: get('OPENBOTS_RELAY_SECRET') } : undefined
     const twilio = pair('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', ['accountSid', 'authToken'])
     const sendblue = pair('SENDBLUE_API_KEY_ID', 'SENDBLUE_API_SECRET', ['keyId', 'secret'])
