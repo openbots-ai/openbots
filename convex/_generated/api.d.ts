@@ -22,6 +22,7 @@ import type * as lib_orgo from "../lib/orgo.js";
 import type * as lib_prompt from "../lib/prompt.js";
 import type * as lib_quiet from "../lib/quiet.js";
 import type * as lib_sealed from "../lib/sealed.js";
+import type * as lib_tasks from "../lib/tasks.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_usage from "../lib/usage.js";
 import type * as migrations from "../migrations.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "lib/prompt": typeof lib_prompt;
   "lib/quiet": typeof lib_quiet;
   "lib/sealed": typeof lib_sealed;
+  "lib/tasks": typeof lib_tasks;
   "lib/tokens": typeof lib_tokens;
   "lib/usage": typeof lib_usage;
   migrations: typeof migrations;

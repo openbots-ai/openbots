@@ -3,6 +3,7 @@ import { env, mutation, query, type QueryCtx } from './_generated/server'
 import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/sealed'
 import { canComputerUse } from './lib/computers'
 import { insertNumber } from './lib/numbers'
+import { TASK_EXPIRED, TASK_PENDING_MS } from './lib/tasks'
 import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
@@ -146,7 +147,8 @@ export const record = mutation({
     },
 })
 
-// Requests from the dashboard waiting for this agent (reactive)
+// Requests from the dashboard waiting for an engine (reactive). Requests nobody claims in time are closed by
+// tasks.expire, which takes them off this list; claimTask refuses any that are past due anyway.
 export const tasks = query({
     args: { token: v.string() },
     handler: async (ctx, { token }) => {
@@ -159,14 +161,32 @@ export const tasks = query({
     },
 })
 
-// The engine's answer to a task. A bought or reused Twilio number is added to your numbers here.
+// An engine takes a request before doing it, so with several engines only one does it (one Twilio purchase, not
+// one per engine). True if this engine got it; false if another engine has it, or it's closed or past due.
+export const claimTask = mutation({
+    args: { token: v.string(), id: v.id('tasks') },
+    handler: async (ctx, { token, id }) => {
+        const runner = await runnerFor(ctx, token)
+        const task = await ctx.db.get('tasks', id)
+        if (!task || task.workspaceId !== runner.workspaceId || task.status !== 'pending') return false
+        if (Date.now() >= task._creationTime + TASK_PENDING_MS) {
+            await ctx.db.patch('tasks', id, { status: 'failed', error: TASK_EXPIRED })
+            return false
+        }
+        await ctx.db.patch('tasks', id, { status: 'running', runnerId: runner._id })
+        return true
+    },
+})
+
+// The engine's answer to a task it claimed. A bought or reused Twilio number is added to your numbers here.
 export const finishTask = mutation({
     args: { token: v.string(), id: v.id('tasks'), result: v.optional(taskResult), error: v.optional(v.string()) },
     handler: async (ctx, { token, id, result, error }) => {
-        const { workspaceId } = await runnerFor(ctx, token)
+        const runner = await runnerFor(ctx, token)
+        const { workspaceId } = runner
         const task = await ctx.db.get('tasks', id)
-        // With several agents, the first one to answer closes the request
-        if (!task || task.workspaceId !== workspaceId || task.status !== 'pending') return
+        // Only the engine that claimed it, and only while it's open
+        if (!task || task.workspaceId !== workspaceId || task.status !== 'running' || task.runnerId !== runner._id) return
         const { request } = task
         if (!error && result && 'sid' in result && (request.kind === 'twilioBuy' || request.kind === 'twilioUse')) {
             try {

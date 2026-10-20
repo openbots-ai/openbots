@@ -221,11 +221,14 @@ export default defineSchema({
     })
         .index('by_workspace', ['workspaceId'])
         .index('by_tokenHash', ['tokenHash']),
-    // Requests the dashboard queues for the engine (see taskRequest); the engine writes back the result
+    // Requests the dashboard queues for the engine (see taskRequest); one engine claims it (running), does it, and
+    // writes back the result. Unclaimed or unanswered requests expire (see lib/tasks.ts).
     tasks: defineTable({
         ...ws,
         request: taskRequest,
-        status: v.union(v.literal('pending'), v.literal('done'), v.literal('failed')),
+        status: v.union(v.literal('pending'), v.literal('running'), v.literal('done'), v.literal('failed')),
+        // The engine that claimed it; only its answer counts
+        runnerId: v.optional(v.id('runners')),
         result: v.optional(taskResult),
         error: v.optional(v.string()),
     }).index('by_workspace_and_status', ['workspaceId', 'status']),
