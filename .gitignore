@@ -35,3 +35,9 @@ dist-ssr
 runner/.env
 .openbots
 public/engine/
+
+# Root environment file (use .env.local for Convex; see .env.example)
+/.env
+
+# Local agent-skill lockfile
+skills-lock.json
