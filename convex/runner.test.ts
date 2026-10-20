@@ -147,6 +147,7 @@ describe('Twilio through the agent', () => {
 
         const id = await owner.mutation(api.tasks.request, { request: { kind: 'twilioBuy', phoneNumber: '+14155550199', agentId } })
         expect(await base.query(api.runner.tasks, { token })).toEqual([{ _id: id, request: { kind: 'twilioBuy', phoneNumber: '+14155550199', agentId } }])
+        expect(await base.mutation(api.runner.claimTask, { token, id })).toBe(true)
         await base.mutation(api.runner.finishTask, { token, id, result: { phoneNumber: '+14155550199', sid: 'PN123' } })
 
         expect(await owner.query(api.tasks.get, { id })).toMatchObject({ status: 'done' })
