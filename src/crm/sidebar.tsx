@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { CONTACT_EMAIL } from '@/lib/site'
+import { CHANGELOG_URL, ISSUES_URL } from '@/lib/site'
 import { viewHref, type View } from './lib/view'
 import { useNav } from './nav'
 import { useNow } from './use-now'
@@ -105,11 +105,11 @@ export function Sidebar({ view, workspace, onNavigate }: { view: View; workspace
                     <SignOut />
                 </Card>
                 <div className="flex justify-between px-1 pt-1 text-[12px] text-neutral-500">
-                    <Button variant="link" size="xs" nativeButton={false} render={<a href={`mailto:${CONTACT_EMAIL}`} />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
+                    <Button variant="link" size="xs" nativeButton={false} render={<a href={ISSUES_URL} target="_blank" rel="noreferrer" />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
                         <CircleHelp className="size-3.5" />
                         Help
                     </Button>
-                    <Button variant="link" size="xs" nativeButton={false} render={<a href="/changelog" />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
+                    <Button variant="link" size="xs" nativeButton={false} render={<a href={CHANGELOG_URL} target="_blank" rel="noreferrer" />} className="h-auto px-0 text-[12px] text-neutral-500 hover:text-neutral-900 hover:no-underline">
                         <Sparkles className="size-3.5" />
                         Updates
                     </Button>
