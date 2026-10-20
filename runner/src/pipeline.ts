@@ -1,7 +1,7 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { handleKey } from '../../convex/lib/handles'
 import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from '../../convex/lib/models'
-import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
+import { knowledgeFor, MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
@@ -267,7 +267,8 @@ export class Pipeline {
                     agent,
                     workspace: ws,
                     contact,
-                    knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+                    // Documents not marked "Share with contacts" stay in your own one-to-one chats
+                    knowledge: knowledgeFor(knowledge, agent._id, owner && !conversation.threadKey),
                     now,
                     group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
                     withOwner: owner,
@@ -427,7 +428,7 @@ export class Pipeline {
             agent,
             workspace: ws,
             contact: { name: ws.ownerName, handle: ws.ownerHandle ?? '', tags: [], notes: '' },
-            knowledge: this.config.knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+            knowledge: knowledgeFor(this.config.knowledge, agent._id, true),
             now,
             withOwner: true,
             sms: true,

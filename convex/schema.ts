@@ -153,6 +153,9 @@ export default defineSchema({
         title: v.string(),
         body: v.string(),
         agentId: v.optional(v.id('agents')),
+        // The agent may use it when texting other people. Unset (every document made before this existed) means only
+        // in your own one-to-one chats, so nothing private reaches a stranger by default.
+        shareWithContacts: v.optional(v.boolean()),
         updatedAt: v.number(),
     })
         .index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt'])
