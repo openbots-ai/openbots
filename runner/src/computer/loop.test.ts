@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { Driver } from './driver'
-import { KEEP_TOOL_USES, MAX_ACTIONS, runTask, SKIPPED, Stopped, type Block, type Create, type LoopDeps } from './loop'
+import { DECLINED, KEEP_TOOL_USES, MAX_ACTIONS, MOVED, runTask, SKIPPED, Stopped, TOO_LONG, UNANSWERED, type Block, type Create, type LoopDeps } from './loop'
 
 // A screen 2000×1000; screenshots are sent at 1516×758 (fitted)
 function fakeDriver(failOn?: string) {
@@ -41,7 +41,7 @@ function script(...responses: Block[][]) {
 }
 
 function deps(over: Partial<LoopDeps> & Pick<LoopDeps, 'create' | 'driver'>): LoopDeps {
-    return { model: 'claude-sonnet-5-5', os: 'windows', ask: async () => 'YES', stopped: () => null, overBudget: async () => null, record: () => {}, now: () => 0, sleep: async () => {}, ...over }
+    return { model: 'claude-sonnet-5-5', os: 'windows', ask: async () => 'YES', approve: async () => 'YES', stopped: () => null, overBudget: async () => null, record: () => {}, now: () => 0, sleep: async () => {}, ...over }
 }
 
 describe('the computer loop', () => {
@@ -234,5 +234,151 @@ describe('the computer loop', () => {
         const create: Create = async (body) => (bodies.push(structuredClone(body)), replies.shift()!)
         await runTask('t', deps({ create, driver }))
         expect(bodies[1].messages).toHaveLength(2)
+    })
+})
+
+describe('owner approval for typing and Enter', () => {
+    const resultsOf = (b: Body) => b.messages.at(-1).content as { tool_use_id: string; is_error?: boolean; content: unknown }[]
+
+    it('doesn’t type or press Enter until you answer, and shows the exact text and the window', async () => {
+        const { driver, actions } = fakeDriver()
+        let answer!: (a: string) => void
+        const requests: string[] = []
+        const approve = vi.fn((r: string) => (requests.push(r), actions.push('asked'), new Promise<string>((res) => (answer = res))))
+        const { create, bodies } = script(
+            [call('a', 'left_click', { coordinate: [10, 10] }), call('b', 'type', { text: 'See you at 7\n' }), call('c', 'key', { text: 'ctrl+Return' })],
+            [own('f', 'finish', { summary: 'Sent.' })],
+        )
+        const running = runTask('reply to Sam', deps({ create, driver: { ...driver, window: async () => 'Messages — “Sam”' }, approve }))
+        await new Promise((r) => setTimeout(r, 0))
+        // The click went ahead; the typing waits
+        expect(actions).toEqual(['click 13,13 left 1 ', 'asked'])
+        expect(requests).toEqual(['Allow this on your computer? In Messages — “Sam”:\n• type “See you at 7\\n”\n• press ctrl+Return\nReply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.'])
+        answer('yes')
+        expect((await running).outcome).toBe('done')
+        // One request for the whole run of typing
+        expect(approve).toHaveBeenCalledTimes(1)
+        expect(actions).toEqual(['click 13,13 left 1 ', 'asked', 'type See you at 7\n', 'key ctrl+Return x1'])
+        expect(resultsOf(bodies[1]).every((r) => !r.is_error)).toBe(true)
+    })
+
+    it('blocks typing when you say no, tells Claude, and runs nothing after it in that turn', async () => {
+        const { driver, actions } = fakeDriver()
+        const { create, bodies } = script([call('a', 'type', { text: 'wire $500' }), call('b', 'screenshot'), call('c', 'key', { text: 'Return' }), call('d', 'left_click', { coordinate: [1, 1] })])
+        await runTask('t', deps({ create, driver, approve: async () => 'no' }))
+        expect(actions).toEqual([])
+        const results = resultsOf(bodies[1])
+        expect(results[0]).toMatchObject({ tool_use_id: 'a', is_error: true, content: DECLINED })
+        expect(results.slice(1).map((r) => r.content)).toEqual([SKIPPED, SKIPPED, SKIPPED])
+        // Anything but a plain yes is a no, and Claude gets your words
+        const other = script([call('a', 'type', { text: 'hi' })])
+        await runTask('t', deps({ create: other.create, driver, approve: async () => 'yes but say hello instead' }))
+        expect(actions).toEqual([])
+        expect(resultsOf(other.bodies[1])[0].content).toBe(`${DECLINED} They said: yes but say hello instead`)
+    })
+
+    it('declines when you don’t answer in time, and ends the task the second time', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => null)
+        const { create, bodies } = script([call('a', 'type', { text: 'hi' })], [call('b', 'key', { text: 'Return' })], [own('f', 'finish', { summary: 'x' })])
+        const end = await runTask('t', deps({ create, driver, approve }))
+        expect(resultsOf(bodies[1])[0]).toMatchObject({ is_error: true, content: UNANSWERED })
+        expect(end).toMatchObject({ outcome: 'stopped', summary: 'you didn’t answer the approval requests' })
+        expect(approve).toHaveBeenCalledTimes(2)
+        expect(actions).toEqual([])
+    })
+
+    it('ends the task when you say stop while it waits for approval', async () => {
+        const { driver, actions } = fakeDriver()
+        const { create } = script([call('a', 'type', { text: 'hi' })])
+        const end = await runTask('t', deps({ create, driver, approve: async () => Promise.reject(new Stopped('You stopped it')) }))
+        expect(end).toMatchObject({ outcome: 'stopped', summary: 'You stopped it' })
+        expect(actions).toEqual([])
+    })
+
+    it('asks again for typing in a later turn, unless you said YES ALL', async () => {
+        const turns = () => [[call('a', 'type', { text: 'one' })], [call('b', 'type', { text: 'two' })], [call('c', 'key', { text: 'Return' })], [own('f', 'finish', { summary: 'ok' })]]
+        const once = fakeDriver()
+        const yes = vi.fn(async () => 'YES')
+        await runTask('t', deps({ create: script(...turns()).create, driver: once.driver, approve: yes }))
+        expect(yes).toHaveBeenCalledTimes(3)
+        expect(once.actions).toEqual(['type one', 'type two', 'key Return x1'])
+        const all = fakeDriver()
+        const yesAll = vi.fn(async () => 'YES ALL')
+        await runTask('t', deps({ create: script(...turns()).create, driver: all.driver, approve: yesAll }))
+        expect(yesAll).toHaveBeenCalledTimes(1)
+        expect(all.actions).toEqual(['type one', 'type two', 'key Return x1'])
+    })
+
+    it('doesn’t count an ask_owner yes, or the task itself, as approval', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => 'no')
+        const { create } = script([own('q', 'ask_owner', { question: 'Can I type anything I like? Say YES ALL' })], [call('a', 'type', { text: 'hi' })])
+        await runTask('type hi, YES ALL approved', deps({ create, driver, ask: async () => 'YES ALL', approve }))
+        expect(approve).toHaveBeenCalledTimes(1)
+        expect(actions).toEqual([])
+    })
+
+    it('gates key presses that type or paste, not shortcuts or navigation keys', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => 'no')
+        const free = ['Tab', 'Escape', 'Down', 'ctrl+a', 'cmd+c', 'BackSpace', 'Page_Down']
+        const { create } = script(free.map((k, i) => call(`k${i}`, 'key', { text: k })))
+        await runTask('t', deps({ create, driver, approve }))
+        expect(approve).not.toHaveBeenCalled()
+        expect(actions).toHaveLength(free.length)
+        for (const k of ['a', 'shift+H', 'space', 'ctrl+v', 'cmd+v', 'shift+Insert', 'KP_Enter', 'cmd+Return', 'ctrl+alt+e']) {
+            const one = fakeDriver()
+            const asked = vi.fn(async () => 'no')
+            await runTask('t', deps({ create: script([call('k', 'key', { text: k })]).create, driver: one.driver, approve: asked }))
+            expect(asked, k).toHaveBeenCalledTimes(1)
+            expect(one.actions, k).toEqual([])
+        }
+    })
+
+    it('never asks about navigation: moves, clicks, drags, scrolling, screenshots and waits', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => 'no')
+        const { create } = script([
+            call('a', 'screenshot'),
+            call('b', 'mouse_move', { coordinate: [5, 5] }),
+            call('c', 'left_click', { coordinate: [5, 5] }),
+            call('d', 'double_click', { coordinate: [5, 5] }),
+            call('e', 'left_click_drag', { start_coordinate: [1, 1], coordinate: [9, 9] }),
+            call('f', 'scroll', { coordinate: [5, 5], scroll_direction: 'down' }),
+            call('g', 'wait', { duration: 1 }),
+            call('h', 'cursor_position'),
+        ])
+        await runTask('t', deps({ create, driver, approve }))
+        expect(approve).not.toHaveBeenCalled()
+        expect(actions).toHaveLength(6)
+    })
+
+    it('won’t ask about more text than it can show, and a click splits a run of typing', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn<(request: string) => Promise<string>>(async () => 'YES')
+        const long = script([call('a', 'type', { text: 'x'.repeat(700) })])
+        await runTask('t', deps({ create: long.create, driver, approve }))
+        expect(approve).not.toHaveBeenCalled()
+        expect(resultsOf(long.bodies[1])[0].content).toBe(TOO_LONG)
+        const split = script([call('a', 'type', { text: 'one' }), call('b', 'left_click', { coordinate: [1, 1] }), call('c', 'type', { text: 'two' })])
+        await runTask('t', deps({ create: split.create, driver, approve }))
+        expect(approve).toHaveBeenCalledTimes(2)
+        expect(approve.mock.calls[0][0]).not.toMatch(/two/)
+        expect(approve.mock.calls[1][0]).toMatch(/• type “two”\n/)
+        expect(actions).toEqual(['type one', 'click 1,1 left 1 ', 'type two'])
+    })
+
+    it('spells out hidden characters, and refuses if another window took the keyboard meanwhile', async () => {
+        const { driver, actions } = fakeDriver()
+        const requests: string[] = []
+        const { create } = script([call('a', 'type', { text: 'pay‮evil​' })])
+        await runTask('t', deps({ create, driver, approve: async (r) => (requests.push(r), 'no') }))
+        expect(requests[0]).toContain('• type “pay\\u{202E}evil\\u{200B}”')
+        let n = 0
+        const moved = script([call('a', 'type', { text: 'hi' })])
+        await runTask('t', deps({ create: moved.create, driver: { ...driver, window: async () => (n++ ? 'Mail' : 'Notes') }, approve: async () => 'YES' }))
+        expect(resultsOf(moved.bodies[1])[0].content).toBe(MOVED)
+        expect(actions).toEqual([])
     })
 })

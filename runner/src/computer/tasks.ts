@@ -4,7 +4,8 @@ import { Stopped, type TaskEnd } from './loop'
 // texts in that chat while it waits for an answer (or "stop"), and texts you how it ended. One at a time.
 
 // `stopped` returns why the task must end now (you said stop, computer use was turned off, the agent was paused), or null
-export type Hooks = { ask: (question: string) => Promise<string>; stopped: () => string | null }
+// `approve` texts an approval request as written and resolves with your answer, or null if you don't answer in time
+export type Hooks = { ask: (question: string) => Promise<string>; approve: (request: string) => Promise<string | null>; stopped: () => string | null }
 // `agentId` is the agent that started the task: its Computer use model runs it and its usage is recorded on it
 export type TaskCtx = { agentId: string; agentName: string; conversationId: number; send: (body: string) => Promise<void> }
 
@@ -76,21 +77,25 @@ export class ComputerTasks {
                 return `I couldn’t check computer use is still on (${describe(e)})`
             }
         }
+        // Texts `body` and waits for your next text in the chat; `late` says what happens when you don't answer in time
+        const wait = <T>(body: string, late: (resolve: (v: T) => void, reject: (e: Error) => void) => void) =>
+            new Promise<T>((resolve, reject) => {
+                // Already stopped: no new questions
+                const why = stopped()
+                if (why) return reject(new Stopped(why))
+                const timer = setTimeout(() => {
+                    running.waiting = undefined
+                    late(resolve, reject)
+                }, this.deps.answerTimeoutMs ?? ANSWER_TIMEOUT_MS)
+                running.waiting = { resolve: resolve as (answer: string) => void, reject, timer }
+                void ctx.send(body).catch((e) => log(`Couldn't text you a question: ${describe(e)}`))
+            })
         const hooks: Hooks = {
             stopped,
-            ask: (question) =>
-                new Promise<string>((resolve, reject) => {
-                    // Already stopped: no new questions
-                    const why = stopped()
-                    if (why) return reject(new Stopped(why))
-                    const timer = setTimeout(() => {
-                        running.waiting = undefined
-                        reject(new Stopped('you didn’t answer in 30 minutes'))
-                    }, this.deps.answerTimeoutMs ?? ANSWER_TIMEOUT_MS)
-                    running.waiting = { resolve, reject, timer }
-                    // Long questions are cut, never the reply instructions
-                    void ctx.send(`${short(question, TEXT_LIMIT - ASK_SUFFIX.length - 1)} ${ASK_SUFFIX}`).catch((e) => log(`Couldn't text you a question: ${describe(e)}`))
-                }),
+            // Long questions are cut, never the reply instructions
+            ask: (question) => wait<string>(`${short(question, TEXT_LIMIT - ASK_SUFFIX.length - 1)} ${ASK_SUFFIX}`, (_, reject) => reject(new Stopped('you didn’t answer in 30 minutes'))),
+            // Sent whole: it shows exactly what's about to be typed (the loop keeps it short). No answer in time is a no.
+            approve: (request) => wait<string | null>(request, (resolve) => resolve(null)),
         }
         const quoted = `“${short(text, 80)}”`
         // A run that throws straight away still ends in a text

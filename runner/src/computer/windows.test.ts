@@ -2,7 +2,7 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { PowerShell, winCommand } from './windows'
+import { PowerShell, winCommand, WindowsDriver } from './windows'
 
 describe('Windows commands', () => {
     it('clicks, double-clicks with modifiers held, and releases them in reverse', () => {
@@ -75,6 +75,15 @@ describe('limits', () => {
         expect(winCommand({ op: 'click', button: 'left', count: 0, mods: [] })).toBe('[OB]::Click(0, 1, [uint16[]]@())')
         expect(() => winCommand({ op: 'move', at: { x: NaN, y: 1 } })).toThrow('Bad number')
         expect(() => winCommand({ op: 'scroll', direction: 'up', amount: Infinity, mods: [] })).toThrow('Bad number')
+    })
+})
+
+describe('the window with the keyboard', () => {
+    it('reads the app and title from the helper, base64 so any title fits', async () => {
+        const reply = Buffer.from('chrome\nInbox — “you” @ mail', 'utf8').toString('base64')
+        const driver = new WindowsDriver(new PowerShell(() => fakeShell((c) => (c === '[OB]::Window()' ? reply : '!unexpected')) as never))
+        expect(await driver.window()).toBe('chrome — “Inbox — “you” @ mail”')
+        driver.close()
     })
 })
 
