@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { owned, requireWorkspace } from './lib/access'
 
-const fields = { title: v.string(), body: v.string(), agentId: v.optional(v.id('agents')) }
+const fields = { title: v.string(), body: v.string(), agentId: v.optional(v.id('agents')), shareWithContacts: v.optional(v.boolean()) }
 
 function title(raw: string) {
     const t = raw.trim()
@@ -33,11 +33,11 @@ export const create = mutation({
 
 export const update = mutation({
     args: { id: v.id('knowledge'), ...fields },
-    handler: async (ctx, { id, body, agentId, ...rest }) => {
+    handler: async (ctx, { id, body, agentId, shareWithContacts, ...rest }) => {
         const ws = await requireWorkspace(ctx)
         await owned(ctx, ws, 'knowledge', id)
         if (agentId) await owned(ctx, ws, 'agents', agentId)
-        await ctx.db.patch('knowledge', id, { title: title(rest.title), body, agentId, updatedAt: Date.now() })
+        await ctx.db.patch('knowledge', id, { title: title(rest.title), body, agentId, shareWithContacts, updatedAt: Date.now() })
     },
 })
 

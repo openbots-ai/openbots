@@ -43,9 +43,13 @@ export const workspaceSettings = {
     newContactTag: v.optional(v.string()),
     notifyNewContact: v.optional(v.boolean()),
     notifyHandoff: v.optional(v.boolean()),
-    // Usage budget in credits (see convex/lib/usage.ts). Agents stop replying once one is used up; unset means no cap.
+    // Usage budget in credits (see convex/lib/usage.ts). Agents stop replying once one is used up. An unset daily
+    // budget reads as DEFAULT_DAILY_BUDGET; an unset weekly one means no weekly cap.
     dailyBudget: v.optional(v.number()),
     weeklyBudget: v.optional(v.number()),
+    // The most replies an agent sends one contact in an hour (never limits your own chats); unset reads as
+    // DEFAULT_CONTACT_REPLIES_PER_HOUR
+    contactRepliesPerHour: v.optional(v.number()),
 }
 
 // Where a number's texts come from and go out through. All of them run on your engine.
@@ -153,6 +157,9 @@ export default defineSchema({
         title: v.string(),
         body: v.string(),
         agentId: v.optional(v.id('agents')),
+        // The agent may use it when texting other people. Unset (every document made before this existed) means only
+        // in your own one-to-one chats, so nothing private reaches a stranger by default.
+        shareWithContacts: v.optional(v.boolean()),
         updatedAt: v.number(),
     })
         .index('by_workspace_and_updatedAt', ['workspaceId', 'updatedAt'])

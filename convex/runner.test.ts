@@ -6,6 +6,7 @@ import { api, internal } from './_generated/api'
 import schema from './schema'
 import { keyModels, resolveModels } from './lib/models'
 import { hashToken, newToken } from './lib/tokens'
+import { DEFAULT_CONTACT_REPLIES_PER_HOUR, DEFAULT_DAILY_BUDGET } from './lib/usage'
 
 const modules = import.meta.glob('./**/*.ts')
 
@@ -109,6 +110,48 @@ describe('agent API', () => {
         const ws = (await owner.query(api.workspace.get, {}))!
         await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, dailyBudget: 1 })
         expect(await base.query(api.runner.budget, { token, today })).toMatch(/Today's usage budget/)
+    })
+
+    it('keeps a document private to you unless you share it with contacts', async () => {
+        const { base, owner, token } = await setup()
+        const id = await owner.mutation(api.knowledge.create, { title: 'Home address', body: '1 Main St' })
+        const shared = await owner.mutation(api.knowledge.create, { title: 'Hours', body: '9 to 5', shareWithContacts: true })
+        const docs = (await base.query(api.runner.config, { token }))!.knowledge
+        expect(docs.find((d) => d._id === id)?.shareWithContacts).toBeUndefined()
+        expect(docs.find((d) => d._id === shared)?.shareWithContacts).toBe(true)
+        await owner.mutation(api.knowledge.update, { id: shared, title: 'Hours', body: '9 to 5' })
+        expect((await base.query(api.runner.config, { token }))!.knowledge.find((d) => d._id === shared)?.shareWithContacts).toBeUndefined()
+    })
+
+    it('caps every workspace at the default daily budget until you set your own', async () => {
+        const { base, owner, agentId, token } = await setup()
+        const today = new Date().toISOString().slice(0, 10)
+        const ws = (await owner.query(api.workspace.get, {}))!
+        expect(ws.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+        expect(ws.weeklyBudget).toBeUndefined()
+
+        // A workspace made before the default existed, or one whose daily budget was cleared, reads as the default
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName })
+        expect(await base.run((ctx) => ctx.db.get('workspace', ws._id))).not.toHaveProperty('dailyBudget')
+        expect((await owner.query(api.workspace.get, {}))!.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+        expect((await base.query(api.runner.config, { token }))!.workspace.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+
+        await base.run((ctx) => ctx.db.insert('usage', { workspaceId: ws._id, agentId, slot: 'brain', model: 'openai:gpt-5.1', day: today, count: DEFAULT_DAILY_BUDGET - 1 }))
+        expect(await base.query(api.runner.budget, { token, today })).toBeNull()
+        await base.mutation(api.runner.record, { token, agentId, usage: { slot: 'brain', model: 'openai:gpt-5.1' } })
+        expect(await base.query(api.runner.budget, { token, today })).toBe(`Today's usage budget (${DEFAULT_DAILY_BUDGET} credits) is used up.`)
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, dailyBudget: 1000 })
+        expect(await base.query(api.runner.budget, { token, today })).toBeNull()
+    })
+
+    it('limits replies per contact to the default until you set your own', async () => {
+        const { base, owner, token } = await setup()
+        const ws = (await owner.query(api.workspace.get, {}))!
+        expect(ws.contactRepliesPerHour).toBe(DEFAULT_CONTACT_REPLIES_PER_HOUR)
+        expect((await base.query(api.runner.config, { token }))!.workspace.contactRepliesPerHour).toBe(DEFAULT_CONTACT_REPLIES_PER_HOUR)
+        for (const bad of [0, 2.5, 5000]) await expect(owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, contactRepliesPerHour: bad })).rejects.toThrow(/whole number from 1 to 1000/)
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, contactRepliesPerHour: 5 })
+        expect((await base.query(api.runner.config, { token }))!.workspace.contactRepliesPerHour).toBe(5)
     })
 
     it('keeps no messages, contacts or credentials in Convex', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Doc, Id } from '../_generated/dataModel'
-import { localTime, systemPrompt, utcOffset } from './prompt'
+import { knowledgeFor, localTime, systemPrompt, utcOffset } from './prompt'
 
 const agent = { _id: 'a' as Id<'agents'>, _creationTime: 0, workspaceId: 'w' as Id<'workspace'>, name: 'Iris', role: 'Assistant', hue: 0, prompt: '', greeting: 'hi', status: 'live', updatedAt: 0 } satisfies Doc<'agents'>
 const base = { agent, workspace: { ownerName: 'Sam', timezone: 'UTC' }, contact: { name: 'Dana', handle: '+16395550100', tags: [], notes: '' }, knowledge: [], now: 0 }
@@ -59,5 +59,17 @@ describe('agent instructions', () => {
         expect(utcOffset(Date.parse('2026-01-01T12:00:00Z'), 'America/New_York')).toBe('UTC-05:00')
         expect(utcOffset(Date.parse('2026-07-01T12:00:00Z'), 'Asia/Kolkata')).toBe('UTC+05:30')
         expect(localTime(Date.parse('2026-10-14T23:00:00Z'), 'America/Regina')).toBe('Wed, Oct 14, 5:00 PM (UTC-06:00)')
+    })
+
+    it('keeps documents not shared with contacts to your own chats, and each agent to its own', () => {
+        const docs = [
+            { title: 'Prices', agentId: undefined, shareWithContacts: true },
+            { title: 'Private', agentId: undefined, shareWithContacts: undefined },
+            { title: 'Not shared', agentId: undefined, shareWithContacts: false },
+            { title: 'Other agent', agentId: 'b' as Id<'agents'>, shareWithContacts: true },
+            { title: 'Mine', agentId: 'a' as Id<'agents'>, shareWithContacts: true },
+        ]
+        expect(knowledgeFor(docs, 'a', false).map((d) => d.title)).toEqual(['Prices', 'Mine'])
+        expect(knowledgeFor(docs, 'a', true).map((d) => d.title)).toEqual(['Prices', 'Private', 'Not shared', 'Mine'])
     })
 })

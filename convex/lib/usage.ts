@@ -13,6 +13,24 @@ export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: num
     backup: { one: 'takeover', many: 'takeovers', weight: 1 },
 }
 
+// The daily cap a workspace has until you set your own, so texts from strangers can't run up an open-ended bill.
+// About this many replies a day; raise it in Settings → Usage budget.
+export const DEFAULT_DAILY_BUDGET = 200
+
+// The most replies an agent sends one person in an hour until you set your own (your own chats have no limit).
+// Past it the agent stops replying to them and tells you once.
+export const DEFAULT_CONTACT_REPLIES_PER_HOUR = 20
+
+// At most this many new-contact alerts an hour; the next one says more are coming and the rest wait for the hour
+export const NEW_CONTACT_ALERTS_PER_HOUR = 3
+
+// A workspace's settings as the dashboard and engine read them: a limit you haven't set is the default one
+export const withDefaults = <W extends { dailyBudget?: number; contactRepliesPerHour?: number }>(ws: W): W & { dailyBudget: number; contactRepliesPerHour: number } => ({
+    ...ws,
+    dailyBudget: ws.dailyBudget ?? DEFAULT_DAILY_BUDGET,
+    contactRepliesPerHour: ws.contactRepliesPerHour ?? DEFAULT_CONTACT_REPLIES_PER_HOUR,
+})
+
 export const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 export const addDays = (day: string, n: number) => dayKey(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000)
 

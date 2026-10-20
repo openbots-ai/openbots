@@ -9,7 +9,7 @@ import type { KeyModel } from '../../convex/lib/models'
 import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
 import { listModels } from './models'
 import { Vault } from './crypto'
-import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
+import { PAUSE_MS, Pipeline, RETRY_DELAYS_MS, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
 import { RETRY_MS, Scheduler } from './scheduler'
 import { ComputerTasks } from './computer/tasks'
 import { Store } from './store'
@@ -221,6 +221,49 @@ describe('agent', () => {
         expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/Add your OpenAI key in Connections or on your engine.*failed too/) })
     })
 
+    it('tries again over a few minutes when the providers are down, and replies once one is back', async () => {
+        let down = true
+        const complete = model(async () => {
+            if (down) throw new Error('503 overloaded')
+            return 'sorry for the wait'
+        })
+        const { transport, text } = setup(config(), complete)
+        await text('are you open today?')
+        await vi.advanceTimersByTimeAsync(1)
+        // Brain and Backup both tried, then a wait instead of a handoff
+        expect(complete).toHaveBeenCalledTimes(2)
+        expect(transport.sent.some((m) => /needs you/.test(m.body))).toBe(false)
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0])
+        expect(complete).toHaveBeenCalledTimes(4)
+        down = false
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[1])
+        expect(transport.sent.at(-1)).toMatchObject({ to: '+1 212 555 0187', body: 'sorry for the wait' })
+        expect(transport.sent.some((m) => /needs you/.test(m.body))).toBe(false)
+    })
+
+    it('hands off after its retries without going quiet for a day, and answers the next text', async () => {
+        let down = true
+        const complete = model(async () => {
+            if (down) throw new Error('503 overloaded')
+            return 'back now'
+        })
+        const { transport, link, text } = setup(config(), complete)
+        await text('hello?')
+        await vi.runAllTimersAsync()
+        // The first try and each retry, Brain and Backup each time
+        expect(complete).toHaveBeenCalledTimes(2 * (RETRY_DELAYS_MS.length + 1))
+        const alert = transport.sent.filter((m) => m.to === OWNER && /needs you/.test(m.body))
+        expect(alert).toHaveLength(1)
+        expect(alert[0].body).toMatch(/couldn't reply after 4 tries over 15 minutes.*503 overloaded/)
+        expect(alert[0].body).not.toMatch(/24 hours/)
+        expect(link.total('handoffs')).toBe(1)
+
+        down = false
+        await text('anyone there?')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)).toMatchObject({ to: '+1 212 555 0187', body: 'back now' })
+    })
+
     it('hands off when the budget is used up or the agent is paused', async () => {
         const { transport, link, text, complete } = setup()
         link.blocked = "Today's usage budget (5 credits) is used up."
@@ -233,6 +276,63 @@ describe('agent', () => {
         await text('hi', '+1 212 555 0999')
         await vi.runAllTimersAsync()
         expect(transport.sent.at(-1)?.body).toMatch(/Pip is paused/)
+    })
+
+    it('stops replying to one contact past the hourly limit, tells you once, and never limits you', async () => {
+        const { transport, text, complete } = setup(config({ workspace: { contactRepliesPerHour: 3 } }))
+        const replies = (to: string) => transport.sent.filter((m) => m.to === to && !/needs you|first time/.test(m.body))
+        for (let i = 0; i < 6; i++) {
+            await text(`message ${i}`)
+            await vi.runAllTimersAsync()
+        }
+        expect(replies('+1 212 555 0187')).toHaveLength(3)
+        expect(complete).toHaveBeenCalledTimes(3)
+        const alerts = transport.sent.filter((m) => m.to === OWNER && /needs you/.test(m.body))
+        expect(alerts).toHaveLength(1)
+        expect(alerts[0].body).toMatch(/sent them 3 replies in the last hour/)
+        expect(alerts[0].body).not.toMatch(/24 hours|message \d/)
+
+        // Someone else still gets answers, and so do you
+        await text('hi', '+1 212 555 0999')
+        await vi.runAllTimersAsync()
+        expect(replies('+1 212 555 0999')).toHaveLength(1)
+        for (let i = 0; i < 5; i++) {
+            await text(`me ${i}`, OWNER)
+            await vi.runAllTimersAsync()
+        }
+        expect(replies(OWNER)).toHaveLength(5)
+
+        // An hour later the first contact is answered again
+        vi.setSystemTime(Date.now() + 61 * 60_000)
+        await text('back again')
+        await vi.runAllTimersAsync()
+        expect(replies('+1 212 555 0187')).toHaveLength(4)
+    })
+
+    it('limits each contact to 20 replies an hour when you haven’t set a limit', async () => {
+        const { text, complete } = setup()
+        for (let i = 0; i < 22; i++) {
+            await text(`message ${i}`)
+            await vi.runAllTimersAsync()
+        }
+        expect(complete).toHaveBeenCalledTimes(20)
+    })
+
+    it('sends at most 3 new-contact alerts an hour, then one note that more are texting', async () => {
+        const { transport, text } = setup()
+        for (let i = 0; i < 6; i++) await text('hello', `+1 212 555 010${i}`)
+        await vi.runAllTimersAsync()
+        const alerts = transport.sent.filter((m) => m.to === OWNER).map((m) => m.body)
+        expect(alerts.filter((b) => /first time/.test(b))).toHaveLength(3)
+        expect(alerts.filter((b) => /More new people are texting your agents: 4 in the last hour/.test(b))).toHaveLength(1)
+        expect(alerts).toHaveLength(4)
+        // Each of them still got a reply
+        expect(transport.sent.filter((m) => m.to !== OWNER)).toHaveLength(6)
+
+        vi.setSystemTime(Date.now() + 61 * 60_000)
+        await text('hello', '+1 212 555 0199')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.filter((m) => m.to === OWNER).at(-1)?.body).toMatch(/first time/)
     })
 
     it('replies as soon as a draft agent is set live, without the 24-hour handoff pause', async () => {
@@ -347,6 +447,26 @@ describe('agent', () => {
         expect(backupCall?.[1].provider).toBe('google')
         expect(backupCall?.[2].tools).toBeUndefined()
         expect(backupCall?.[2].system).not.toMatch(/set reminders/)
+    })
+
+    it('uses documents not shared with contacts only in your own one-to-one chat', async () => {
+        const doc = (title: string, shareWithContacts?: boolean) => ({ _id: title as Id<'knowledge'>, _creationTime: 0, workspaceId: WS, title, body: `${title} body`, shareWithContacts, updatedAt: 0 })
+        const cfg = { ...config(), knowledge: [doc('Opening hours', true), doc('Home address'), doc('Bank notes', false)] }
+        const { text, complete, pipeline } = setup(cfg)
+        await text('when are you open?')
+        await vi.runAllTimersAsync()
+        const stranger = complete.mock.calls[0]?.[2].system
+        expect(stranger).toContain('Opening hours body')
+        expect(stranger).not.toMatch(/Home address|Bank notes/)
+
+        await text('what do you know?', OWNER)
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls[1]?.[2].system).toMatch(/Opening hours body[\s\S]*Home address body[\s\S]*Bank notes body/)
+
+        // A group you started still has other people in it
+        await pipeline.receive({ channel: 'bluebubbles', from: OWNER, body: 'Pip, what do you know?', name: 'Sam', thread: { key: 'iMessage;+;chat9', title: 'Family' } })
+        await vi.runAllTimersAsync()
+        expect(complete.mock.calls[2]?.[2].system).not.toMatch(/Home address/)
     })
 
     it('gives someone else no scheduling tools', async () => {

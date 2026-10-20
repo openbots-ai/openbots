@@ -1,9 +1,9 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { handleKey } from '../../convex/lib/handles'
 import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from '../../convex/lib/models'
-import { MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
+import { knowledgeFor, MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
-import { dayKey } from '../../convex/lib/usage'
+import { dayKey, DEFAULT_CONTACT_REPLIES_PER_HOUR, NEW_CONTACT_ALERTS_PER_HOUR } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
 import { short, type ComputerTasks } from './computer/tasks'
 import type { Fired } from './scheduler'
@@ -61,6 +61,11 @@ const HOLD_MS = 60 * 60_000
 const LATE_MS = 6 * 3_600_000
 // A reminder or watch whose channel isn't running checks again this much later
 const WAIT_MS = 5 * 60_000
+// The window for the per-contact reply limit and the new-contact alert cap
+const HOUR_MS = 60 * 60_000
+// When every model fails with what may be an outage, the reply is tried again after each of these waits (15 minutes
+// in all) before the chat is handed to you
+export const RETRY_DELAYS_MS = [60_000, 4 * 60_000, 10 * 60_000]
 
 // The calendar date at `ms` in `timeZone`
 function localDate(ms: number, timeZone: string) {
@@ -167,7 +172,7 @@ export class Pipeline {
 
         const counted = store.countOnce(dayKey(at), conversation.id)
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
-        if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
+        if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.newContactAlert(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
         // Who and which agent, never what they wrote
         this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? (verified ? ' (you)' : ' (your number, over SMS: no computer use, reminders or task answers)') : ''}`)
@@ -207,13 +212,13 @@ export class Pipeline {
         this.schedule(conversation.id, messageId, delay)
     }
 
-    private schedule(conversationId: number, messageId: number, delay: number) {
+    private schedule(conversationId: number, messageId: number, delay: number, { typing = true } = {}) {
         for (const t of this.timers.get(conversationId) ?? []) clearTimeout(t)
         const timers = [setTimeout(() => void this.reply(conversationId, messageId).catch((e) => this.log(`Reply failed: ${describe(e)}`)), delay)]
         const c = this.deps.store.getConversation(conversationId)
         const transport = c && this.deps.transports[c.channel]
-        // The typing bubble, one-to-one chats only
-        if (c && !c.threadKey && transport?.typing) {
+        // The typing bubble, one-to-one chats only (not before a retry, which may fail again)
+        if (typing && c && !c.threadKey && transport?.typing) {
             timers.push(
                 setTimeout(() => {
                     const contact = this.deps.store.getContact(c.contactId)
@@ -255,6 +260,11 @@ export class Pipeline {
         const blocked = await link.budget(dayKey(now))
         if (blocked && owner) return this.tellOwner(conversation, contact.handle, `${blocked} Raise it in Settings.`)
         if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
+        // However much one person texts, the agent sends them only so many replies an hour (your own chats aren't limited)
+        if (!owner) {
+            const limit = ws.contactRepliesPerHour ?? DEFAULT_CONTACT_REPLIES_PER_HOUR
+            if (store.repliesTo(contact.id, now - HOUR_MS) >= limit) return this.replyLimitReached(conversation, agent, contact.id, limit)
+        }
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
         const turns = this.turns(conversation)
@@ -281,7 +291,8 @@ export class Pipeline {
                     agent,
                     workspace: ws,
                     contact,
-                    knowledge: knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+                    // Documents not marked "Share with contacts" stay in your own one-to-one chats
+                    knowledge: knowledgeFor(knowledge, agent._id, owner && !conversation.threadKey),
                     now,
                     group: conversation.threadKey ? (conversation.title ?? 'a group') : undefined,
                     withOwner: owner,
@@ -305,21 +316,41 @@ export class Pipeline {
         const backup = models.backup.option.id === NONE ? null : models.backup.option
         let result: { option: ModelOption; slot: string; text: string } | undefined
         let problem = ''
+        // A failure that isn't a setup problem you have to fix (a ReplyError), like a provider outage, may pass
+        let passing = false
         try {
             result = { option: brain, slot: 'brain', text: await this.complete(brains, brain, promptFor(brain)) }
         } catch (brainError) {
             problem = describe(brainError)
+            passing ||= !(brainError instanceof ReplyError)
             // The Backup slot takes over when the brain's provider fails
             if (backup && backup.id !== brain.id) {
                 try {
                     result = { option: backup, slot: 'backup', text: await this.complete(brains, backup, promptFor(backup)) }
                 } catch (backupError) {
                     problem = `${problem}. Backup ${backup.label} failed too: ${describe(backupError)}`
+                    passing ||= !(backupError instanceof ReplyError)
                 }
             }
         }
+        const retryKey = `retry:${conversationId}`
         if (!result && owner) return this.tellOwner(conversation, contact.handle, `${agent.name} couldn’t reply: ${problem}`)
-        if (!result) return this.handoff(conversation, agent, `${agent.name} couldn't reply. ${problem}`)
+        if (!result) {
+            // Tries so far for this message; a newer text starts its own count
+            const [retriedId, count] = (store.getMeta(retryKey) ?? '').split(':').map(Number)
+            const tries = retriedId === messageId ? count : 0
+            if (passing && tries < RETRY_DELAYS_MS.length) {
+                const delay = RETRY_DELAYS_MS[tries]
+                store.setMeta(retryKey, `${messageId}:${tries + 1}`)
+                this.log(`${agent.name} couldn't reply, trying again in ${delay / 60_000} min: ${problem}`)
+                store.updateConversation(conversationId, { pendingId: messageId, dueAt: this.now() + delay })
+                return this.schedule(conversationId, messageId, delay, { typing: false })
+            }
+            store.deleteMeta(retryKey)
+            // No 24-hour pause: once the provider is back the agent answers the next text
+            return this.handoff(conversation, agent, `${agent.name} couldn't reply${tries ? ` after ${tries + 1} tries over ${RETRY_DELAYS_MS.slice(0, tries).reduce((a, b) => a + b, 0) / 60_000} minutes` : ''}. ${problem}`, { pause: false })
+        }
+        store.deleteMeta(retryKey)
 
         void link.record(agent._id, { usage: { slot: result.slot, model: result.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
         const { body, handoff } = parseReply(result.text)
@@ -329,7 +360,8 @@ export class Pipeline {
                 await this.send(conversation, contact.handle, body)
             } catch (e) {
                 if (owner) return this.log(`Couldn't send ${agent.name}'s reply to you: ${describe(e)}`)
-                return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`)
+                // A channel that's down shouldn't silence the chat for a day either
+                return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`, { pause: false })
             }
             const at = this.now()
             store.addMessage(conversationId, 'agent', body, at, { model: result.option.id })
@@ -442,7 +474,7 @@ export class Pipeline {
             agent,
             workspace: ws,
             contact: { name: ws.ownerName, handle: ws.ownerHandle ?? '', tags: [], notes: '' },
-            knowledge: this.config.knowledge.filter((k) => !k.agentId || k.agentId === agent._id).slice(0, 100),
+            knowledge: knowledgeFor(this.config.knowledge, agent._id, true),
             now,
             withOwner: true,
             sms: true,
@@ -481,9 +513,9 @@ export class Pipeline {
         await transport.send({ from: conversation.number, to, body, threadKey: conversation.threadKey })
     }
 
-    // Steps the agent out of a conversation for a day and tells you why. The alert names the contact but never quotes
-    // what they wrote; you read that on your phone.
-    // Flags the chat for you and alerts you. By default the agent then stays out of it for 24 hours so you can answer.
+    // Flags the chat for you and alerts you why. The alert names the contact but never quotes what they wrote; you read
+    // that on your phone. By default (the agent asked for you, or a budget ran out) the agent then stays out of it for
+    // 24 hours so you can answer; failures it can't help (a provider or channel down) don't pause the chat.
     private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string, { pause = true } = {}) {
         const { store, link } = this.deps
         // Logged here too, so the reason is visible even when the alert can't be delivered (no phone in Settings)
@@ -493,6 +525,32 @@ export class Pipeline {
         if (this.config.workspace.notifyHandoff === false) return
         const who = conversation.title ?? store.getContact(conversation.contactId)?.name ?? 'Someone'
         await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason}${pause ? ` ${agent.name} stays out of that chat for 24 hours.` : ''}`)
+    }
+
+    // The agent stops replying to someone who reached the per-contact limit, and tells you once (again only if they
+    // reach it again more than an hour later)
+    private async replyLimitReached(conversation: Conversation, agent: Doc<'agents'>, contactId: number, limit: number) {
+        const { store } = this.deps
+        const key = `replylimit:${contactId}`
+        const told = Number(store.getMeta(key) ?? 0)
+        if (this.now() - told < HOUR_MS) return this.log(`${agent.name} didn't reply: it already sent that contact ${limit} replies in the last hour`)
+        store.setMeta(key, String(this.now()))
+        await this.handoff(conversation, agent, `${agent.name} sent them ${limit} replies in the last hour, the most it sends one person, so it stopped replying for now. Answer yourself, or raise the limit in Settings → Usage budget.`, { pause: false })
+    }
+
+    // Tells you about a new contact, at most a few times an hour: the next one says more are texting and the rest wait
+    // for the hour to pass, so a flood of strangers can't flood your phone and inbox too
+    private async newContactAlert(conversation: Conversation, body: string) {
+        const { store } = this.deps
+        const now = this.now()
+        const [start, count] = (store.getMeta('newcontact:alerts') ?? '0:0').split(':').map(Number)
+        const fresh = now - start >= HOUR_MS
+        const n = fresh ? 1 : count + 1
+        store.setMeta('newcontact:alerts', `${fresh ? now : start}:${n}`)
+        if (n <= NEW_CONTACT_ALERTS_PER_HOUR) return this.alertOwner(conversation, body)
+        if (n > NEW_CONTACT_ALERTS_PER_HOUR + 1) return this.log('New contact (alert held: too many this hour)')
+        const minutes = Math.max(1, Math.ceil((start + HOUR_MS - now) / 60_000))
+        await this.alertOwner(conversation, `More new people are texting your agents: ${n} in the last hour. New-contact alerts are held for the next ${minutes} minutes. Your agents still reply, up to your limits in Settings.`)
     }
 
     // Texts your own phone from the conversation's number, and emails you when the engine has Resend set up

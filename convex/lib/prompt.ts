@@ -48,6 +48,12 @@ export function localTime(ms: number, timeZone: string) {
     }
 }
 
+// The documents an agent may use in one chat: its own and those for every agent, at most 100. In a one-to-one chat
+// with you it sees them all; with anyone else (and in any group) only those marked "Share with contacts".
+export function knowledgeFor<K extends Pick<Doc<'knowledge'>, 'agentId' | 'shareWithContacts'>>(knowledge: K[], agentId: string, privateWithOwner: boolean) {
+    return knowledge.filter((k) => (!k.agentId || k.agentId === agentId) && (privateWithOwner || k.shareWithContacts === true)).slice(0, 100)
+}
+
 export function systemPrompt(args: {
     agent: Doc<'agents'>
     workspace: Pick<Doc<'workspace'>, 'ownerName' | 'timezone'> | null
