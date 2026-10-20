@@ -1,8 +1,17 @@
 {
-  "name": "open-dots",
+  "name": "openbots",
   "private": true,
   "version": "0.0.0",
+  "description": "Self-hosted AI agents that answer your texts (iMessage and SMS) with the models you choose: a dashboard, a Convex backend and an engine you run yourself.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shidhartha-sen/opendots.git"
+  },
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && tsc -p runner && node runner/build.mjs && vite build",
