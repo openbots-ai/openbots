@@ -78,6 +78,7 @@ Use **Re-check** in Connections after you get access to a new model.
 | `OPENBOTS_TUNNEL` | `true` to get a public HTTPS address from Cloudflare's quick tunnel (no open ports, no account). The engine uses it as its public URL when none is set and re-points Sendblue and Twilio when it changes. Orgo computers use this. |
 | `OPENBOTS_CLOUDFLARED` | Path to the `cloudflared` binary for the tunnel (default: `cloudflared` on the PATH). |
 | `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; can also be set per engine in Connections. |
+| `OPENBOTS_ROTATE_WEBHOOKS` | `true` for one start to make new webhook secrets (each of Twilio, Sendblue and BlueBubbles has its own). The engine points your Twilio numbers and registers Sendblue and BlueBubbles at the new addresses and logs them; remove the old addresses from Sendblue and BlueBubbles, then unset it. |
 | `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
 | `OPENBOTS_INBOUND_SECRET`, `OPENBOTS_RELAY_URL`, `OPENBOTS_RELAY_SECRET` | Your own relay (protocol below). |
 | `RESEND_API_KEY`, `RESEND_FROM` | Also email you handoff alerts, at the email in Settings. |
