@@ -63,6 +63,9 @@ const LATE_MS = 6 * 3_600_000
 const WAIT_MS = 5 * 60_000
 // The window for the per-contact reply limit and the new-contact alert cap
 const HOUR_MS = 60 * 60_000
+// When every model fails with what may be an outage, the reply is tried again after each of these waits (15 minutes
+// in all) before the chat is handed to you
+export const RETRY_DELAYS_MS = [60_000, 4 * 60_000, 10 * 60_000]
 
 // The calendar date at `ms` in `timeZone`
 function localDate(ms: number, timeZone: string) {
@@ -197,13 +200,13 @@ export class Pipeline {
         this.schedule(conversation.id, messageId, delay)
     }
 
-    private schedule(conversationId: number, messageId: number, delay: number) {
+    private schedule(conversationId: number, messageId: number, delay: number, { typing = true } = {}) {
         for (const t of this.timers.get(conversationId) ?? []) clearTimeout(t)
         const timers = [setTimeout(() => void this.reply(conversationId, messageId).catch((e) => this.log(`Reply failed: ${describe(e)}`)), delay)]
         const c = this.deps.store.getConversation(conversationId)
         const transport = c && this.deps.transports[c.channel]
-        // The typing bubble, one-to-one chats only
-        if (c && !c.threadKey && transport?.typing) {
+        // The typing bubble, one-to-one chats only (not before a retry, which may fail again)
+        if (typing && c && !c.threadKey && transport?.typing) {
             timers.push(
                 setTimeout(() => {
                     const contact = this.deps.store.getContact(c.contactId)
@@ -298,21 +301,41 @@ export class Pipeline {
         const backup = models.backup.option.id === NONE ? null : models.backup.option
         let result: { option: ModelOption; slot: string; text: string } | undefined
         let problem = ''
+        // A failure that isn't a setup problem you have to fix (a ReplyError), like a provider outage, may pass
+        let passing = false
         try {
             result = { option: brain, slot: 'brain', text: await this.complete(brains, brain, promptFor(brain)) }
         } catch (brainError) {
             problem = describe(brainError)
+            passing ||= !(brainError instanceof ReplyError)
             // The Backup slot takes over when the brain's provider fails
             if (backup && backup.id !== brain.id) {
                 try {
                     result = { option: backup, slot: 'backup', text: await this.complete(brains, backup, promptFor(backup)) }
                 } catch (backupError) {
                     problem = `${problem}. Backup ${backup.label} failed too: ${describe(backupError)}`
+                    passing ||= !(backupError instanceof ReplyError)
                 }
             }
         }
+        const retryKey = `retry:${conversationId}`
         if (!result && owner) return this.tellOwner(conversation, contact.handle, `${agent.name} couldn’t reply: ${problem}`)
-        if (!result) return this.handoff(conversation, agent, `${agent.name} couldn't reply. ${problem}`)
+        if (!result) {
+            // Tries so far for this message; a newer text starts its own count
+            const [retriedId, count] = (store.getMeta(retryKey) ?? '').split(':').map(Number)
+            const tries = retriedId === messageId ? count : 0
+            if (passing && tries < RETRY_DELAYS_MS.length) {
+                const delay = RETRY_DELAYS_MS[tries]
+                store.setMeta(retryKey, `${messageId}:${tries + 1}`)
+                this.log(`${agent.name} couldn't reply, trying again in ${delay / 60_000} min: ${problem}`)
+                store.updateConversation(conversationId, { pendingId: messageId, dueAt: this.now() + delay })
+                return this.schedule(conversationId, messageId, delay, { typing: false })
+            }
+            store.deleteMeta(retryKey)
+            // No 24-hour pause: once the provider is back the agent answers the next text
+            return this.handoff(conversation, agent, `${agent.name} couldn't reply${tries ? ` after ${tries + 1} tries over ${RETRY_DELAYS_MS.slice(0, tries).reduce((a, b) => a + b, 0) / 60_000} minutes` : ''}. ${problem}`, { pause: false })
+        }
+        store.deleteMeta(retryKey)
 
         void link.record(agent._id, { usage: { slot: result.slot, model: result.option.id } }).catch((e) => this.log(`Couldn't record usage: ${describe(e)}`))
         const { body, handoff } = parseReply(result.text)
@@ -322,7 +345,8 @@ export class Pipeline {
                 await this.send(conversation, contact.handle, body)
             } catch (e) {
                 if (owner) return this.log(`Couldn't send ${agent.name}'s reply to you: ${describe(e)}`)
-                return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`)
+                // A channel that's down shouldn't silence the chat for a day either
+                return this.handoff(conversation, agent, `The reply couldn't be sent: ${describe(e)}`, { pause: false })
             }
             const at = this.now()
             store.addMessage(conversationId, 'agent', body, at, { model: result.option.id })
@@ -474,9 +498,9 @@ export class Pipeline {
         await transport.send({ from: conversation.number, to, body, threadKey: conversation.threadKey })
     }
 
-    // Steps the agent out of a conversation for a day and tells you why. The alert names the contact but never quotes
-    // what they wrote; you read that on your phone.
-    // Flags the chat for you and alerts you. By default the agent then stays out of it for 24 hours so you can answer.
+    // Flags the chat for you and alerts you why. The alert names the contact but never quotes what they wrote; you read
+    // that on your phone. By default (the agent asked for you, or a budget ran out) the agent then stays out of it for
+    // 24 hours so you can answer; failures it can't help (a provider or channel down) don't pause the chat.
     private async handoff(conversation: Conversation, agent: Doc<'agents'>, reason: string, { pause = true } = {}) {
         const { store, link } = this.deps
         // Logged here too, so the reason is visible even when the alert can't be delivered (no phone in Settings)

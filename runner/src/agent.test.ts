@@ -9,7 +9,7 @@ import type { KeyModel } from '../../convex/lib/models'
 import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
 import { listModels } from './models'
 import { Vault } from './crypto'
-import { PAUSE_MS, Pipeline, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
+import { PAUSE_MS, Pipeline, RETRY_DELAYS_MS, zonedTime, type Activity, type Config, type Deps, type Link } from './pipeline'
 import { RETRY_MS, Scheduler } from './scheduler'
 import { ComputerTasks } from './computer/tasks'
 import { Store } from './store'
@@ -206,6 +206,49 @@ describe('agent', () => {
         await broken.text('hi')
         await vi.runAllTimersAsync()
         expect(broken.transport.sent.at(-1)).toMatchObject({ to: OWNER, body: expect.stringMatching(/Add your OpenAI key in Connections or on your engine.*failed too/) })
+    })
+
+    it('tries again over a few minutes when the providers are down, and replies once one is back', async () => {
+        let down = true
+        const complete = model(async () => {
+            if (down) throw new Error('503 overloaded')
+            return 'sorry for the wait'
+        })
+        const { transport, text } = setup(config(), complete)
+        await text('are you open today?')
+        await vi.advanceTimersByTimeAsync(1)
+        // Brain and Backup both tried, then a wait instead of a handoff
+        expect(complete).toHaveBeenCalledTimes(2)
+        expect(transport.sent.some((m) => /needs you/.test(m.body))).toBe(false)
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0])
+        expect(complete).toHaveBeenCalledTimes(4)
+        down = false
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[1])
+        expect(transport.sent.at(-1)).toMatchObject({ to: '+1 212 555 0187', body: 'sorry for the wait' })
+        expect(transport.sent.some((m) => /needs you/.test(m.body))).toBe(false)
+    })
+
+    it('hands off after its retries without going quiet for a day, and answers the next text', async () => {
+        let down = true
+        const complete = model(async () => {
+            if (down) throw new Error('503 overloaded')
+            return 'back now'
+        })
+        const { transport, link, text } = setup(config(), complete)
+        await text('hello?')
+        await vi.runAllTimersAsync()
+        // The first try and each retry, Brain and Backup each time
+        expect(complete).toHaveBeenCalledTimes(2 * (RETRY_DELAYS_MS.length + 1))
+        const alert = transport.sent.filter((m) => m.to === OWNER && /needs you/.test(m.body))
+        expect(alert).toHaveLength(1)
+        expect(alert[0].body).toMatch(/couldn't reply after 4 tries over 15 minutes.*503 overloaded/)
+        expect(alert[0].body).not.toMatch(/24 hours/)
+        expect(link.total('handoffs')).toBe(1)
+
+        down = false
+        await text('anyone there?')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)).toMatchObject({ to: '+1 212 555 0187', body: 'back now' })
     })
 
     it('hands off when the budget is used up or the agent is paused', async () => {
