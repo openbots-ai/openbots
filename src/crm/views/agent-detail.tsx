@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigBar } from '@/components/agent-config-bar'
-import { isValidChoice, LIVE_SLOTS, resolveModels, type SlotId } from '@convex/lib/models'
+import { isValidChoice, LIVE_SLOTS, resolveModels, takesTemperature, type SlotId } from '@convex/lib/models'
 import { INHERIT } from '@convex/lib/models'
 import { DEFAULT_CONFIG } from '@/lib/agent-options'
 import { AVATARS, pickAgentFields, type AgentFields, type AgentStatus } from '../lib/draft'
@@ -68,6 +68,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
         delete others[slot]
         return resolveModels(workspace?.models, others, slot === 'brain' ? undefined : form.model, available)[slot].option
     }
+    const brain = resolveModels(workspace?.models, form.models, form.model, available).brain.option
     const folders = [...new Set((agents ?? []).flatMap((a) => (a.folder ? [a.folder] : [])))]
     const myNumbers = numbers?.filter((n) => n.agentId === agent._id) ?? []
     // The phone number is picked here but only assigned on Save, like every other field.
@@ -117,7 +118,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
             </Toolbar>
             <div className="border-b border-neutral-200/70 px-4 py-2.5">
                 <AgentConfigBar
-                    model={resolveModels(workspace?.models, form.models, form.model, available).brain.option.id}
+                    model={brain.id}
                     models={available}
                     noModels={<NoKeyNote />}
                     language={form.language ?? DEFAULT_CONFIG.language}
@@ -126,8 +127,9 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                     onModelChange={(id) => setSlot('brain', id)}
                     onLanguageChange={(id) => set('language', id)}
                     onTemperatureChange={(value) => set('temperature', value)}
+                    creativityOff={brain.api && !takesTemperature(brain.provider, brain.api) ? `${brain.label} sets its own creativity, so this has no effect with it. Gemini, Grok, local and older Claude and GPT models use it.` : undefined}
                     onReplyLengthChange={(value) => set('replyLength', value)}
-                    voice={form.voice ?? DEFAULT_CONFIG.voice}
+                    voice={DEFAULT_CONFIG.voice}
                     showVoice={false}
                     slots={LIVE_SLOTS.filter((slot) => slot.id !== 'brain').map((slot) => ({
                         slot: withKeyOptions(slot, available, slotValue(slot.id)),
@@ -206,7 +208,7 @@ function AgentEditor({ agent }: { agent: Doc<'agents'> }) {
                             )}
                         </section>
                         <section className="rounded-lg border border-neutral-200 p-4">
-                            <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium"><MessageCircle className="size-4 text-neutral-500" />iMessage</h2>
+                            <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium"><MessageCircle className="size-4 text-neutral-500" />Numbers</h2>
                             {myNumbers.length ? (
                                 <ul className="space-y-1 text-[13px] text-neutral-700">{myNumbers.map((n) => <li key={n._id}>{n.handle}</li>)}</ul>
                             ) : (

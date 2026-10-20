@@ -8,11 +8,9 @@ export type AgentFields = {
     avatar?: string
     hue: number
     prompt: string
-    greeting: string
     status: AgentStatus
     folder?: string
     model?: string
-    voice?: string
     language?: string
     temperature?: number
     replyLength?: ReplyLength
@@ -34,23 +32,21 @@ export const blankAgent = (name: string, role: string): AgentFields => ({
     role: role || 'Assistant',
     hue: hueFor(name),
     prompt: '',
-    greeting: `hey, it's ${name.toLowerCase()}. what can I help with?`,
     status: 'draft',
 })
 
-// Picks just the editable fields. Model overrides are key-sorted so two copies compare equal whatever order
+// Picks just the editable fields. Fields the engine doesn't use (an old greeting or voice) aren't among them, so
+// saving an agent clears them. Model overrides are key-sorted so two copies compare equal whatever order
 // the slots were set in.
-export const pickAgentFields = ({ name, role, avatar, hue, prompt, greeting, status, folder, model, voice, language, temperature, replyLength, models }: AgentFields): AgentFields => ({
+export const pickAgentFields = ({ name, role, avatar, hue, prompt, status, folder, model, language, temperature, replyLength, models }: AgentFields): AgentFields => ({
     name,
     role,
     avatar,
     hue,
     prompt,
-    greeting,
     status,
     folder,
     model,
-    voice,
     language,
     temperature,
     replyLength,
