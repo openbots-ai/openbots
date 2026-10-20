@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { fitted, parseCombo, parseMods, toScreen, toShot } from './driver'
+import { fitted, parseCombo, parseMods, toScreen, toShot, windowName } from './driver'
 
 describe('screen scaling', () => {
     it('shrinks a big screen to fit Claude’s image limit and keeps small ones', () => {
@@ -54,5 +54,14 @@ describe('key names', () => {
         expect(parseMods('shift')).toEqual(['shift'])
         expect(parseMods('ctrl+shift')).toEqual(['ctrl', 'shift'])
         expect(() => parseMods('ctrl+bogus')).toThrow('Unknown key "bogus"')
+    })
+})
+
+describe('window names', () => {
+    it('joins the app and title, either may be missing', () => {
+        expect(windowName('Chrome', ' Inbox\n- Gmail ')).toBe('Chrome — “Inbox - Gmail”')
+        expect(windowName('Notes', '')).toBe('Notes')
+        expect(windowName('', 'Untitled')).toBe('“Untitled”')
+        expect(windowName(' ', '')).toBeNull()
     })
 })

@@ -3,7 +3,7 @@ import { readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { parseCombo, type Button, type Direction, type Driver, type Mod, type Point, type Shot, type Size } from './driver'
+import { parseCombo, windowName, type Button, type Direction, type Driver, type Mod, type Point, type Shot, type Size } from './driver'
 
 // Mac: screenshots with screencapture and sips, the mouse and keyboard through Core Graphics events,
 // all from JavaScript for Automation (osascript). Text is typed by pasting. Needs Screen Recording and Accessibility allowed for
@@ -97,12 +97,31 @@ function input() {
 }
 JSON.stringify({ screen: screen(), input: input() })`
 
+// The frontmost app, and the title of its front window (titles show with Screen Recording allowed). No permission
+// prompt: nothing is asked of System Events. Desk-checked only, like READY.
+const WINDOW = `ObjC.import('AppKit')
+ObjC.import('CoreGraphics')
+const app = $.NSWorkspace.sharedWorkspace.frontmostApplication
+let name = ''
+let title = ''
+if (!app.isNil()) {
+    name = ObjC.unwrap(app.localizedName) || ''
+    const pid = Number(app.processIdentifier)
+    try {
+        const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17, 0))) || []
+        const front = list.find((w) => !!w && w.kCGWindowOwnerPID === pid && w.kCGWindowLayer === 0)
+        if (front && typeof front.kCGWindowName === 'string') title = front.kCGWindowName
+    } catch (e) {}
+}
+JSON.stringify({ app: name, title })`
+
 const at = (p: Point | undefined) => (p ? `const at = { x: ${num(p.x)}, y: ${num(p.y)} }` : 'const at = here()')
 
 export type MacOp =
     | { op: 'size' }
     | { op: 'cursor' }
     | { op: 'ready' }
+    | { op: 'window' }
     | { op: 'move'; at: Point }
     | { op: 'click'; at?: Point; button: Button; count: number; mods: Mod[] }
     | { op: 'drag'; from: Point; to: Point; mods: Mod[] }
@@ -119,6 +138,8 @@ export function macScript(o: MacOp): string {
             return `${MOUSE}\nJSON.stringify(here())`
         case 'ready':
             return READY
+        case 'window':
+            return WINDOW
         case 'move':
             return `${MOUSE}\nmouse(5, ${xy(o.at)}, 0, 0, 0)`
         case 'click': {
@@ -293,6 +314,10 @@ export class MacDriver implements Driver {
     }
     async cursor() {
         return JSON.parse(await this.run({ op: 'cursor' })) as Point
+    }
+    async window() {
+        const { app, title } = JSON.parse(await this.run({ op: 'window' })) as { app?: unknown; title?: unknown }
+        return windowName(typeof app === 'string' ? app : '', typeof title === 'string' ? title : '')
     }
     // What's missing, or null. A permission this Mac can't confirm counts as missing.
     async ready() {
