@@ -9,7 +9,6 @@ import WhyOpenBots from '@/components/landing/why-openbots'
 import TextIt from '@/components/landing/text-it'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
-import { ComingSoon } from '@/pages/coming-soon'
 import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
 import { isCrmPath } from '@/crm/lib/route'
@@ -33,13 +32,6 @@ const Landing = () => (
     </>
 )
 
-const comingSoon: Record<string, string> = {
-    '/changelog': 'Changelog',
-    '/docs': 'Docs',
-    '/careers': 'Careers',
-    '/security': 'Security',
-}
-
 // Plain path-based routing: every link is a normal <a>, so each page is a full load
 function Page() {
     const path = window.location.pathname.replace(/\/+$/, '') || '/'
@@ -49,9 +41,8 @@ function Page() {
     if (path === '/contact') return <ContactPage />
     if (path === '/features') return <Suspense fallback={null}><FeaturesPage /></Suspense>
     if (path === '/pricing') return <Suspense fallback={null}><PricingPage /></Suspense>
-    if (comingSoon[path]) return <ComingSoon title={comingSoon[path]} />
 
-    // About (and any unknown path) is the landing page itself
+    // About (and any unknown path, including the old /changelog and /docs placeholders) is the landing page itself
     if (path !== '/') window.history.replaceState(null, '', '/')
     return <Landing />
 }
