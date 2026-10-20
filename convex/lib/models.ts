@@ -193,6 +193,21 @@ export const isValidChoice = (slot: string, model: string) => {
     return s.options.some((o) => o.id === model)
 }
 
+// A choice that may be saved: a valid one for a slot that runs. Slots that don't run yet take no choices, so
+// nothing saved is just for show.
+export const isSavableChoice = (slot: string, model: string) => !!slotOf(slot)?.runs && isValidChoice(slot, model)
+
+// Claude 5 models (claude-sonnet-5-5, claude-opus-5-…) reject sampling parameters and take effort instead
+export const isClaude5 = (model: string) => /^claude-[a-z]+-5/.test(model)
+
+// Whether a model takes the agent's Creativity (temperature). OpenAI's reasoning models (GPT-5, o-series) and
+// Claude 5 reject it; Gemini, older Claude and GPT, Grok and local OpenAI-compatible servers accept it.
+export function takesTemperature(provider: string, model: string) {
+    if (provider === 'anthropic') return !isClaude5(model)
+    if (provider === 'openai') return !/^(gpt-5|o\d)/.test(model)
+    return provider === 'google' || provider === 'xai' || provider === 'local'
+}
+
 // The option for a saved choice: the key's own entry when it still offers it, else one built from the id
 function optionFor(id: string, available: ModelOption[]): ModelOption {
     if (id === NONE) return NO_BACKUP

@@ -5,7 +5,7 @@ import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { LIVE_SLOTS as SLOTS, slotOf, type SlotId } from '@convex/lib/models'
 import { optionFromId } from '@/lib/agent-options'
-import { SLOT_UNITS, addDays, creditsFor, dayKey, weekStart as weekStartOf } from '@convex/lib/usage'
+import { CREDITS_NOTE, SLOT_UNITS, addDays, creditsFor, dayKey, weekStart as weekStartOf } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -123,7 +123,7 @@ export function AnalyticsView() {
                         <Tile icon={Users} label="New contacts" value={activity && compact(activity.newContacts)} note="First texts, last 30 days" />
                     </div>
 
-                    <Section title="Usage budget" aside="Set your budget in Settings">
+                    <Section title="Usage budget" aside={`${CREDITS_NOTE} Set your budget in Settings.`}>
                         <div className="grid gap-6 sm:grid-cols-3">
                             <BudgetTile label="Today" used={sum(todays, credits)} limit={workspace?.dailyBudget} note="Resets at midnight UTC" />
                             <BudgetTile label="This week" used={sum(week, credits)} limit={workspace?.weeklyBudget} note={`Resets ${nextMonday}`} />

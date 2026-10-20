@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { mutation, query, type MutationCtx } from './_generated/server'
 import { currentWorkspace, owned, requireWorkspace } from './lib/access'
 import { requireKeyOffers } from './lib/keyModels'
-import { isValidChoice } from './lib/models'
+import { isSavableChoice } from './lib/models'
 import { agentFields, checkIn } from './schema'
 import type { Doc } from './_generated/dataModel'
 
@@ -36,7 +36,7 @@ async function check(ctx: MutationCtx, ws: Doc<'workspace'>, { name, temperature
     for (const [slot, choice] of Object.entries(models ?? {})) {
         // A saved choice can stay as it is, even one the keys stopped offering or that no longer exists; only new picks are checked
         if (before?.[slot] === choice) continue
-        if (!isValidChoice(slot, choice)) throw new Error(`${choice} can't be used for ${slot}`)
+        if (!isSavableChoice(slot, choice)) throw new Error(`${choice} can't be used for ${slot}`)
         await requireKeyOffers(ctx, ws._id, slot, choice)
     }
 }

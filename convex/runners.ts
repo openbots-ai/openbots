@@ -29,6 +29,19 @@ export const create = mutation({
     },
 })
 
+// A new token for the same engine, keeping its name and settings: the old token stops working on its next call.
+// As with create, the browser makes the token and sends only its hash.
+export const resetToken = mutation({
+    args: { id: v.id('runners'), tokenHash: v.string() },
+    handler: async (ctx, { id, tokenHash }) => {
+        const ws = await requireWorkspace(ctx)
+        await owned(ctx, ws, 'runners', id)
+        if (!/^[0-9a-f]{64}$/.test(tokenHash)) throw new Error(`Make the token in the dashboard (it starts with ${TOKEN_PREFIX})`)
+        await ctx.db.patch('runners', id, { tokenHash })
+        return null
+    },
+})
+
 // The engine using this token is cut off on its next call
 export const revoke = mutation({
     args: { id: v.id('runners') },

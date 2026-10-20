@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react'
 import { Check } from 'lucide-react'
 import { api } from '@convex/_generated/api'
+import { AI_PROVIDERS } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 import type { View } from './lib/view'
 import { useNav } from './nav'
@@ -12,9 +13,19 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
     const runners = useQuery(api.runners.list)
     const agents = useQuery(api.agents.list)
     const numbers = useQuery(api.numbers.list)
-    if (!runners || !agents || !numbers) return null
+    const saved = useQuery(api.secrets.list)
+    const workspace = useQuery(api.workspace.get)
+    if (!runners || !agents || !numbers || !saved || workspace === undefined) return null
 
     const steps: { done: boolean; title: string; body: string; action: string; go?: View; onClick?: () => void }[] = [
+        // A key saved in Connections counts before any engine runs: every engine picks it up when it starts
+        {
+            done: runners.some((r) => r.models?.length) || saved.some((k) => (AI_PROVIDERS as readonly string[]).includes(k.service)),
+            title: 'Add an AI key',
+            body: 'OpenAI, Anthropic, Gemini, xAI or a local model. Save it in Connections (your engines pick it up) or set it on your engine.',
+            action: 'Add a key',
+            go: 'connections',
+        },
         {
             done: runners.some((r) => r.lastSeenAt),
             title: 'Start your engine',
@@ -22,7 +33,6 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
             action: 'Add your engine',
             go: 'connections',
         },
-        { done: runners.some((r) => r.models?.length), title: 'Give it an AI key', body: 'OpenAI, Anthropic, Gemini, xAI or a local model, entered in Connections or set on your engine.', action: 'See how', go: 'connections' },
         {
             done: agents.some((a) => a.status === 'live'),
             title: 'Create an agent and set it live',
@@ -32,6 +42,13 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
         },
         { done: runners.some((r) => r.channels?.length), title: 'Set up texting', body: 'Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS.', action: 'See how', go: 'connections' },
         { done: numbers.some((n) => n.agentId), title: 'Give it a number', body: 'The number people text to reach your agent.', action: 'Add a number', go: 'numbers' },
+        {
+            done: !!workspace?.ownerHandle,
+            title: 'Add your phone',
+            body: 'Where agents text you handoffs, reminders, watch alerts and check-ins. Without it they have nowhere to go.',
+            action: 'Open Settings',
+            go: 'settings',
+        },
     ]
     const left = steps.filter((s) => !s.done).length
     if (!left) return null
@@ -44,7 +61,7 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
                     {steps.length - left} of {steps.length} done
                 </span>
             </div>
-            <ol className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+            <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {steps.map((s, i) => (
                     <li key={s.title} className={cn('flex flex-col gap-2 rounded-md p-3', s.done ? 'bg-emerald-50/60' : 'bg-neutral-50')}>
                         <span className="flex items-center gap-2 text-[13px] font-medium">

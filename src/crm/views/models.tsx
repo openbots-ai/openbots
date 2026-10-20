@@ -139,7 +139,8 @@ export function ModelsView() {
                             </span>
                         </div>
                         <div className="overflow-x-auto px-2 pb-2">
-                            <table className="w-full min-w-[1100px] text-left text-[12px]">
+                            {/* Wide enough for its columns (the agent plus each live slot), so a phone scrolls it only as far as it needs */}
+                            <table className="w-full text-left text-[12px]" style={{ minWidth: `${(SLOTS.length + 1) * 9}rem` }}>
                                 <thead>
                                     <tr className="text-neutral-500">
                                         <th className="sticky left-0 bg-white px-2 py-2.5 font-normal">Agent</th>

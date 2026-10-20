@@ -4,7 +4,7 @@ import { BookOpen, Bot, ChartLine, CircleHelp, Cpu, Gauge, LogOut, MessageCircle
 import { useAuthActions } from '@convex-dev/auth/react'
 import { api } from '@convex/_generated/api'
 import type { Doc } from '@convex/_generated/dataModel'
-import { creditsFor, dayKey, weekStart } from '@convex/lib/usage'
+import { CREDITS_NOTE, creditsFor, dayKey, weekStart } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -128,7 +128,7 @@ function UsageCard({ workspace, onClick }: { workspace?: Doc<'workspace'> | null
     const used = Math.round((rows ?? []).filter((r) => r.day >= start).reduce((s, r) => s + creditsFor(r.slot, r.count), 0))
     const budget = workspace?.weeklyBudget
     return (
-        <a href={viewHref('analytics')} onClick={onClick} className="block">
+        <a href={viewHref('analytics')} onClick={onClick} title={CREDITS_NOTE} className="block">
             <Card className="gap-1.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors hover:bg-neutral-50">
                 <span className="flex items-center gap-2">
                     <Gauge className="size-4 text-neutral-500" />

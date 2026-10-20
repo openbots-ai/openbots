@@ -4,6 +4,8 @@ import { keyModels, resolveModels } from '../../convex/lib/models'
 import type { SealedService } from '../../convex/lib/sealed'
 import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
+import { nodeTooOld, nodeVersionError } from './nodeVersion'
+import { askForToken, findToken, hiddenPrompt, tokenFile } from './token'
 import { startTunnel } from './tunnel'
 import { computerAllowed, driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
 import { Vault } from './crypto'
@@ -29,15 +31,39 @@ const osName = () => (process.platform === 'win32' ? 'windows' : process.platfor
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+// Connects with the token from OPENBOTS_TOKEN, the saved file or the terminal. A saved token that was reset or
+// revoked in Connections is asked for again, when someone is at the terminal.
+async function connect(convexUrl: string, envToken: string | undefined, dataDir: string) {
+    const ask = hiddenPrompt()
+    let { token, source } = await findToken({ envToken, dataDir, ask })
+    for (;;) {
+        const link = new ConvexLink(convexUrl, token)
+        try {
+            await link.connect((m) => console.error(m))
+            if (source === 'typed') console.log(`Token saved in ${tokenFile(dataDir)}, so you won't be asked again.`)
+            return link
+        } catch (e) {
+            await link.close().catch(() => {})
+            const refused = /invalid or was revoked/.test(message(e))
+            if (!refused || source === 'env') throw e
+            if (!ask) throw new Error(`${message(e)} Delete ${tokenFile(dataDir)} and start the engine in a terminal to paste the new one.`, { cause: e })
+            console.error(message(e))
+            token = await askForToken(dataDir, ask, `Paste the new token (it won't show as you paste): `)
+            source = 'typed'
+        }
+    }
+}
+
 async function main() {
+    // Checked before anything that needs a newer Node.js (node:sqlite) loads
+    if (nodeTooOld()) throw new Error(nodeVersionError())
     let base = loadSettings()
     // The Public URL set on this machine; without one, the tunnel's address is used
     const envPublicUrl = base.publicUrl
     const store = new Store(join(base.dataDir, 'openbots.db'), Vault.open(base.dataDir))
-    const link = new ConvexLink(base.convexUrl, base.token)
 
     console.log(`OpenBots engine ${VERSION}: connecting to your workspace…`)
-    await link.connect((m) => console.error(m))
+    const link = await connect(base.convexUrl, base.token, base.dataDir)
 
     // Each webhook channel has its own random secret in its path, made once, so only that account knows where to
     // post. OPENBOTS_ROTATE_WEBHOOKS=true makes new ones; the new addresses are logged once the channels start.
