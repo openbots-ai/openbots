@@ -136,9 +136,10 @@ export class Pipeline {
         if (!fromKey) throw new Error("That text didn't come from a phone number or email")
         // Texts from your own phone are a chat with your agent (see isOwner)
         const fromOwner = this.isOwner(text.from)
-        // The number it was sent to, or for a channel with one address (BlueBubbles) that channel's number
+        // The number it was sent to, or for a channel with one address (BlueBubbles) that channel's number. Keyed
+        // here rather than read from the stored key, so numbers saved before a change to handleKey still match.
         const toKey = text.to ? handleKey(text.to) : null
-        const number = toKey ? numbers.find((n) => n.key === toKey) : numbers.find((n) => n.channel === text.channel)
+        const number = toKey ? numbers.find((n) => handleKey(n.handle) === toKey) : numbers.find((n) => n.channel === text.channel)
         if (!number) throw new Error(text.to ? `${text.to} isn't one of your numbers` : `Add your ${text.channel} number in Numbers`)
         const agent = agents.find((a) => a._id === (number.agentId ?? ws.defaultAgentId))
         if (!agent) throw new Error(`${number.handle} isn't assigned to an agent`)

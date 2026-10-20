@@ -32,7 +32,7 @@ function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial
         workspace: { _id: WS, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ...overrides.workspace },
         agents: [{ _id: AGENT, _creationTime: 0, workspaceId: WS, name: 'Pip', role: 'Assistant', hue: 0, prompt: 'Be brief.', greeting: 'hi', status: 'live', updatedAt: 0, ...overrides.agent }],
         numbers: [
-            { _id: 'n1' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0101', key: '4155550101', kind: 'phone', channel: 'relay', agentId: AGENT },
+            { _id: 'n1' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0101', key: '14155550101', kind: 'phone', channel: 'relay', agentId: AGENT },
             { _id: 'n2' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: 'pip@icloud.com', key: 'pip@icloud.com', kind: 'email', channel: 'bluebubbles', agentId: AGENT },
         ],
         knowledge: [],
@@ -100,6 +100,19 @@ describe('vault', () => {
         const flipped = Buffer.from(body, 'base64')
         flipped[0] ^= 1
         expect(() => vault.open(`${v}:${iv}:${flipped.toString('base64')}`, 'message:1')).toThrow()
+    })
+
+    it('keys contacts saved before country codes were kept again, so they are still found', () => {
+        const vault = Vault.open(dir)
+        const path = join(dir, 'openbots.db')
+        const old = new Store(path, vault)
+        // Saved under the old key, which dropped the US 1
+        const { contact } = old.contact('2125550187', () => ({ handle: '+1 212 555 0187', name: 'Dana', tags: [] }))
+        old.deleteMeta('contacts.keys')
+        old.close()
+        const store = new Store(path, vault)
+        expect(store.contact('12125550187', () => ({ handle: 'new', name: 'new', tags: [] }))).toEqual({ contact, isNew: false })
+        store.close()
     })
 
     it('keeps its key readable only by you, and reuses it', () => {

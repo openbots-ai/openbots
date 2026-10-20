@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import { handleKey } from '../../convex/lib/handles'
 import type { Vault } from './crypto'
 import type { Channel } from './transports/types'
 
@@ -72,6 +73,23 @@ export class Store {
             CREATE INDEX IF NOT EXISTS jobs_due ON jobs (active, due_at);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         `)
+        // Contacts found by a key from before handleKey kept country codes are keyed again, once
+        if (this.getMeta('contacts.keys') !== '2') {
+            this.rekeyContacts()
+            this.setMeta('contacts.keys', '2')
+        }
+    }
+
+    private rekeyContacts() {
+        for (const { id } of this.db.prepare('SELECT id FROM contacts').all() as { id: number }[]) {
+            const key = handleKey(this.getContact(id)!.handle)
+            if (!key) continue
+            try {
+                this.db.prepare('UPDATE contacts SET tag = ? WHERE id = ?').run(this.vault.tag(`contact:${key}`), id)
+            } catch {
+                // Another contact already has that key: keep this one as it was
+            }
+        }
     }
 
     close() {
