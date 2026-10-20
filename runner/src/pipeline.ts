@@ -3,7 +3,7 @@ import { handleKey } from '../../convex/lib/handles'
 import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from '../../convex/lib/models'
 import { knowledgeFor, MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
-import { dayKey } from '../../convex/lib/usage'
+import { dayKey, DEFAULT_CONTACT_REPLIES_PER_HOUR, NEW_CONTACT_ALERTS_PER_HOUR } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
 import { short, type ComputerTasks } from './computer/tasks'
 import type { Fired } from './scheduler'
@@ -61,6 +61,8 @@ const HOLD_MS = 60 * 60_000
 const LATE_MS = 6 * 3_600_000
 // A reminder or watch whose channel isn't running checks again this much later
 const WAIT_MS = 5 * 60_000
+// The window for the per-contact reply limit and the new-contact alert cap
+const HOUR_MS = 60 * 60_000
 
 // The calendar date at `ms` in `timeZone`
 function localDate(ms: number, timeZone: string) {
@@ -155,7 +157,7 @@ export class Pipeline {
 
         const counted = store.countOnce(dayKey(at), conversation.id)
         void link.record(agent._id, { activity: { messagesIn: 1, conversations: counted ? 1 : 0, newContacts: newContact ? 1 : 0 } }).catch((e) => this.log(`Couldn't record counts: ${describe(e)}`))
-        if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.alertOwner(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
+        if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.newContactAlert(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
         // Who and which agent, never what they wrote
         this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? ' (you)' : ''}`)
@@ -241,6 +243,11 @@ export class Pipeline {
         const blocked = await link.budget(dayKey(now))
         if (blocked && owner) return this.tellOwner(conversation, contact.handle, `${blocked} Raise it in Settings.`)
         if (blocked) return this.handoff(conversation, agent, `${blocked} Raise it in Settings, or answer yourself.`)
+        // However much one person texts, the agent sends them only so many replies an hour (your own chats aren't limited)
+        if (!owner) {
+            const limit = ws.contactRepliesPerHour ?? DEFAULT_CONTACT_REPLIES_PER_HOUR
+            if (store.repliesTo(contact.id, now - HOUR_MS) >= limit) return this.replyLimitReached(conversation, agent, contact.id, limit)
+        }
 
         const models = resolveModels(ws.models, agent.models, agent.model, keyModels(this.deps.models()))
         const turns = this.turns(conversation)
@@ -479,6 +486,32 @@ export class Pipeline {
         if (this.config.workspace.notifyHandoff === false) return
         const who = conversation.title ?? store.getContact(conversation.contactId)?.name ?? 'Someone'
         await this.alertOwner(conversation, `${who} needs you (${agent.name}). ${reason}${pause ? ` ${agent.name} stays out of that chat for 24 hours.` : ''}`)
+    }
+
+    // The agent stops replying to someone who reached the per-contact limit, and tells you once (again only if they
+    // reach it again more than an hour later)
+    private async replyLimitReached(conversation: Conversation, agent: Doc<'agents'>, contactId: number, limit: number) {
+        const { store } = this.deps
+        const key = `replylimit:${contactId}`
+        const told = Number(store.getMeta(key) ?? 0)
+        if (this.now() - told < HOUR_MS) return this.log(`${agent.name} didn't reply: it already sent that contact ${limit} replies in the last hour`)
+        store.setMeta(key, String(this.now()))
+        await this.handoff(conversation, agent, `${agent.name} sent them ${limit} replies in the last hour, the most it sends one person, so it stopped replying for now. Answer yourself, or raise the limit in Settings → Usage budget.`, { pause: false })
+    }
+
+    // Tells you about a new contact, at most a few times an hour: the next one says more are texting and the rest wait
+    // for the hour to pass, so a flood of strangers can't flood your phone and inbox too
+    private async newContactAlert(conversation: Conversation, body: string) {
+        const { store } = this.deps
+        const now = this.now()
+        const [start, count] = (store.getMeta('newcontact:alerts') ?? '0:0').split(':').map(Number)
+        const fresh = now - start >= HOUR_MS
+        const n = fresh ? 1 : count + 1
+        store.setMeta('newcontact:alerts', `${fresh ? now : start}:${n}`)
+        if (n <= NEW_CONTACT_ALERTS_PER_HOUR) return this.alertOwner(conversation, body)
+        if (n > NEW_CONTACT_ALERTS_PER_HOUR + 1) return this.log('New contact (alert held: too many this hour)')
+        const minutes = Math.max(1, Math.ceil((start + HOUR_MS - now) / 60_000))
+        await this.alertOwner(conversation, `More new people are texting your agents: ${n} in the last hour. New-contact alerts are held for the next ${minutes} minutes. Your agents still reply, up to your limits in Settings.`)
     }
 
     // Texts your own phone from the conversation's number, and emails you when the engine has Resend set up

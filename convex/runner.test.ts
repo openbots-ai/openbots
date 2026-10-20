@@ -6,7 +6,7 @@ import { api } from './_generated/api'
 import schema from './schema'
 import { keyModels, resolveModels } from './lib/models'
 import { hashToken, newToken } from './lib/tokens'
-import { DEFAULT_DAILY_BUDGET } from './lib/usage'
+import { DEFAULT_CONTACT_REPLIES_PER_HOUR, DEFAULT_DAILY_BUDGET } from './lib/usage'
 
 const modules = import.meta.glob('./**/*.ts')
 
@@ -127,6 +127,16 @@ describe('agent API', () => {
         expect(await base.query(api.runner.budget, { token, today })).toBe(`Today's usage budget (${DEFAULT_DAILY_BUDGET} credits) is used up.`)
         await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, dailyBudget: 1000 })
         expect(await base.query(api.runner.budget, { token, today })).toBeNull()
+    })
+
+    it('limits replies per contact to the default until you set your own', async () => {
+        const { base, owner, token } = await setup()
+        const ws = (await owner.query(api.workspace.get, {}))!
+        expect(ws.contactRepliesPerHour).toBe(DEFAULT_CONTACT_REPLIES_PER_HOUR)
+        expect((await base.query(api.runner.config, { token }))!.workspace.contactRepliesPerHour).toBe(DEFAULT_CONTACT_REPLIES_PER_HOUR)
+        for (const bad of [0, 2.5, 5000]) await expect(owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, contactRepliesPerHour: bad })).rejects.toThrow(/whole number from 1 to 1000/)
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, contactRepliesPerHour: 5 })
+        expect((await base.query(api.runner.config, { token }))!.workspace.contactRepliesPerHour).toBe(5)
     })
 
     it('keeps no messages, contacts or credentials in Convex', () => {

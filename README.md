@@ -125,7 +125,9 @@ What the engine can use, all with the person's own accounts:
    one-to-one chats. If that provider fails, the Backup model takes over.
 4. The reply goes out the way the text came in, to the person or the group. Convex gets only counts: texts in and
    out, active conversations, new contacts, model usage. These feed Analytics and the usage budget (200 credits a
-   day until the owner sets their own in Settings).
+   day until the owner sets their own in Settings). An agent sends one contact at most 20 replies an hour (also
+   set in Settings; the owner's own chats aren't limited), then stops replying to them and tells the owner once.
+   New-contact alerts go out at most 3 an hour, then one note that more people are texting.
 5. When an agent can't reply (no key, paused, budget used up, provider error) or asks for a person, it texts the
    owner's phone (Settings → General), and emails them if Resend is set up, naming the contact but never quoting
    them. Then it stays out of that chat for 24 hours.

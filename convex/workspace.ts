@@ -9,7 +9,7 @@ import { workspaceSettings } from './schema'
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 
-// The signed-in user's workspace, or null until they've set it up. One without a daily budget shows the default.
+// The signed-in user's workspace, or null until they've set it up. Limits it hasn't set show their defaults.
 export const get = query({
     args: {},
     handler: async (ctx) => {
@@ -47,6 +47,7 @@ export const update = mutation({
         if ((args.quietStart && !TIME.test(args.quietStart)) || (args.quietEnd && !TIME.test(args.quietEnd))) throw new Error('Quiet hours need a start and end time')
         if (args.replyDelaySec !== undefined && (args.replyDelaySec < 0 || args.replyDelaySec > 60)) throw new Error('Reply delay must be between 0 and 60 seconds')
         for (const budget of [args.dailyBudget, args.weeklyBudget]) if (budget !== undefined && !(budget > 0)) throw new Error('A budget must be more than 0 credits')
+        if (args.contactRepliesPerHour !== undefined && !(Number.isInteger(args.contactRepliesPerHour) && args.contactRepliesPerHour >= 1 && args.contactRepliesPerHour <= 1000)) throw new Error('Replies per contact must be a whole number from 1 to 1000')
         if (args.defaultAgentId) await owned(ctx, ws, 'agents', args.defaultAgentId)
 
         // Every settings key is written explicitly, so one the client left out (undefined) is cleared.

@@ -47,6 +47,9 @@ export const workspaceSettings = {
     // budget reads as DEFAULT_DAILY_BUDGET; an unset weekly one means no weekly cap.
     dailyBudget: v.optional(v.number()),
     weeklyBudget: v.optional(v.number()),
+    // The most replies an agent sends one contact in an hour (never limits your own chats); unset reads as
+    // DEFAULT_CONTACT_REPLIES_PER_HOUR
+    contactRepliesPerHour: v.optional(v.number()),
 }
 
 // Where a number's texts come from and go out through. All of them run on your engine.
