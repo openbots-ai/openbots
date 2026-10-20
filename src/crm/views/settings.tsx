@@ -4,6 +4,7 @@ import { Bell, Building2, Database, Download, Gauge, MessageCircle, Users, type 
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
+import { DEFAULT_DAILY_BUDGET } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -46,7 +47,7 @@ type Form = {
     newContactTag: string
     notifyNewContact: boolean
     notifyHandoff: boolean
-    // Kept as text so the field can be empty (no cap)
+    // Kept as text so the field can be empty (the default daily cap, or no weekly cap)
     dailyBudget: string
     weeklyBudget: string
 }
@@ -70,7 +71,7 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     weeklyBudget: w.weeklyBudget?.toString() ?? '',
 })
 
-// '' means no budget; anything else must be a positive number
+// '' means the default daily budget, or no weekly budget; anything else must be a positive number
 const parseBudget = (s: string) => (s.trim() ? Number(s) : undefined)
 const budgetOk = (s: string) => !s.trim() || Number(s) > 0
 
@@ -82,7 +83,8 @@ const normalize = (f: Form): Form => ({
     ownerEmail: f.ownerEmail.trim(),
     ownerHandle: f.ownerHandle.trim(),
     newContactTag: f.newContactTag.trim().toLowerCase(),
-    dailyBudget: f.dailyBudget.trim() && String(Number(f.dailyBudget)),
+    // The server reads a blank daily budget as the default, and shows it
+    dailyBudget: f.dailyBudget.trim() ? String(Number(f.dailyBudget)) : String(DEFAULT_DAILY_BUDGET),
     weeklyBudget: f.weeklyBudget.trim() && String(Number(f.weeklyBudget)),
 })
 
@@ -223,9 +225,13 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
-                <Row label="Daily budget" description={budgetOk(form.dailyBudget) ? 'Credits per day (UTC). Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.dailyBudget)} htmlFor="s-daily">
-                    <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder="No cap" />
+            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you. The daily budget is on from the start, so texts from strangers can’t run up your AI and texting bills.">
+                <Row
+                    label="Daily budget"
+                    description={budgetOk(form.dailyBudget) ? `Credits per day (UTC), about one per reply. Leave blank for the default (${DEFAULT_DAILY_BUDGET}).` : 'Enter a number above 0, or leave blank.'}
+                    error={!budgetOk(form.dailyBudget)}
+                    htmlFor="s-daily">
+                    <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder={String(DEFAULT_DAILY_BUDGET)} />
                 </Row>
                 <Row label="Weekly budget" description={budgetOk(form.weeklyBudget) ? 'Credits per week, Monday to Sunday. Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.weeklyBudget)} htmlFor="s-weekly">
                     <Input id="s-weekly" inputMode="numeric" aria-invalid={!budgetOk(form.weeklyBudget)} value={form.weeklyBudget} onChange={(e) => set('weeklyBudget', e.target.value)} placeholder="No cap" />

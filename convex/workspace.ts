@@ -4,14 +4,18 @@ import { currentWorkspace, owned, requireUser, requireWorkspace } from './lib/ac
 import { handleKind } from './lib/handles'
 import { requireKeyOffers } from './lib/keyModels'
 import { isValidChoice } from './lib/models'
+import { DEFAULT_DAILY_BUDGET, withDefaults } from './lib/usage'
 import { workspaceSettings } from './schema'
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 
-// The signed-in user's workspace, or null until they've set it up
+// The signed-in user's workspace, or null until they've set it up. One without a daily budget shows the default.
 export const get = query({
     args: {},
-    handler: (ctx) => currentWorkspace(ctx),
+    handler: async (ctx) => {
+        const ws = await currentWorkspace(ctx)
+        return ws && withDefaults(ws)
+    },
 })
 
 // First visit after signing up: the dashboard asks for these two names and creates the workspace
@@ -24,7 +28,7 @@ export const create = mutation({
         const ownerName = args.ownerName.trim()
         if (!name || !ownerName) throw new Error('Workspace and owner name are required')
         const user = await ctx.db.get('users', userId)
-        return ctx.db.insert('workspace', { userId, name, ownerName, timezone: args.timezone, ownerEmail: user?.email })
+        return ctx.db.insert('workspace', { userId, name, ownerName, timezone: args.timezone, ownerEmail: user?.email, dailyBudget: DEFAULT_DAILY_BUDGET })
     },
 })
 

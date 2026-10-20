@@ -124,7 +124,8 @@ What the engine can use, all with the person's own accounts:
    documents are used with other people only when marked "Share with contacts"; the rest stay in the owner's own
    one-to-one chats. If that provider fails, the Backup model takes over.
 4. The reply goes out the way the text came in, to the person or the group. Convex gets only counts: texts in and
-   out, active conversations, new contacts, model usage. These feed Analytics and the usage budget.
+   out, active conversations, new contacts, model usage. These feed Analytics and the usage budget (200 credits a
+   day until the owner sets their own in Settings).
 5. When an agent can't reply (no key, paused, budget used up, provider error) or asks for a person, it texts the
    owner's phone (Settings → General), and emails them if Resend is set up, naming the contact but never quoting
    them. Then it stays out of that chat for 24 hours.

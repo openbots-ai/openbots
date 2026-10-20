@@ -6,6 +6,7 @@ import { api } from './_generated/api'
 import schema from './schema'
 import { keyModels, resolveModels } from './lib/models'
 import { hashToken, newToken } from './lib/tokens'
+import { DEFAULT_DAILY_BUDGET } from './lib/usage'
 
 const modules = import.meta.glob('./**/*.ts')
 
@@ -105,6 +106,27 @@ describe('agent API', () => {
         expect(docs.find((d) => d._id === shared)?.shareWithContacts).toBe(true)
         await owner.mutation(api.knowledge.update, { id: shared, title: 'Hours', body: '9 to 5' })
         expect((await base.query(api.runner.config, { token }))!.knowledge.find((d) => d._id === shared)?.shareWithContacts).toBeUndefined()
+    })
+
+    it('caps every workspace at the default daily budget until you set your own', async () => {
+        const { base, owner, agentId, token } = await setup()
+        const today = new Date().toISOString().slice(0, 10)
+        const ws = (await owner.query(api.workspace.get, {}))!
+        expect(ws.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+        expect(ws.weeklyBudget).toBeUndefined()
+
+        // A workspace made before the default existed, or one whose daily budget was cleared, reads as the default
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName })
+        expect(await base.run((ctx) => ctx.db.get('workspace', ws._id))).not.toHaveProperty('dailyBudget')
+        expect((await owner.query(api.workspace.get, {}))!.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+        expect((await base.query(api.runner.config, { token }))!.workspace.dailyBudget).toBe(DEFAULT_DAILY_BUDGET)
+
+        await base.run((ctx) => ctx.db.insert('usage', { workspaceId: ws._id, agentId, slot: 'brain', model: 'openai:gpt-5.1', day: today, count: DEFAULT_DAILY_BUDGET - 1 }))
+        expect(await base.query(api.runner.budget, { token, today })).toBeNull()
+        await base.mutation(api.runner.record, { token, agentId, usage: { slot: 'brain', model: 'openai:gpt-5.1' } })
+        expect(await base.query(api.runner.budget, { token, today })).toBe(`Today's usage budget (${DEFAULT_DAILY_BUDGET} credits) is used up.`)
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, dailyBudget: 1000 })
+        expect(await base.query(api.runner.budget, { token, today })).toBeNull()
     })
 
     it('keeps no messages, contacts or credentials in Convex', () => {

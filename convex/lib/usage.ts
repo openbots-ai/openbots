@@ -13,6 +13,13 @@ export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: num
     backup: { one: 'takeover', many: 'takeovers', weight: 1 },
 }
 
+// The daily cap a workspace has until you set your own, so texts from strangers can't run up an open-ended bill.
+// About this many replies a day; raise it in Settings → Usage budget.
+export const DEFAULT_DAILY_BUDGET = 200
+
+// A workspace's settings as the dashboard and engine read them: no daily budget set means the default one
+export const withDefaults = <W extends { dailyBudget?: number }>(ws: W): W & { dailyBudget: number } => ({ ...ws, dailyBudget: ws.dailyBudget ?? DEFAULT_DAILY_BUDGET })
+
 export const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 export const addDays = (day: string, n: number) => dayKey(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000)
 

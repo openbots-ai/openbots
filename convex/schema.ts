@@ -43,7 +43,8 @@ export const workspaceSettings = {
     newContactTag: v.optional(v.string()),
     notifyNewContact: v.optional(v.boolean()),
     notifyHandoff: v.optional(v.boolean()),
-    // Usage budget in credits (see convex/lib/usage.ts). Agents stop replying once one is used up; unset means no cap.
+    // Usage budget in credits (see convex/lib/usage.ts). Agents stop replying once one is used up. An unset daily
+    // budget reads as DEFAULT_DAILY_BUDGET; an unset weekly one means no weekly cap.
     dailyBudget: v.optional(v.number()),
     weeklyBudget: v.optional(v.number()),
 }

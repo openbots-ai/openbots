@@ -4,7 +4,7 @@ import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/s
 import { canComputerUse } from './lib/computers'
 import { insertNumber } from './lib/numbers'
 import { hashToken } from './lib/tokens'
-import { creditsFor, dayKey, weekStart } from './lib/usage'
+import { creditsFor, dayKey, weekStart, withDefaults } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
 
 // The API your engine (runner/) calls. Every function takes the engine's token, checks it, and stays inside that
@@ -36,7 +36,7 @@ export const config = query({
             ctx.db.query('knowledge').withIndex('by_workspace_and_updatedAt', (q) => q.eq('workspaceId', workspaceId)).take(500),
         ])
         const { userId, notifyDigest, lastDigestDay, ...workspace } = ws
-        return { workspace, agents, numbers, knowledge, computerUse: runner.computerUse === true && canComputerUse(runner) }
+        return { workspace: withDefaults(workspace), agents, numbers, knowledge, computerUse: runner.computerUse === true && canComputerUse(runner) }
     },
 })
 
@@ -45,15 +45,17 @@ export const budget = query({
     args: { token: v.string(), today: v.string() },
     handler: async (ctx, { token, today }) => {
         const { workspaceId } = await runnerFor(ctx, token)
-        const ws = await ctx.db.get('workspace', workspaceId)
-        if (!ws?.dailyBudget && !ws?.weeklyBudget) return null
+        const found = await ctx.db.get('workspace', workspaceId)
+        if (!found) return null
+        // A workspace without a daily budget of its own has the default one
+        const ws = withDefaults(found)
         const rows = await ctx.db
             .query('usage')
             .withIndex('by_workspace_and_day', (q) => q.eq('workspaceId', workspaceId).gte('day', weekStart(today)).lte('day', today))
             .take(5_000)
         const week = rows.reduce((s, r) => s + creditsFor(r.slot, r.count), 0)
         const day = rows.filter((r) => r.day === today).reduce((s, r) => s + creditsFor(r.slot, r.count), 0)
-        if (ws.dailyBudget && day >= ws.dailyBudget) return `Today's usage budget (${ws.dailyBudget} credits) is used up.`
+        if (day >= ws.dailyBudget) return `Today's usage budget (${ws.dailyBudget} credits) is used up.`
         if (ws.weeklyBudget && week >= ws.weeklyBudget) return `This week's usage budget (${ws.weeklyBudget} credits) is used up.`
         return null
     },
