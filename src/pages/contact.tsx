@@ -1,141 +1,90 @@
-import { useState } from 'react'
-import { ArrowRight, Check, Mail, MessageCircle } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
-import { Button } from '@/components/ui/button'
-import { Reveal } from '@/components/landing/motion'
+import { ArrowRight, BookOpen, Bug, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { GitHubMark } from '@/components/landing/logo'
+import { Reveal, Stagger, StaggerItem } from '@/components/landing/motion'
 import { PageShell } from '@/pages/page-shell'
-import { CONTACT_EMAIL } from '@/lib/site'
+import { GITHUB_URL, ISSUES_URL, NEW_ISSUE_URL, README_URL, SECURITY_URL } from '@/lib/site'
 
-const field = 'type-body w-full rounded-xl bg-neutral-100/70 px-4 py-3 ring-1 ring-black/5 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-900/30 dark:bg-white/5'
-
-const topics = ['Early access', 'Partnerships', 'Press', 'Something else']
+const ways: { icon: LucideIcon; title: string; body: string; cta: string; href: string }[] = [
+    {
+        icon: Bug,
+        title: 'Questions, bugs and ideas',
+        body: 'Open an issue on GitHub. Search the existing ones first, someone may have asked already.',
+        cta: 'Open an issue',
+        href: NEW_ISSUE_URL,
+    },
+    {
+        icon: BookOpen,
+        title: 'Setting it up',
+        body: 'The README walks through deploying your own copy, running the engine and connecting your accounts.',
+        cta: 'Read the README',
+        href: README_URL,
+    },
+    {
+        icon: ShieldCheck,
+        title: 'Found a security issue?',
+        body: 'Please don’t post it in a public issue. The security policy explains where your data lives and how to report a vulnerability.',
+        cta: 'Security policy',
+        href: SECURITY_URL,
+    },
+]
 
 export function ContactPage() {
-    const [sent, setSent] = useState(false)
-
     return (
         <PageShell title="Contact">
             <div className="grid gap-14 py-20 md:py-28 lg:grid-cols-[1fr_22rem] lg:gap-20">
                 <Reveal>
                     <h1 className="type-title">Get in touch</h1>
                     <p className="type-body-lg text-muted-foreground mt-4 max-w-md text-balance">
-                        Questions about OpenBots, early access or working together? Send us a note and a real person will reply, usually within a day.
+                        OpenBots is an open-source project, so conversations happen in the open on GitHub. There’s no sales team and no inbox to email.
                     </p>
 
-                    <AnimatePresence
-                        mode="wait"
-                        initial={false}>
-                        {sent ? (
-                            <motion.div
-                                key="sent"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-10 flex max-w-xl items-start gap-3 rounded-2xl bg-emerald-50 p-6 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/30">
-                                <Check className="mt-0.5 size-5 text-emerald-600" />
-                                <div>
-                                    <p className="type-subheading">Thanks, we got your message</p>
-                                    <p className="type-body-sm text-muted-foreground mt-1">We will get back to you at the email you gave us.</p>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            <motion.form
-                                key="form"
-                                exit={{ opacity: 0, y: -8 }}
-                                onSubmit={(e) => {
-                                    e.preventDefault()
-                                    setSent(true)
-                                }}
-                                className="mt-10 grid max-w-xl gap-4 sm:grid-cols-2">
-                                <label className="type-label grid gap-2">
-                                    Name
-                                    <input
-                                        required
-                                        name="name"
-                                        autoComplete="name"
-                                        placeholder="Jane Smith"
-                                        className={field}
-                                    />
-                                </label>
-                                <label className="type-label grid gap-2">
-                                    Work email
-                                    <input
-                                        required
-                                        type="email"
-                                        name="email"
-                                        autoComplete="email"
-                                        placeholder="jane@company.com"
-                                        className={field}
-                                    />
-                                </label>
-                                <label className="type-label grid gap-2 sm:col-span-2">
-                                    Company
-                                    <input
-                                        name="company"
-                                        autoComplete="organization"
-                                        placeholder="Optional"
-                                        className={field}
-                                    />
-                                </label>
-                                <fieldset className="sm:col-span-2">
-                                    <legend className="type-label">What is it about?</legend>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {topics.map((topic, i) => (
-                                            <label
-                                                key={topic}
-                                                className="type-label cursor-pointer rounded-full bg-neutral-100/70 px-4 py-2 ring-1 ring-black/5 has-checked:bg-primary has-checked:text-primary-foreground has-checked:ring-primary dark:bg-white/5">
-                                                <input
-                                                    type="radio"
-                                                    name="topic"
-                                                    value={topic}
-                                                    defaultChecked={i === 0}
-                                                    className="sr-only"
-                                                />
-                                                {topic}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </fieldset>
-                                <label className="type-label grid gap-2 sm:col-span-2">
-                                    Message
-                                    <textarea
-                                        required
-                                        name="message"
-                                        rows={5}
-                                        placeholder="How can we help?"
-                                        className={`${field} resize-none`}
-                                    />
-                                </label>
-                                <div className="sm:col-span-2">
-                                    <Button
-                                        type="submit"
-                                        className="type-label h-auto px-4 py-2 font-normal ring-1 ring-primary has-data-[icon=inline-end]:pr-3">
-                                        Send message <ArrowRight data-icon="inline-end" />
-                                    </Button>
-                                </div>
-                            </motion.form>
-                        )}
-                    </AnimatePresence>
+                    <Stagger className="mt-10 grid max-w-xl gap-4">
+                        {ways.map(({ icon: Icon, title, body, cta, href }) => (
+                            <StaggerItem key={title}>
+                                <a
+                                    href={href}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group flex items-start gap-4 rounded-[1.75rem] bg-neutral-100/70 p-6 ring-1 ring-black/4 transition-shadow hover:shadow-lg hover:shadow-black/5 dark:bg-white/5 dark:ring-white/8">
+                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10">
+                                        <Icon className="size-5" aria-hidden />
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="type-subheading block">{title}</span>
+                                        <span className="type-body-sm text-muted-foreground mt-1 block">{body}</span>
+                                        <span className="type-body mt-3 inline-flex items-center gap-1.5 font-medium">
+                                            {cta} <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                                        </span>
+                                    </span>
+                                </a>
+                            </StaggerItem>
+                        ))}
+                    </Stagger>
                 </Reveal>
 
                 <Reveal className="space-y-4 self-start lg:mt-28">
                     <div className="rounded-[1.75rem] bg-neutral-100/70 p-7 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8">
-                        <Mail className="size-5" />
-                        <p className="type-subheading mt-4">Email us directly</p>
-                        <p className="type-body-sm text-muted-foreground mt-1">For anything that does not fit the form.</p>
+                        <GitHubMark className="size-5" />
+                        <p className="type-subheading mt-4">The repo</p>
+                        <p className="type-body-sm text-muted-foreground mt-1">The code, the issues and every change, all in one place.</p>
                         <a
-                            href={`mailto:${CONTACT_EMAIL}`}
+                            href={GITHUB_URL}
+                            target="_blank"
+                            rel="noreferrer"
                             className="type-body mt-4 inline-block font-medium underline decoration-neutral-300 underline-offset-4 hover:decoration-current">
-                            {CONTACT_EMAIL}
+                            shidhartha-sen/opendots
                         </a>
                     </div>
                     <div className="rounded-[1.75rem] bg-neutral-100/70 p-7 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8">
-                        <MessageCircle className="size-5" />
-                        <p className="type-subheading mt-4">Want to try it?</p>
-                        <p className="type-body-sm text-muted-foreground mt-1">Leave your number and we will text you when your agents are ready.</p>
+                        <Bug className="size-5" />
+                        <p className="type-subheading mt-4">Open issues</p>
+                        <p className="type-body-sm text-muted-foreground mt-1">See what’s known, what’s being worked on, and add a thumbs-up to what you need.</p>
                         <a
-                            href="/#early-access"
+                            href={ISSUES_URL}
+                            target="_blank"
+                            rel="noreferrer"
                             className="type-body mt-4 inline-flex items-center gap-1.5 font-medium">
-                            Join early access <ArrowRight className="size-4" />
+                            Browse issues <ArrowRight className="size-4" />
                         </a>
                     </div>
                 </Reveal>
