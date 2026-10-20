@@ -1,132 +1,138 @@
 # OpenBots
 
-Landing site for OpenBots: a team of AI agents you text in iMessage.
+OpenBots lets you build AI agents that answer your texts. You set each agent up in a web dashboard (its
+instructions, knowledge, models and the numbers it answers), and an **engine** you run on your own computer does the
+texting: it receives iMessages or SMS, writes replies with the AI provider and model you chose, and sends them back.
+Agents can search the web, set reminders and watches when you text them, send you scheduled check-ins, hand a chat
+over to you when they can't help, and, on a Windows or Mac computer, carry out tasks on its screen with Claude computer
+use. Conversations and contacts stay on the engine's machine, encrypted; the backend sees settings and daily counts,
+never message text. Everyone brings their own AI keys and texting accounts.
 
-Built with Vite, React, Tailwind CSS v4, Motion and Lenis.
+> OpenBots is early software. It hasn't had an external security review yet; read [SECURITY.md](SECURITY.md) before
+> you rely on it.
 
-## Develop
+## What's built, and what isn't
+
+**Built**
+
+- Dashboard (`/dashboard`): email and password sign-in, a private workspace per account, and pages for Agents,
+  Models, Knowledge, Numbers, Connections, Analytics and Settings.
+- Model slots that run today: **Brain** (writes replies), **Backup** (takes over when the Brain's provider fails) and
+  **Computer use**.
+- AI providers: OpenAI, Anthropic, Google Gemini, xAI, and local OpenAI-compatible servers (Ollama, LM Studio...). The
+  engine asks each key which models it can use, and the dashboard offers exactly those.
+- Texting: Messages on the engine's Mac, BlueBubbles, Sendblue, Twilio SMS (search and buy numbers from the
+  dashboard), or your own relay.
+- Web search in replies (OpenAI, Anthropic and Gemini models), reminders and watches set by text, scheduled check-ins,
+  quiet hours, a reply delay, a usage budget, and handoff alerts by text (and by email with Resend).
+- Computer use on Windows and Mac, with a "Reply YES" check before anything that can't be undone.
+- Engine computers of your own, or created on your [Orgo](https://www.orgo.ai) account from the dashboard.
+
+**Roadmap (not built)**
+
+Voice notes, listening (speech to text), calls, vision, and the Decisions and Router model slots. The landing page
+and the Models page mention them, but nothing runs them yet.
+
+## Architecture
+
+| Part | Code | Runs on | Holds |
+| --- | --- | --- | --- |
+| **Dashboard** | `src/` (React, Vite, Tailwind). The dashboard is `src/crm`; the landing site is `src/pages` and `src/components/landing` | Any static host (Vercel config included) | Nothing of its own |
+| **Backend** | `convex/` | A [Convex](https://convex.dev) deployment | Accounts, workspaces, agents, model choices, knowledge, numbers, engine token hashes, keys saved in Connections (encrypted), daily counts |
+| **Engine** | `runner/` (Node.js) | A computer you control, or an Orgo computer | Contacts, conversations and messages in an encrypted local SQLite file; keys set as environment variables |
+
+A text reaches the engine (from Messages, or posted to its web server by Twilio, Sendblue, BlueBubbles or a relay). The
+engine finds the agent for that number in Convex, stores the message locally, writes the reply with the Brain model
+(the Backup model if that fails) and sends it back the way it came. Convex only receives counts. When an agent can't
+reply or asks for a person, the engine texts the owner's phone, naming the contact but never quoting them, and stays
+out of that chat for 24 hours. [SECURITY.md](SECURITY.md) says exactly who can see what.
+
+## Self-host it
+
+You need Node.js 22.13 or newer, a free [Convex](https://convex.dev) account and, for production, somewhere to host a
+static site (the repo includes a `vercel.json`).
+
+1. **Clone and install.**
+
+   ```sh
+   git clone https://github.com/shidhartha-sen/opendots && cd opendots
+   npm ci
+   ```
+
+2. **Create a dev deployment.** `npx convex dev` logs you in, creates a deployment, pushes the functions in
+   `convex/`, writes `.env.local` (`CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`) and keeps watching for changes. Leave it
+   running.
+
+   ```sh
+   npx convex dev
+   ```
+
+3. **Generate the server's secrets.** In another terminal:
+
+   ```sh
+   npm run setup
+   ```
+
+   This stores `ENCRYPTION_KEY` (encrypts the keys people save in Connections) and the sign-in key pair
+   (`JWT_PRIVATE_KEY`, `JWKS`) on the deployment, so nothing secret goes in a file. Running it again only fills in what's
+   missing, and it never replaces `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the
+   dashboard shows a setup screen instead of the sign-in page.
+
+4. **Run the site.** `npm run dev` and open <http://localhost:5173/dashboard>. Sign up with an email and password.
+
+5. **Deploy to production** when you're ready:
+
+   ```sh
+   npx convex deploy          # push the functions to your production deployment
+   npm run setup -- --prod    # production needs its own secrets
+   ```
+
+   Then host the site. On Vercel, import the repository and set `VITE_CONVEX_URL` to the production deployment's URL
+   (`https://<name>.convex.cloud`); `vercel.json` already sets the build command, the output directory and the rewrite
+   that sends every path to `index.html`. Any static host works if it does the same. The build also bundles the engine
+   into `/engine/openbots-engine.mjs`, which the dashboard's start commands and Orgo computers download from your own
+   site.
+
+6. **Start an engine.** In the dashboard, open **Connections**, name a computer and add it. Connections shows, once,
+   the commands to start the engine on Windows, Mac or Linux with that computer's token filled in. Or click **Create on
+   Orgo** after saving an Orgo API key. To run an engine from this checkout instead, put `OPENBOTS_CONVEX_URL` and
+   `OPENBOTS_TOKEN` in `runner/.env` and run `npm run runner`. Every setting, the Mac permissions, the Docker image and
+   how to verify a release are in [runner/README.md](runner/README.md).
+
+`.env.example` lists every variable, for the site, the deployment and the engine. If you're upgrading a deployment
+that holds data from older versions, see [docs/migrations.md](docs/migrations.md).
+
+## What each user connects
+
+Every account brings its own accounts, so hosting OpenBots costs only Convex and static hosting. Keys are saved once
+in **Connections** (they belong to the account, encrypted by the backend, and every engine of the account gets them)
+or set as environment variables on the engine, where they never leave that machine.
+
+- **An engine computer**: their own laptop, server or VM, or an always-on computer on their Orgo account.
+- **At least one AI provider**: an OpenAI, Anthropic, Google Gemini or xAI key, or a local model server.
+- **At least one way to text**: Messages on the engine's Mac, BlueBubbles Server on their Mac, a Sendblue line, a
+  Twilio account (US texting needs A2P 10DLC registration), or their own relay. Twilio, Sendblue and BlueBubbles post
+  incoming texts to the engine, so it needs a public HTTPS address; `OPENBOTS_TUNNEL=true` gets one from Cloudflare's
+  quick tunnel.
+- **Their phone number** (Settings → General), for handoff alerts and for texting their own agents reminders,
+  watches and computer use tasks.
+- Optional: a **Resend** key to also email handoff alerts, and an **Anthropic** key with Computer use turned on for a
+  Windows or Mac computer.
+
+## Development
 
 ```sh
-npm install
-npm run dev
+npm run dev       # the site, on http://localhost:5173
+npx convex dev    # the backend, watching convex/
+npm run runner    # build and start the engine (reads runner/.env)
+npm test          # unit tests, the Convex tests (convex-test) and the engine's tests
+npm run lint
+npm run build     # typecheck, build the engine and build the site
 ```
 
-## Deploy
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup details, the checks CI runs and how to open a pull request. Changes
+are listed in [CHANGELOG.md](CHANGELOG.md).
 
-The site is hosted on Vercel and connected to this repo. Every push to `main`
-deploys to production; pushes to other branches get preview deployments.
+## License
 
-`vercel.json` rewrites every path to `index.html` so routes like `/privacy`
-and `/contact` resolve on direct load.
-
-## Pages
-
-| Path | Page |
-| --- | --- |
-| `/` | Landing page (`/about` redirects here) |
-| `/privacy`, `/terms` | Legal pages |
-| `/contact` | Contact form |
-| `/pricing`, `/changelog`, `/docs`, `/careers`, `/security` | Coming soon |
-| `/dashboard` | Agent dashboard (noindex; see below) |
-
-## Dashboard (`/dashboard`)
-
-The dashboard for building and managing agents, linked from "Explore the builder" on the landing page.
-Only the exact path `/dashboard` loads it, and it is served with `noindex`. Views switch via `?view=`
-so the path never changes. Its data lives in [Convex](https://convex.dev) (`convex/`).
-
-People sign up with an email and password and get a private workspace. They run their own **engine** and bring
-their own accounts, so hosting OpenBots costs only Convex and Vercel, and nobody hosting it can read their
-messages: conversations and contacts stay on the engine. Keys and account logins either stay on it
-(environment variables) or are saved once in Connections for the whole account, encrypted by the backend. See [SECURITY.md](SECURITY.md).
-
-```sh
-npx convex dev          # first run logs in, creates the deployment and writes .env.local
-npx convex deploy       # push functions to production
-npm test                # unit tests, the Convex tests (convex-test) and the engine's tests
-npm run runner          # build and start the engine locally (reads runner/.env)
-```
-
-Set `VITE_CONVEX_URL` (production deployment URL) in Vercel. `.env.example` lists every variable.
-
-### Server secrets (once, by whoever hosts OpenBots)
-
-```sh
-npm run setup             # the dev deployment
-npm run setup -- --prod   # production
-```
-
-This generates the server's own secrets and stores them on the Convex deployment, so nothing secret goes in a file or
-the repo: `ENCRYPTION_KEY`, which encrypts the keys people save in Connections, and the sign-in key pair
-(`JWT_PRIVATE_KEY`, `JWKS`) for [Convex Auth](https://labs.convex.dev/auth). Running it again only fills in what's
-missing; it never replaces `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the dashboard
-shows a setup screen instead of the sign-in page.
-
-The schema scopes everything to a signed-in user's workspace. A deployment holding data from before that won't
-accept it; export what you want to keep (`npx convex export`) and clear its tables before deploying. A deployment
-that stored conversations or connected accounts in Convex: run `npx convex run migrations:purgeLegacy` once.
-
-If a push fails because older rows don't match (a workspace owned through `ownerId`, numbers without a
-`channel`), make those fields optional in `convex/schema.ts`, push, run `npx convex run migrations:upgradeLegacy`,
-then put the schema back and push again.
-
-### The engine (`runner/`)
-
-Each account has an always-on computer that runs the engine and is the desktop its agents use. There are two ways
-to get one, both under **Connections → Computer use**:
-
-- **On Orgo:** save an [Orgo](https://www.orgo.ai) API key and click **Create on Orgo**. The backend creates the
-  computer on that Orgo account (Orgo bills it), installs Node.js, `cloudflared` and the engine (served by this site at
-  `/engine/openbots-engine.mjs`, built with every deploy), and keeps it running. Incoming texts reach it through
-  Cloudflare's quick tunnel, so it needs no open ports.
-- **Your own computer:** a laptop, a server or any VM. Add it to get a token and run the command shown. Computer use
-  works on Windows and Mac; a Linux computer (like Fedora) answers texts only.
-
-Either way they save their keys in Connections (once per account, encrypted by the backend) or set them as environment variables on
-that machine. It keeps contacts, conversations and messages in a local encrypted SQLite file. Setup, settings and
-release verification are in [runner/README.md](runner/README.md).
-
-What the engine can use, all with the person's own accounts:
-
-- **AI**: OpenAI, Anthropic, Google Gemini or xAI keys, or a local model server (Ollama, LM Studio…). The engine asks
-  each provider which models the key can use and reports them, so the Models page and each agent's page offer
-  exactly those; a choice is saved as `provider:model`.
-- **Texting**, one or more of:
-  - **Messages on a Mac**: iMessage straight from the Mac the engine runs on. One-to-one chats.
-  - **BlueBubbles**: iMessage from their Mac running BlueBubbles Server (free), with group chats. The engine
-    registers its webhook on the Mac.
-  - **Sendblue**: iMessage on their Sendblue line, no Mac. The engine registers its webhook with Sendblue. Group
-    chats work on plans that include them.
-  - **Twilio**: SMS. They search and buy a number (billed by Twilio to them) or reuse one they own, right in
-    Numbers; the dashboard queues the request and the engine carries it out with their Twilio login, pointing the
-    number at itself. Every incoming request's Twilio signature is checked. US texting needs A2P 10DLC registration.
-  - **A relay** of their own, posting texts to the engine.
-- **Email** (optional): a Resend key and from address, to also email handoff alerts.
-- **Reminders, watches and check-ins:** text your agent from your own phone "remind me at 5 to…" or "text me if …
-  changes"; set check-ins on the agent's page. Reminders and watches are stored on the engine, sealed like messages;
-  Convex only counts them. Setting reminders and watches by text needs an OpenAI or Anthropic Brain model; check-ins
-  and watch checks work with any Brain.
-- **Computer use (Windows and Mac):** text your agent a task ("find a table at Nopa for Friday 7pm and book it") and
-  it does it on the computer its engine runs on with Claude (Sonnet 5.5 or Opus 5.5, set on the Models page or the
-  agent's page), asking "Reply YES" before anything that can't be undone and texting you the result. Turn it on per
-  computer in Connections. Needs an Anthropic key, and the agent's Brain must be an OpenAI or Anthropic model (it's
-  the Brain that hands the task over).
-
-### How a text flows
-
-1. A text reaches the engine: from Messages on its Mac, or posted by Twilio, Sendblue, BlueBubbles or a relay to the
-   engine's own web server.
-2. The engine matches the number it was sent to with one of the person's numbers and that number's agent (from
-   Convex, live), finds or creates the contact and conversation locally (one per group chat thread), and stores
-   the message encrypted. In a group chat the engine answers only when someone uses its name.
-3. If the engine is live, the reply waits for the workspace's reply delay (or the end of quiet hours). Then the
-   Brain model writes it from its instructions, knowledge, the contact's notes and recent history. If that
-   provider fails, the Backup model takes over.
-4. The reply goes out the way the text came in, to the person or the group. Convex gets only counts: texts in and
-   out, active conversations, new contacts, model usage. These feed Analytics and the usage budget.
-5. When an agent can't reply (no key, paused, budget used up, provider error) or asks for a person, it texts the
-   owner's phone (Settings → General), and emails them if Resend is set up, naming the contact but never quoting
-   them. Then it stays out of that chat for 24 hours.
-
-Only the Brain, Backup and Computer use model slots run today, so the dashboard offers only those. The other parts
-shown on the landing page (voice notes, listening, calls, vision, decisions, router) are not built yet.
+[MIT](LICENSE). Provider names and logos are trademarks of their owners; see [NOTICE](NOTICE).
