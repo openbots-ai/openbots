@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { DatabaseSync } from 'node:sqlite'
+import { openDatabase, type DatabaseSync } from '../sqlite'
 import type { Store } from '../store'
 import type { OnText, Outgoing, Transport } from './types'
 
@@ -54,7 +54,7 @@ export class MacTransport implements Transport {
 
     async start(onText: OnText) {
         try {
-            this.db = new DatabaseSync(this.path, { readOnly: true })
+            this.db = openDatabase(this.path, { readOnly: true })
         } catch {
             throw new Error(`Can't open ${this.path}. Give the app running the engine Full Disk Access in System Settings → Privacy & Security.`)
         }

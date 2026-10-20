@@ -1,6 +1,6 @@
 // Bundles the agent and the shared code it uses from convex/lib into runner/dist/main.mjs.
 // Its two dependencies stay external and are installed from npm like any package.
-import { readFileSync } from 'node:fs'
+import { copyFileSync, readFileSync } from 'node:fs'
 import { build } from 'esbuild'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)))
@@ -33,4 +33,7 @@ await build({
     define: { __VERSION__: JSON.stringify(pkg.version) },
     legalComments: 'none',
 })
-console.log(`Built the standalone engine → public/engine/openbots-engine.mjs`)
+// The same file under its version too, so a computer can download (and keep) exactly that version
+const standalone = new URL('../public/engine/openbots-engine.mjs', import.meta.url)
+copyFileSync(standalone, new URL(`../public/engine/openbots-engine-${pkg.version}.mjs`, import.meta.url))
+console.log(`Built the standalone engine → public/engine/openbots-engine.mjs (and openbots-engine-${pkg.version}.mjs)`)

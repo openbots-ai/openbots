@@ -55,19 +55,34 @@ export function Btn({ variant = 'secondary', size = 'sm', className, ...props }:
     )
 }
 
-export function ConfirmDelete({ onConfirm, label = 'Delete', what = 'this' }: { onConfirm: () => void; label?: string; what?: string }) {
+// `title`, `description` and `confirm` reword it for an action that isn't a delete (e.g. resetting a token)
+export function ConfirmDelete({
+    onConfirm,
+    label = 'Delete',
+    what = 'this',
+    title,
+    description = "This can't be undone.",
+    confirm = 'Delete',
+}: {
+    onConfirm: () => void
+    label?: string
+    what?: string
+    title?: string
+    description?: string
+    confirm?: string
+}) {
     return (
         <AlertDialog>
             <AlertDialogTrigger render={<Btn variant="danger" />}>{label}</AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Delete {what}?</AlertDialogTitle>
-                    <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+                    <AlertDialogTitle>{title ?? `Delete ${what}?`}</AlertDialogTitle>
+                    <AlertDialogDescription>{description}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Keep</AlertDialogCancel>
                     <AlertDialogAction variant="destructive" onClick={onConfirm}>
-                        Delete
+                        {confirm}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

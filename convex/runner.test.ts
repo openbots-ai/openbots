@@ -37,7 +37,7 @@ async function setup() {
 }
 
 // The editable fields of an agent, for update
-const fields = (a: { name: string; role: string; hue: number; prompt: string; greeting: string; status: 'draft' | 'live' | 'paused' }) => ({
+const fields = (a: { name: string; role: string; hue: number; prompt: string; greeting?: string; status: 'draft' | 'live' | 'paused' }) => ({
     name: a.name,
     role: a.role,
     hue: a.hue,
@@ -65,6 +65,19 @@ describe('agent API', () => {
         expect(await base.query(api.runner.config, { token })).not.toBeNull()
         await owner.mutation(api.runners.revoke, { id: runnerId })
         await expect(base.query(api.runner.config, { token })).rejects.toThrow(/invalid or was revoked/)
+    })
+
+    it('resets a token in place: the old one stops working, the new one works, the engine keeps its settings', async () => {
+        const { base, owner, token, runnerId } = await setup()
+        await owner.mutation(api.runners.setPublicUrl, { id: runnerId, publicUrl: 'https://bots.example.com' })
+        const fresh = newToken()
+        await owner.mutation(api.runners.resetToken, { id: runnerId, tokenHash: await hashToken(fresh) })
+        await expect(base.query(api.runner.config, { token })).rejects.toThrow(/invalid or was revoked/)
+        expect(await base.query(api.runner.config, { token: fresh })).not.toBeNull()
+        expect(await owner.query(api.runners.list, {})).toMatchObject([{ _id: runnerId, name: 'Mac mini', publicUrl: 'https://bots.example.com' }])
+        await expect(owner.mutation(api.runners.resetToken, { id: runnerId, tokenHash: 'nope' })).rejects.toThrow(/Make the token in the dashboard/)
+        const other = await user(base, 'Ana')
+        await expect(other.mutation(api.runners.resetToken, { id: runnerId, tokenHash: await hashToken(newToken()) })).rejects.toThrow(/Not found/)
     })
 
     it('stores only the hash of a token, and shows the agent only its own workspace', async () => {
@@ -119,6 +132,14 @@ describe('models from your keys', () => {
         // A saved choice the key no longer offers can stay while other fields change
         await beat({ models: [OPENAI[0]] })
         await save('openai:gpt-4o-mini', 'Pip 2')
+    })
+
+    it("refuses choices for slots that don't run yet", async () => {
+        const { owner, agentId } = await setup()
+        const agent = (await owner.query(api.agents.get, { id: agentId }))!
+        await expect(owner.mutation(api.workspace.setModel, { slot: 'voice', model: 'elevenlabs' })).rejects.toThrow(/can't be used for voice/)
+        await expect(owner.mutation(api.agents.update, { id: agentId, ...fields(agent), models: { vision: 'same-as-brain' } })).rejects.toThrow(/can't be used for vision/)
+        await owner.mutation(api.workspace.setModel, { slot: 'computer', model: 'claude-opus-5.5-computer-use' })
     })
 
     it('keeps the engine’s reminder and watch counts per agent', async () => {
