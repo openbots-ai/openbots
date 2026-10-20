@@ -80,11 +80,13 @@ export async function check<P extends keyof Credentials>(provider: P, creds: Cre
 
 // Points the account's incoming messages at your engine's webhook, unless it already is. Twilio is set per number
 // when a number is added.
-export async function registerWebhook(provider: keyof Credentials, creds: Credentials[keyof Credentials], url: string) {
+// Sendblue's webhook goes in with `secret`, which it sends back in the sb-signing-secret header of each post
+export async function registerWebhook(provider: keyof Credentials, creds: Credentials[keyof Credentials], url: string, secret?: string) {
     if (provider === 'sendblue') {
         const c = creds as Credentials['sendblue']
-        const existing = await call(`${SENDBLUE}/api/account/webhooks`, { headers: sendblueAuth(c) }, 'Sendblue')
-        if (!JSON.stringify(existing).includes(url)) await call(`${SENDBLUE}/api/account/webhooks`, { method: 'POST', headers: sendblueAuth(c), body: JSON.stringify({ webhooks: [url], type: 'receive' }) }, 'Sendblue')
+        const existing = JSON.stringify(await call(`${SENDBLUE}/api/account/webhooks`, { headers: sendblueAuth(c) }, 'Sendblue'))
+        if (!existing.includes(url) || (secret && !existing.includes(secret)))
+            await call(`${SENDBLUE}/api/account/webhooks`, { method: 'POST', headers: sendblueAuth(c), body: JSON.stringify({ webhooks: [secret ? { url, secret } : url], type: 'receive' }) }, 'Sendblue')
     }
     if (provider === 'bluebubbles') {
         const c = creds as Credentials['bluebubbles']

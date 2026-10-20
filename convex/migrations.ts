@@ -1,6 +1,7 @@
 import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { internalMutation } from './_generated/server'
+import { handleKey } from './lib/handles'
 
 // Tables from before messages, contacts and credentials moved onto your engine. They're no longer in the schema,
 // so they're named loosely.
@@ -76,5 +77,22 @@ export const purgeLegacy = internalMutation({
             if (ws.notifyDigest !== undefined || ws.lastDigestDay !== undefined) await ctx.db.patch('workspace', ws._id, { notifyDigest: undefined, lastDigestDay: undefined })
         }
         return `deleted ${deleted}, done`
+    },
+})
+
+// Keys your numbers again after handleKey started keeping country codes (+47 9xxxxxxx no longer matches +1 479xxxxxxx,
+// and US numbers gained their leading 1). npx convex run migrations:rekeyHandles
+export const rekeyHandles = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        let changed = 0
+        for (const n of await ctx.db.query('numbers').take(5000)) {
+            const key = handleKey(n.handle)
+            if (key && key !== n.key) {
+                await ctx.db.patch('numbers', n._id, { key })
+                changed++
+            }
+        }
+        return `${changed} numbers keyed again`
     },
 })
