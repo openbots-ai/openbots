@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
 import { describe, expect, it } from 'vitest'
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import schema from './schema'
 import { keyModels, resolveModels } from './lib/models'
 import { hashToken, newToken } from './lib/tokens'
@@ -58,6 +58,21 @@ describe('workspaces', () => {
     })
 })
 
+describe('numbers', () => {
+    it('tells a Norwegian number from a US one with the same digits, and re-keys numbers saved the old way', async () => {
+        const { base, owner } = await setup()
+        await owner.mutation(api.numbers.add, { handle: '+47 912 34 567', channel: 'sendblue' })
+        await owner.mutation(api.numbers.add, { handle: '+1 479 123 4567', channel: 'sendblue' })
+        await expect(owner.mutation(api.numbers.add, { handle: '(479) 123-4567', channel: 'sendblue' })).rejects.toThrow(/already added/)
+        // A key from before country codes were kept
+        const old = await base.run((ctx) => ctx.db.query('numbers').first())
+        await base.run((ctx) => ctx.db.patch('numbers', old!._id, { key: '4155550101' }))
+        expect(await base.mutation(internal.migrations.rekeyHandles, {})).toBe('1 numbers keyed again')
+        const keys = await base.run(async (ctx) => (await ctx.db.query('numbers').collect()).map((n) => n.key))
+        expect(keys.sort()).toEqual(['14155550101', '14791234567', '4791234567'])
+    })
+})
+
 describe('agent API', () => {
     it('refuses a wrong or revoked token', async () => {
         const { base, owner, token, runnerId } = await setup()
@@ -77,7 +92,7 @@ describe('agent API', () => {
         await other.mutation(api.agents.create, { name: 'Not yours', role: '', hue: 0, prompt: '', greeting: '', status: 'live' })
         const config = (await base.query(api.runner.config, { token }))!
         expect(config.agents.map((a) => a.name)).toEqual(['Pip'])
-        expect(config.numbers[0]).toMatchObject({ key: '4155550101', channel: 'mac' })
+        expect(config.numbers[0]).toMatchObject({ key: '14155550101', channel: 'mac' })
         expect(config.workspace).not.toHaveProperty('userId')
     })
 

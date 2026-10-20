@@ -32,7 +32,10 @@ export class BlueBubblesTransport implements Transport {
             const chatGuid = str(chat?.guid)
             // Group chat guids contain ";+;"
             const isGroup = !!chatGuid && chatGuid.includes(';+;')
-            if (from && text) await onText({ channel: 'bluebubbles', from, body: text, thread: isGroup ? { key: chatGuid!, title: str(chat?.displayName) } : undefined })
+            // A Mac that forwards your iPhone's SMS shows them too: their chat guid starts with SMS, not iMessage
+            const service = str((m.handle as { service?: unknown } | undefined)?.service) ?? chatGuid?.split(';')[0]
+            const sms = service !== 'iMessage'
+            if (from && text) await onText({ channel: 'bluebubbles', from, body: text, thread: isGroup ? { key: chatGuid!, title: str(chat?.displayName) } : undefined, ...(sms ? { sms } : {}) })
             return json({ ok: true })
         })
         await registerWebhook('bluebubbles', this.creds, this.hookUrl)

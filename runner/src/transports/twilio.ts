@@ -1,5 +1,6 @@
 import { sendText, twilioBuy, twilioOwned, twilioPoint, twilioSearch, twilioSignature, type Credentials } from '../providers'
 import type { Server } from '../server'
+import { sameSecret } from './relay'
 import type { Line, OnText, Outgoing, Transport } from './types'
 
 const twiml = { body: '<?xml version="1.0" encoding="UTF-8"?><Response/>', type: 'text/xml' }
@@ -19,7 +20,8 @@ export class TwilioTransport implements Transport {
     async start(onText: OnText) {
         this.server.route(new URL(this.hookUrl).pathname, async ({ headers, body }) => {
             const params = Object.fromEntries(new URLSearchParams(body)) as Record<string, string>
-            if (headers['x-twilio-signature'] !== (await twilioSignature(this.creds.authToken, this.hookUrl, params))) return { status: 403, body: 'Bad signature' }
+            // Compared in constant time, so the response time gives nothing away about the right signature
+            if (!sameSecret(String(headers['x-twilio-signature'] ?? ''), await twilioSignature(this.creds.authToken, this.hookUrl, params))) return { status: 403, body: 'Bad signature' }
             if (params.From && params.To && params.Body) await onText({ channel: 'twilio', from: params.From, to: params.To, body: params.Body })
             return twiml
         })
