@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Cpu, MessageCircle, Plus, Search, Settings, Tag, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Bot, ChartLine, ChevronDown, ChevronsUpDown, Cpu, Hand, Hourglass, MessageCircle, MessagesSquare, Plus, Search, Settings, Tag, Users, X, type LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
@@ -9,19 +9,18 @@ import { UsageGauge } from '@/components/usage-gauge'
 import { Progress } from '@/components/ui/progress'
 import { DEFAULT_CONFIG } from '@/lib/agent-options'
 import { SLOT_ICONS } from '@/components/slot-icons'
-import { SLOTS, resolveModels, slotOf, type SlotId } from '@convex/lib/models'
+import { LIVE_SLOTS, SLOTS, resolveModels, slotOf, type SlotId } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
 
 type Status = 'draft' | 'live'
 
 // What each tab's agent gets set up with in the editor
-const settings: Record<string, { type: string; prompt: string; number: string; model: string; voice: string; language: string }> = {
+const settings: Record<string, { type: string; prompt: string; number: string; model: string; language: string }> = {
     Waffles: {
         type: 'Personal',
         prompt: 'Help me keep up with everyday tasks. Keep replies short and friendly. Ask before sending messages or making purchases.',
         number: '+1 (415) 555-0142',
         model: 'grok-4',
-        voice: 'omar',
         language: 'en-US',
     },
     Pebble: {
@@ -29,7 +28,6 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
         prompt: 'Compare the options I send you. Give me a short recommendation with sources and tradeoffs. Ask about my budget first.',
         number: '+1 (415) 555-0178',
         model: 'gemini-2.5-flash',
-        voice: 'theo',
         language: 'en-GB',
     },
     Mochi: {
@@ -37,7 +35,6 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
         prompt: 'Help me plan a realistic week. Leave room between meetings and keep evenings free. Ask before changing my calendar.',
         number: '+1 (415) 555-0193',
         model: 'claude-sonnet-5.5',
-        voice: 'nia',
         language: 'en-US',
     },
     Honey: {
@@ -45,7 +42,6 @@ const settings: Record<string, { type: string; prompt: string; number: string; m
         prompt: 'Help me write in my own voice: warm, direct, no corporate language. Show me the draft before sending anything.',
         number: '+1 (415) 555-0127',
         model: 'claude-haiku-4.5',
-        voice: 'mei',
         language: 'multi',
     },
 }
@@ -60,7 +56,7 @@ const existing: { name: string; role: string; number: string; status: Status | '
 
 const AVATARS = ['tofu', 'lulu', 'rishi', 'pip', 'mochi', 'biscuit', 'pebble', 'penny', 'waffles', 'honey', 'sprout']
 
-// The flow as timed beats: press Create, fill the dialog, pick model, voice and language, fill the editor, attach a
+// The flow as timed beats: press Create, fill the dialog, pick model and language, fill the editor, attach a
 // number and go live, then open Models to see its mix and Analytics to see what each model did
 // Three short flows through the same agent, one per tab
 type FlowId = 'build' | 'models' | 'analytics'
@@ -72,15 +68,17 @@ const AGENT = useCases.find((u) => u.agent === 'Mochi')!
 // `short` replaces the title on phones, where three steps share one row
 const FLOWS: { id: FlowId; title: string; short: string; detail: string; hue: number }[] = [
     { id: 'build', title: 'Create an agent', short: 'Create', detail: 'give it a name, a job and a personality', hue: 205 },
-    { id: 'models', title: 'Pick its models', short: 'Models', detail: 'a different model for every part', hue: 262 },
-    { id: 'analytics', title: 'See what it did', short: 'Results', detail: 'every task and cost, per model', hue: 160 },
+    { id: 'models', title: 'Pick its models', short: 'Models', detail: 'brain, backup and computer use', hue: 262 },
+    { id: 'analytics', title: 'See what it did', short: 'Results', detail: 'replies, handoffs and usage, per model', hue: 160 },
 ]
 
 // Stretches every beat so each step has time to land
 const PACE = 1.35
 
-// The model slots after the brain, filled one by one in the models flow
-const OTHER_SLOTS = SLOTS.filter((slot) => slot.id !== 'brain')
+// The model slots after the brain that run today, filled one by one in the models flow
+const OTHER_SLOTS = LIVE_SLOTS.filter((slot) => slot.id !== 'brain')
+// Slots the catalog lists that aren't built yet; the Models screen names them as roadmap, never as picks
+const ROADMAP_SLOTS = SLOTS.filter((slot) => !slot.runs)
 
 // Each flow as timed beats. Beats from earlier flows that a flow starts after count as already done
 // (see DONE), so "mix the models" opens on the finished editor and "track the work" on the agent list.
@@ -105,7 +103,6 @@ const timeline = (flow: FlowId, agent: string, role: string) => {
               ? [
                     ['intro', 900],
                     ['model', 1700],
-                    ['voice', 2300],
                     ['language', 1600],
                     ['slots', OTHER_SLOTS.length * 650],
                     ['save', 700],
@@ -135,20 +132,18 @@ const DONE: Record<FlowId, Set<string>> = {
 }
 
 // Within the model and language beats: the menu is open between these points and the pointer reaches the pick at HOVER.
-// The voice beat closes its menu earlier so most of it is left for the preview playing.
 const MENU_OPEN = 0.1
 const MENU_HOVER = 0.4
 const MENU_CLOSE = 0.75
-const VOICE_MENU_CLOSE = 0.45
 
-type Menu = { control: 'model' | 'voice' | 'language'; hovered: string }
-function menuAt(p: (key: string) => number, s: { model: string; voice: string; language: string }): Menu | undefined {
+type Menu = { control: 'model' | 'language'; hovered: string }
+function menuAt(p: (key: string) => number, s: { model: string; language: string }): Menu | undefined {
     const at = (control: Menu['control'], pick: string, fallback: string, close: number): Menu | undefined => {
         const t = p(control)
         if (t < MENU_OPEN || t >= close) return undefined
         return { control, hovered: t >= MENU_HOVER * (close / MENU_CLOSE) ? pick : fallback }
     }
-    return at('model', s.model, DEFAULT_CONFIG.model, MENU_CLOSE) ?? at('voice', s.voice, DEFAULT_CONFIG.voice, VOICE_MENU_CLOSE) ?? at('language', s.language, DEFAULT_CONFIG.language, MENU_CLOSE)
+    return at('model', s.model, DEFAULT_CONFIG.model, MENU_CLOSE) ?? at('language', s.language, DEFAULT_CONFIG.language, MENU_CLOSE)
 }
 
 // The phone number picker lists "None", the agent's number, and a couple of other free numbers
@@ -358,14 +353,12 @@ type EditorState = {
     // Phone number option the pointer is on while the picker is open
     numberMenu?: string
     model: string
-    voice: string
     language: string
-    playing: boolean
-    configFocus?: 'model' | 'voice' | 'language'
+    configFocus?: 'model' | 'language'
     // How many of the other model slots have been picked so far; the next one is drawn focused
     filled: number
     filling: boolean
-    menu?: { control: 'model' | 'voice' | 'language'; hovered: string }
+    menu?: Menu
 }
 
 function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
@@ -394,9 +387,9 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
                     interactive={false}
                     menu={e.menu}
                     model={e.model}
-                    voice={e.voice}
+                    voice=""
+                    showVoice={false}
                     language={e.language}
-                    playing={e.playing}
                     highlight={e.configFocus}
                     // The other parts start empty and take this agent's mix one at a time in the models flow
                     slots={OTHER_SLOTS.map((slot, i) => ({ slot, value: i < e.filled ? MIXES[e.agent]?.[slot.id] || slot.default : '', highlight: i === e.filled && e.filling }))}
@@ -468,23 +461,23 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
 
 // Each demo agent's model mix: the slots it runs on something other than the workspace default
 const MIXES: Record<string, Partial<Record<SlotId, string>>> = {
-    Waffles: { brain: 'grok-4', voice: 'cartesia-sonic' },
-    Pebble: { brain: 'gemini-2.5-flash', computer: 'claude-opus-5.5-computer-use', listening: 'whisper' },
-    Mochi: { brain: 'claude-sonnet-5.5', calls: 'gemini-live' },
-    Honey: { brain: 'claude-haiku-4.5', voice: 'openai-tts' },
+    Waffles: { brain: 'grok-4' },
+    Pebble: { brain: 'gemini-2.5-flash', computer: 'claude-opus-5.5-computer-use' },
+    Mochi: { brain: 'claude-sonnet-5.5', backup: 'gpt-5.1' },
+    Honey: { brain: 'claude-haiku-4.5' },
 }
 
-// Models page: the nine part cards pick up this agent's mix one at a time
+// Models page: the parts that run today pick up this agent's mix one at a time; the rest are named as roadmap
 function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact: boolean }) {
     const mix = resolveModels(undefined, MIXES[agent])
-    const step = SLOTS.length + 1
+    const step = LIVE_SLOTS.length + 1
     return (
         <div className="flex h-full flex-col">
             <Toolbar title="Models">
-                <span className="text-[12px] font-normal text-neutral-500">{agent}’s mix · the best model for each job</span>
+                <span className="text-[12px] font-normal text-neutral-500">{agent}’s mix · the right model for each job</span>
             </Toolbar>
             <div className={cn('grid gap-2.5 p-4', compact ? 'grid-cols-2' : 'grid-cols-3')}>
-                {SLOTS.map((slot, i) => {
+                {LIVE_SLOTS.map((slot, i) => {
                     const Icon = SLOT_ICONS[slot.id]
                     const at = ((i + 1) / step) * 0.85
                     const assigned = t >= at
@@ -499,7 +492,6 @@ function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact
                                     <Icon className="size-3.5" />
                                 </span>
                                 <span className="text-[13px] font-semibold">{slot.label}</span>
-                                {slot.isNew && <span className="rounded-full bg-neutral-100 px-1.5 text-[9px] font-medium text-neutral-600">New</span>}
                             </span>
                             {!compact && <span className="line-clamp-1 text-[11px] text-neutral-500">{slot.blurb}</span>}
                             <span className="flex h-7 items-center gap-2 rounded-md border border-neutral-200 bg-white px-2 text-[12px]">
@@ -518,90 +510,94 @@ function ModelsScreen({ t, agent, compact }: { t: number; agent: string; compact
                         </span>
                     )
                 })}
+                {/* Named, not offered: these parts aren't built yet */}
+                <span className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-300 p-3">
+                    <span className="flex items-center gap-2">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-neutral-100 text-neutral-500">
+                            <Hourglass className="size-3.5" />
+                        </span>
+                        <span className="text-[13px] font-semibold text-neutral-600">On the roadmap</span>
+                    </span>
+                    <span className="text-[11px] leading-snug text-neutral-500">{ROADMAP_SLOTS.map((slot) => slot.label).join(' · ')} · not built yet</span>
+                </span>
             </div>
         </div>
     )
 }
 
-// Analytics page: what this agent cost this month, split by part and by model (sample numbers that follow its mix)
-const COSTS: { slot: SlotId; split: [string, number][] }[] = [
-    { slot: 'brain', split: [['claude-sonnet-5.5', 3.1], ['claude-haiku-4.5', 0.32]] },
-    { slot: 'computer', split: [['claude-sonnet-5.5-computer-use', 5.18]] },
-    { slot: 'calls', split: [['gemini-live', 1.94]] },
-    { slot: 'voice', split: [['elevenlabs', 0.86]] },
-    { slot: 'decisions', split: [['jev', 0.21]] },
-    { slot: 'router', split: [['jev-router', 0.09]] },
+// Analytics page: what this agent did in the last 30 days, the way the dashboard counts it (sample numbers that follow its mix)
+const WORK: { slot: SlotId; split: [string, number][] }[] = [
+    { slot: 'brain', split: [['claude-sonnet-5.5', 412], ['claude-haiku-4.5', 38]] },
+    { slot: 'computer', split: [['claude-sonnet-5.5-computer-use', 96]] },
+    { slot: 'backup', split: [['gpt-5.1', 7]] },
 ]
-const costOf = (slot: SlotId) => COSTS.find((c) => c.slot === slot)!.split.reduce((sum, [, d]) => sum + d, 0)
-const MONTH = COSTS.reduce((sum, c) => sum + costOf(c.slot), 0)
-const TILES: [SlotId, string][] = [
-    ['brain', 'Replies'],
-    ['computer', 'Computer steps'],
-    ['calls', 'Calls'],
-    ['voice', 'Voice notes'],
+const TILES: [LucideIcon, string, number, string][] = [
+    [SLOT_ICONS.brain, 'Replies written', 450, 'mostly Claude Sonnet 5.5'],
+    [MessagesSquare, 'Conversation days', 61, '512 texts in, 450 out'],
+    [Hand, 'Handoffs', 4, 'Texted to you'],
+    [Users, 'New contacts', 9, 'First texts'],
 ]
-const usd = (n: number) => `$${n.toFixed(2)}`
+// Budget credits: a reply is 1, a computer step 2, a backup takeover 1 (convex/lib/usage.ts)
+const BUDGETS: [string, number, number, string][] = [
+    ['Today', 14, 40, 'Resets at midnight UTC'],
+    ['This week', 118, 400, 'Resets Monday'],
+]
 
 function AnalyticsScreen({ t, agent, compact }: { t: number; agent: string; compact: boolean }) {
     // Numbers count up and bars fill over the first half of the beat, easing out
     const fill = 1 - (1 - Math.min(1, t / 0.5)) ** 3
-    const meters: [string, number, number, string][] = [
-        ['This month', MONTH, 25, `${usd(MONTH * fill)} of your $25 cap`],
-        ['Today', 0.62, 2, `${usd(0.62 * fill)} of your $2 daily cap`],
-    ]
+    const count = (n: number) => Math.round(n * fill).toLocaleString('en-US')
     return (
         <div className="flex h-full flex-col">
             <Toolbar title="Analytics">
-                <span className="text-[12px] font-normal text-neutral-500">What {agent} cost this month, part by part</span>
+                <span className="text-[12px] font-normal text-neutral-500">What {agent} did in the last 30 days</span>
             </Toolbar>
             <div className="space-y-3 p-4">
                 <div className={cn('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-4')}>
-                    {TILES.map(([slot, label]) => {
-                        const Icon = SLOT_ICONS[slot]
-                        return (
-                            <span key={slot} className="flex flex-col gap-0.5 rounded-lg p-3 ring-1 ring-black/6">
-                                <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
-                                    <Icon className="size-3" />
-                                    {label}
-                                </span>
-                                <span className="text-[20px] font-semibold tracking-tight tabular-nums">{usd(costOf(slot) * fill)}</span>
+                    {TILES.map(([Icon, label, value, note]) => (
+                        <span key={label} className="flex flex-col gap-0.5 rounded-lg p-3 ring-1 ring-black/6">
+                            <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                                <Icon className="size-3" />
+                                {label}
                             </span>
-                        )
-                    })}
+                            <span className="text-[20px] font-semibold tracking-tight tabular-nums">{count(value)}</span>
+                            <span className="truncate text-[11px] text-neutral-500">{note}</span>
+                        </span>
+                    ))}
                 </div>
 
                 <span className="grid grid-cols-2 gap-3 rounded-lg py-1 ring-1 ring-black/6">
-                    {meters.map(([label, spent, cap, note]) => (
-                        <UsageGauge key={label} label={label} used={spent * fill} limit={cap} note={note} animate={false} />
+                    {BUDGETS.map(([label, used, limit, note]) => (
+                        <UsageGauge key={label} label={label} used={used * fill} limit={limit} note={`${count(used)} of ${limit} credits · ${note}`} animate={false} />
                     ))}
                 </span>
 
                 <span className="block rounded-lg ring-1 ring-black/6">
                     <span className="flex justify-between border-b border-neutral-200/70 px-3 py-2 text-[12px]">
-                        <span className="font-medium">Cost by model</span>
-                        <span className="text-[11px] text-neutral-500">This month</span>
+                        <span className="font-medium">What each model did</span>
+                        <span className="text-[11px] text-neutral-500">Last 30 days</span>
                     </span>
                     <span className="block divide-y divide-neutral-100 px-3">
-                        {COSTS.slice(0, compact ? 4 : COSTS.length).map(({ slot, split }) => {
+                        {WORK.map(({ slot, split }) => {
                             const Icon = SLOT_ICONS[slot]
                             const s = slotOf(slot)!
-                            const total = costOf(slot)
+                            const total = split.reduce((sum, [, n]) => sum + n, 0)
                             return (
                                 <span key={slot} className={cn('grid items-center gap-3 py-2', compact ? 'grid-cols-[132px_1fr]' : 'grid-cols-[150px_1fr]')}>
                                     <span className="flex items-center gap-2">
                                         <Icon className="size-3.5 text-neutral-500" />
                                         <span className="text-[12px] font-medium whitespace-nowrap">{s.label}</span>
-                                        <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{usd(total * fill)}</span>
+                                        <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{count(total)}</span>
                                     </span>
                                     <span className="flex gap-3">
-                                        {split.map(([id, dollars]) => {
+                                        {split.map(([id, n]) => {
                                             const o = s.options.find((x) => x.id === id)!
                                             return (
                                                 <span key={id} className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]">
                                                     <ProviderMark provider={o.provider} className="size-3" />
                                                     <span className="truncate">{o.label}</span>
-                                                    <Progress value={Math.round((dollars / total) * 100 * fill)} className="min-w-6 flex-1" />
-                                                    <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{usd(dollars * fill)}</span>
+                                                    <Progress value={Math.round((n / total) * 100 * fill)} className="min-w-6 flex-1" />
+                                                    <span className="font-mono text-[10px] text-neutral-500 tabular-nums">{count(n)}</span>
                                                 </span>
                                             )
                                         })}
@@ -669,16 +665,13 @@ function CrmMock({ flow, agent, role, elapsed, compact }: { flow: FlowId; agent:
                                     pressSave: active('save') && p('save') < 0.4,
                                     // The models flow opens on an already-saved agent, so it reads "Saved" until the first change
                                     saved: p('save') >= 0.4 || (flow === 'models' && p('model') === 0),
-                                    // Each control's menu opens, the pointer moves to the agent's pick, then it closes on the new value.
-                                    // The voice then plays a short preview.
+                                    // Each control's menu opens, the pointer moves to the agent's pick, then it closes on the new value
                                     model: p('model') >= MENU_CLOSE ? s.model : '',
-                                    voice: p('voice') >= VOICE_MENU_CLOSE ? s.voice : '',
                                     language: p('language') >= MENU_CLOSE ? s.language : '',
-                                    playing: p('voice') >= VOICE_MENU_CLOSE + 0.05 && p('voice') < 1,
                                     menu: menuAt(p, s),
                                     filled: Math.floor(p('slots') * OTHER_SLOTS.length),
                                     filling: active('slots'),
-                                    configFocus: active('model') ? 'model' : active('voice') ? 'voice' : active('language') ? 'language' : undefined,
+                                    configFocus: active('model') ? 'model' : active('language') ? 'language' : undefined,
                                     focus: active('type') ? 'type' : active('prompt') ? 'prompt' : active('status') ? 'status' : active('number') ? 'number' : undefined,
                                 }}
                             />
@@ -813,7 +806,7 @@ export default function CreateAgentDemo() {
                                 <span className="size-2.5 rounded-full bg-[#FEBC2E]" />
                                 <span className="size-2.5 rounded-full bg-[#28C840]" />
                             </div>
-                            <span className="mx-auto truncate rounded-md bg-white px-10 py-0.5 text-[12px] text-neutral-500 ring-1 ring-black/6">opendots.ai/dashboard</span>
+                            <span className="mx-auto truncate rounded-md bg-white px-10 py-0.5 text-[12px] text-neutral-500 ring-1 ring-black/6">localhost:5173/dashboard</span>
                             <span className="w-[42px]" />
                         </div>
 
