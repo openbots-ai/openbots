@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { PageShell } from '@/pages/page-shell'
-import { CONTACT_EMAIL, PRIVACY_EMAIL } from '@/lib/site'
+import { ISSUES_URL, LICENSE_URL, SECURITY_URL } from '@/lib/site'
 
 type Section = { id: string; title: string; body: ReactNode }
 
-const LAST_UPDATED = 'October 6, 2026'
+const LAST_UPDATED = 'October 20, 2026'
 
 const P = ({ children }: { children: ReactNode }) => <p className="type-body text-muted-foreground mt-4">{children}</p>
 
@@ -16,13 +16,17 @@ const List = ({ items }: { items: ReactNode[] }) => (
     </ul>
 )
 
-const Mail = ({ to }: { to: string }) => (
+const A = ({ href, children }: { href: string; children: ReactNode }) => (
     <a
-        href={`mailto:${to}`}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
         className="text-foreground underline decoration-neutral-300 underline-offset-4 hover:decoration-current">
-        {to}
+        {children}
     </a>
 )
+
+const B = ({ children }: { children: ReactNode }) => <strong className="text-foreground font-medium">{children}</strong>
 
 function LegalPage({ title, intro, sections }: { title: string; intro: ReactNode; sections: Section[] }) {
     return (
@@ -68,132 +72,73 @@ function LegalPage({ title, intro, sections }: { title: string; intro: ReactNode
 
 const privacySections: Section[] = [
     {
-        id: 'what-we-collect',
-        title: 'What we collect',
-        body: (
-            <>
-                <P>We collect only what we need to run OpenBots and improve it:</P>
-                <List
-                    items={[
-                        <>
-                            <strong className="text-foreground font-medium">Contact details</strong> you give us, such as the phone number you leave for early access or the name and
-                            email you send through our contact form.
-                        </>,
-                        <>
-                            <strong className="text-foreground font-medium">Messages</strong> you exchange with your agents in iMessage, and the instructions, files and approvals
-                            inside them.
-                        </>,
-                        <>
-                            <strong className="text-foreground font-medium">Connected account data</strong> from the tools you choose to connect, such as your inbox, CRM or calendar,
-                            limited to what an agent needs for the work you hand it.
-                        </>,
-                        <>
-                            <strong className="text-foreground font-medium">Usage and device data</strong>, such as pages visited on our site, browser type and approximate location
-                            from your IP address.
-                        </>,
-                    ]}
-                />
-            </>
-        ),
-    },
-    {
-        id: 'how-we-use-it',
-        title: 'How we use it',
-        body: (
-            <List
-                items={[
-                    'To run your agents and complete the tasks you give them.',
-                    'To text you about early access, your account and the work your agents are doing.',
-                    'To keep OpenBots secure, prevent abuse and fix problems.',
-                    'To understand how the product is used so we can improve it.',
-                ]}
-            />
-        ),
-    },
-    {
-        id: 'agents-and-connected-tools',
-        title: 'Agents and connected tools',
+        id: 'who-has-your-data',
+        title: 'Who has your data',
         body: (
             <>
                 <P>
-                    Each agent only gets access to the tools you grant it, and you can remove that access at any time. Agents ask for your approval before sending anything important,
-                    such as emails, payments or messages to your customers.
+                    OpenBots is software you run yourself. There is no OpenBots service holding accounts, and the project doesn’t receive your data: no messages, no contacts, no keys,
+                    no analytics.
                 </P>
-                <P>Every action an agent takes is recorded in an activity log you can review. We do not use the contents of your connected accounts to advertise to you.</P>
-            </>
-        ),
-    },
-    {
-        id: 'sharing',
-        title: 'Who we share it with',
-        body: (
-            <>
-                <P>We do not sell your personal information. We share it only with:</P>
-                <List
-                    items={[
-                        'Service providers that host, secure and operate OpenBots for us, under contracts that limit how they can use it.',
-                        'AI model providers that process prompts and content to power your agents, without the right to train on your data.',
-                        'Authorities when the law requires it, or when needed to protect the rights and safety of our users or others.',
-                        'A buyer or successor if OpenBots is involved in a merger or acquisition, with notice to you.',
-                    ]}
-                />
-            </>
-        ),
-    },
-    {
-        id: 'retention',
-        title: 'How long we keep it',
-        body: (
-            <P>
-                We keep your information for as long as your account is active or as needed to provide the service. When you delete your account, we delete or anonymize your data within
-                30 days, except where we must keep it to meet legal obligations.
-            </P>
-        ),
-    },
-    {
-        id: 'security',
-        title: 'Security',
-        body: (
-            <P>
-                We encrypt data in transit and at rest, keep credentials for connected tools in isolated, access-controlled storage and limit employee access to what is needed to support
-                you. No system is perfectly secure, so please tell us right away if you believe your account has been compromised.
-            </P>
-        ),
-    },
-    {
-        id: 'your-choices',
-        title: 'Your choices',
-        body: (
-            <>
-                <List
-                    items={[
-                        'Ask for a copy of your data, or ask us to correct or delete it.',
-                        'Disconnect any tool or pause any agent at any time.',
-                        'Stop receiving texts from us by replying STOP.',
-                    ]}
-                />
                 <P>
-                    To make a request, email <Mail to={PRIVACY_EMAIL} />. Depending on where you live, you may have additional rights under local privacy law, and we will honor them.
+                    Whoever runs an OpenBots instance (you, or the person who set it up for you) controls its data and is responsible for it, including keeping it secure and
+                    following the privacy laws that apply to them and the people their agents text.
                 </P>
             </>
         ),
     },
     {
-        id: 'children',
-        title: 'Children',
-        body: <P>OpenBots is not intended for anyone under 16, and we do not knowingly collect information from children.</P>,
+        id: 'where-it-lives',
+        title: 'Where it lives in an instance',
+        body: (
+            <>
+                <P>An OpenBots instance has a few parts, all run by its owner:</P>
+                <List
+                    items={[
+                        <>
+                            <B>The engine</B> on the owner’s own computer keeps contacts, conversations and messages in a local encrypted file.
+                        </>,
+                        <>
+                            <B>The backend</B> on the owner’s Convex deployment keeps settings, agents, knowledge docs, numbers, keys saved in Connections (encrypted) and daily counts.
+                            It never stores message text.
+                        </>,
+                        <>
+                            <B>The dashboard</B> in the browser shows what the backend holds and nothing more.
+                        </>,
+                    ]}
+                />
+                <P>
+                    The full breakdown is in the <A href={SECURITY_URL}>security notes</A>.
+                </P>
+            </>
+        ),
     },
     {
-        id: 'changes',
-        title: 'Changes to this policy',
-        body: <P>If we make material changes, we will update the date above and let you know by text or email before they take effect.</P>,
-    },
-    {
-        id: 'contact',
-        title: 'Contact us',
+        id: 'third-parties',
+        title: 'Providers you connect',
         body: (
             <P>
-                Questions about privacy? Email <Mail to={PRIVACY_EMAIL} /> and a real person will get back to you.
+                To reply, the engine sends messages to the AI provider you picked (OpenAI, Anthropic, Google, xAI or a local model) and sends texts through the texting service you
+                connected (Twilio, Sendblue, BlueBubbles or Messages on a Mac). Those providers handle that data under their own terms and privacy policies, on your account.
+            </P>
+        ),
+    },
+    {
+        id: 'this-website',
+        title: 'This website',
+        body: (
+            <P>
+                This site describes the project. It has no mailing list, contact form or tracking. A dashboard you sign in to belongs to whoever runs that instance, and they hold
+                your account details.
+            </P>
+        ),
+    },
+    {
+        id: 'questions',
+        title: 'Questions',
+        body: (
+            <P>
+                Questions about how OpenBots handles data? <A href={ISSUES_URL}>Open an issue on GitHub</A>.
             </P>
         ),
     },
@@ -201,126 +146,47 @@ const privacySections: Section[] = [
 
 const termsSections: Section[] = [
     {
-        id: 'agreement',
-        title: 'Agreeing to these terms',
+        id: 'license',
+        title: 'License',
         body: (
             <P>
-                By joining early access or using OpenBots, you agree to these terms. If you use OpenBots on behalf of a company, you confirm you have authority to accept them for that
-                company.
+                OpenBots is open-source software released under the <A href={LICENSE_URL}>MIT license</A>. You may use, copy, modify and distribute it under that license’s terms.
+                The license text is the agreement that applies; this page just summarizes it.
             </P>
         ),
     },
     {
-        id: 'early-access',
-        title: 'Early access',
+        id: 'as-is',
+        title: 'Provided as is',
         body: (
             <P>
-                OpenBots is in early access. Features may change, break or be removed, and we may limit how many people can use it. OpenBots is free during early access. If we
-                introduce paid plans, we will tell you before you are charged anything.
+                The software is provided “as is”, without warranty of any kind. The authors and contributors aren’t liable for any claim, damages or other liability arising from
+                its use. Agents can make mistakes: review what they do, especially anything that sends, buys or can’t be undone.
             </P>
         ),
     },
     {
-        id: 'your-account',
-        title: 'Your account',
+        id: 'running-an-instance',
+        title: 'Running an instance',
+        body: (
+            <List
+                items={[
+                    <>If you run an instance, you’re responsible for it: its data, its security, and how its agents are used.</>,
+                    <>
+                        You need your own accounts with the AI, texting and hosting providers you use, and you agree to their terms and pay them directly. That includes texting rules
+                        like consent and, for US SMS, A2P 10DLC registration.
+                    </>,
+                    <>There is no OpenBots account, subscription or hosted service, so there’s nothing to cancel with us.</>,
+                ]}
+            />
+        ),
+    },
+    {
+        id: 'questions',
+        title: 'Questions',
         body: (
             <P>
-                You need to be at least 16 and provide accurate information to use OpenBots. You are responsible for activity on your account and for keeping your phone and connected
-                accounts secure.
-            </P>
-        ),
-    },
-    {
-        id: 'agents',
-        title: 'Working with agents',
-        body: (
-            <>
-                <P>Agents act on your instructions and with the access you grant them. You stay responsible for the work you hand off, including:</P>
-                <List
-                    items={[
-                        'Reviewing what an agent asks you to approve before you approve it.',
-                        'Making sure you have the right to connect each tool and to let an agent use it.',
-                        'Checking agent output before relying on it for important decisions.',
-                    ]}
-                />
-                <P>AI can make mistakes. Agent output is provided as is, and you should verify anything that matters.</P>
-            </>
-        ),
-    },
-    {
-        id: 'acceptable-use',
-        title: 'Acceptable use',
-        body: (
-            <>
-                <P>Do not use OpenBots to:</P>
-                <List
-                    items={[
-                        'Break the law or violate the rights of others.',
-                        'Send spam or unsolicited messages at scale.',
-                        'Access systems or data you are not authorized to access.',
-                        'Interfere with, reverse engineer or overload the service.',
-                    ]}
-                />
-            </>
-        ),
-    },
-    {
-        id: 'your-content',
-        title: 'Your content',
-        body: (
-            <P>
-                You own the content you send to OpenBots and the work your agents produce for you. You give us permission to process that content only as needed to run and improve the
-                service for you, as described in our{' '}
-                <a
-                    href="/privacy"
-                    className="text-foreground underline decoration-neutral-300 underline-offset-4 hover:decoration-current">
-                    Privacy Policy
-                </a>
-                .
-            </P>
-        ),
-    },
-    {
-        id: 'third-party-services',
-        title: 'Third-party services',
-        body: (
-            <P>
-                OpenBots works with services we do not control, including iMessage and the tools you connect. Their own terms apply to your use of them, and we are not responsible for
-                their availability or changes.
-            </P>
-        ),
-    },
-    {
-        id: 'termination',
-        title: 'Ending your use',
-        body: (
-            <P>
-                You can stop using OpenBots and delete your account at any time. We may suspend or end access if you break these terms or if we need to protect the service or other
-                users.
-            </P>
-        ),
-    },
-    {
-        id: 'liability',
-        title: 'Disclaimers and liability',
-        body: (
-            <P>
-                OpenBots is provided as is, without warranties of any kind. To the extent the law allows, OpenBots is not liable for indirect or consequential damages, and our total
-                liability is limited to the amount you paid us in the 12 months before the claim.
-            </P>
-        ),
-    },
-    {
-        id: 'changes',
-        title: 'Changes to these terms',
-        body: <P>We may update these terms as OpenBots grows. We will update the date above and give you notice of material changes before they take effect.</P>,
-    },
-    {
-        id: 'contact',
-        title: 'Contact us',
-        body: (
-            <P>
-                Questions about these terms? Email <Mail to={CONTACT_EMAIL} />.
+                Questions about these terms? <A href={ISSUES_URL}>Open an issue on GitHub</A>.
             </P>
         ),
     },
@@ -328,16 +194,16 @@ const termsSections: Section[] = [
 
 export const PrivacyPage = () => (
     <LegalPage
-        title="Privacy Policy"
-        intro="OpenBots puts AI agents in your iMessage. They only work well if you can trust them with your information, so this page explains plainly what we collect, why, and the control you have over it."
+        title="Privacy"
+        intro="OpenBots doesn’t collect your data. Whoever runs an instance owns what’s in it."
         sections={privacySections}
     />
 )
 
 export const TermsPage = () => (
     <LegalPage
-        title="Terms of Service"
-        intro="These terms cover your use of OpenBots during early access. We have kept them short and in plain language."
+        title="Terms"
+        intro="OpenBots is free, open-source software you run yourself. Here’s what that means."
         sections={termsSections}
     />
 )
