@@ -16,34 +16,40 @@ so it can write the reply. Use a local model server if nothing should leave your
 
 ## Start it
 
-1. In the dashboard, open **Connections**, name the computer and add it. Connections then shows, once, the commands
-   to start the engine on Windows, Mac or Linux, with this computer's token already in them. The token is never
-   stored, because Convex keeps only its hash.
-2. Run those commands on the computer (Node.js 22 or newer). They download the engine, a single file this site
-   serves, and start it. Add your AI key(s) and a way to text in Connections, or as environment variables on the
-   engine (see Settings below).
+1. In the dashboard, open **Connections**, name the computer and add it. Connections then shows, once, this
+   computer's token and the commands to start the engine on Windows, Mac or Linux. Convex keeps only the token's hash, so
+   copy it then.
+2. Run those commands on the computer. It needs [Node.js](https://nodejs.org/en/download) **22.13 or newer**; the
+   engine checks when it starts and says so if yours is older. The commands download the engine, a single file this
+   site serves, and start it.
+3. The first time it starts, the engine asks for the token. Paste it there (it doesn't show as you paste). It's saved
+   in `token` in the data folder (`~/.openbots` by default), readable only by you, so later starts don't ask again.
+   The token never goes on the command line, so your shell history doesn't keep it; it unlocks every key saved in
+   Connections.
+4. Add your AI key(s) and a way to text in Connections, or as environment variables on the engine (see Settings
+   below).
 
 By hand, on a Mac or Linux:
 
 ```sh
 mkdir -p ~/openbots && cd ~/openbots
-curl -L -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
-OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud \
-OPENBOTS_TOKEN=obr_... \
-OPENBOTS_TUNNEL=true \
-node openbots-engine.mjs
+curl -fL -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
+OPENBOTS_CONVEX_URL=https://<your-deployment>.convex.cloud node openbots-engine.mjs
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
 mkdir -Force $HOME\openbots | Out-Null; cd $HOME\openbots
-curl.exe -L -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
+curl.exe -fL -o openbots-engine.mjs https://www.getopenbots.com/engine/openbots-engine.mjs
 $env:OPENBOTS_CONVEX_URL = "https://<your-deployment>.convex.cloud"
-$env:OPENBOTS_TOKEN = "obr_..."
-$env:OPENBOTS_TUNNEL = "true"
 node openbots-engine.mjs
 ```
+
+If you text through Twilio or Sendblue, add `OPENBOTS_TUNNEL=true` (see below). Where no one is at a terminal to
+paste the token (Docker, a service), set `OPENBOTS_TOKEN` in its environment or an env file instead, or start it once
+by hand so the token is saved. **Reset token** in Connections gives the same engine a new token and stops the old one;
+on its next start the engine says the saved token no longer works and asks for the new one.
 
 Keep the window open: the engine runs while it's open. Start it from your normal desktop session, not as a
 service, if you want computer use (it needs to see the screen).
@@ -54,9 +60,13 @@ so it can read `~/Library/Messages`, and allow it to control **Messages** when m
 chats and starts from the newest message, so old history isn't answered.
 
 Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL. `OPENBOTS_TUNNEL=true` gets one
-from Cloudflare (install `cloudflared` first: `winget install --id Cloudflare.cloudflared` on Windows, `brew install
-cloudflared` on a Mac); your own tunnel or Tailscale Funnel to port 8787 works too. BlueBubbles only needs the Mac to reach the engine, so a private
-network address works. Every webhook path carries a random secret, and Twilio's requests are checked against its
+from Cloudflare; install `cloudflared` first (`winget install --id Cloudflare.cloudflared` on Windows, then open a new
+window; `brew install cloudflared` on a Mac with [Homebrew](https://brew.sh); on Linux, the `cloudflared-linux-<arch>`
+download for your machine from [its releases](https://github.com/cloudflare/cloudflared/releases/latest), with
+`OPENBOTS_CLOUDFLARED` pointing at it). Your own tunnel or Tailscale Funnel to port 8787 works too. Messages on a Mac
+needs no URL at all. BlueBubbles needs only an address your Mac can reach the engine at, so a private one works: on the
+same Mac, `http://127.0.0.1:8787`; from another machine on your network, its private address, with the engine started
+with `OPENBOTS_HOST=0.0.0.0`. Set it as the Public URL in Connections (or `OPENBOTS_PUBLIC_URL`). Every webhook path carries a random secret, and Twilio's requests are checked against its
 signature.
 
 On start, and every six hours, the engine checks each key and account with its provider and reports what it found.
@@ -67,17 +77,17 @@ Use **Re-check** in Connections after you get access to a new model.
 | Variable | |
 | --- | --- |
 | `OPENBOTS_CONVEX_URL` | Your Convex deployment URL (the dashboard's `VITE_CONVEX_URL`). Required. |
-| `OPENBOTS_TOKEN` | The token from Connections. Required. |
-| `OPENBOTS_DATA_DIR` | Where history and its key live. Default `~/.openbots`; `/data` in Docker. |
+| `OPENBOTS_TOKEN` | The token from Connections. Optional: without it the engine asks for the token once and saves it in `OPENBOTS_DATA_DIR`. Set it where there's no terminal (Docker, a service). |
+| `OPENBOTS_DATA_DIR` | Where history, its key and the saved token live. Default `~/.openbots`; `/data` in Docker. |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` | Your AI keys. The engine lists the chat models each can use, and the dashboard offers exactly those. |
 | `OPENBOTS_LOCAL_URL` | A local, OpenAI-compatible model server, e.g. `http://localhost:11434/v1` for Ollama. Its models are listed too. `OPENBOTS_LOCAL_KEY` if it needs one. |
 | `OPENBOTS_MAC` | `true` to text through Messages on this Mac. On by default on macOS when no other texting is set up. |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the engine does it. |
 | `SENDBLUE_API_KEY_ID`, `SENDBLUE_API_SECRET` | iMessage through your Sendblue line. |
 | `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD` | iMessage through BlueBubbles Server on your Mac, with group chats. |
-| `OPENBOTS_TUNNEL` | `true` to get a public HTTPS address from Cloudflare's quick tunnel (no open ports, no account). The engine uses it as its public URL when none is set and re-points Sendblue and Twilio when it changes. Orgo computers use this. |
+| `OPENBOTS_TUNNEL` | `true` to get a public HTTPS address from Cloudflare's quick tunnel (no open ports, no account), for Twilio or Sendblue. The engine uses it as its public URL when none is set and re-points Sendblue and Twilio when it changes. Orgo computers use this. |
 | `OPENBOTS_CLOUDFLARED` | Path to the `cloudflared` binary for the tunnel (default: `cloudflared` on the PATH). |
-| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; can also be set per engine in Connections. |
+| `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; public HTTPS for Twilio and Sendblue, any address your Mac can reach for BlueBubbles. Can also be set per engine in Connections. |
 | `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |
 | `OPENBOTS_INBOUND_SECRET`, `OPENBOTS_RELAY_URL`, `OPENBOTS_RELAY_SECRET` | Your own relay (protocol below). |
 | `RESEND_API_KEY`, `RESEND_FROM` | Also email you handoff alerts, at the email in Settings. |
@@ -142,8 +152,11 @@ Messages history unencrypted on disk.
 
 ## Updating, and checking what you run
 
-The engine never updates itself. Change the pinned version (`openbots-runner@x.y.z`, or the image tag) when you
-decide to. Releases are built and published by GitHub Actions from this repository, never from a laptop:
+The engine never updates itself: it runs the file you downloaded until you download it again. Connections shows each
+engine's version. To stay on one version, download that version's file, which the site also serves under its number:
+`/engine/openbots-engine-0.2.0.mjs`. If you use the npm package or Docker image that the release workflow builds
+instead, pin `openbots-runner@x.y.z` or the image tag. Those releases are built and published by GitHub Actions from
+this repository, never from a laptop:
 
 ```sh
 # npm: check the package's provenance and registry signatures

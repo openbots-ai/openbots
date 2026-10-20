@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { AlertCircle, Bot, Check, Copy, ExternalLink, HardDrive, Laptop, Mail, MessageCircle, MessageSquareText, RefreshCw, Smartphone, Waypoints, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
@@ -16,7 +16,7 @@ import { KeyForm, type Saved } from '../key-form'
 import { OrgoControls, OrgoCreate } from '../orgo'
 import { TestText } from '../test-text'
 import { relativeTime } from '../lib/time'
-import { setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
+import { MIN_NODE, NODE_URL, setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
 import { useRun } from '../use-run'
@@ -42,7 +42,15 @@ type Info = {
     // Shown once set up: what to do next
     next?: { label: string; view: 'numbers' | 'settings' | 'models' }
     badge?: string
+    // Something to know before relying on it, shown whether or not it's set up
+    notice?: ReactNode
 }
+
+const DocLink = ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
+        {children}
+    </a>
+)
 
 const AI = ['openai', 'anthropic', 'google', 'xai', 'local'] as const
 type Ai = (typeof AI)[number]
@@ -110,12 +118,14 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
     bluebubbles: {
         name: 'BlueBubbles',
         blurb: 'iMessage from your own Mac, free, with group chats. The engine can run elsewhere.',
+        // OPENBOTS_PUBLIC_URL here is any address your Mac can reach the engine at, private or public
         env: ['BLUEBUBBLES_URL', 'BLUEBUBBLES_PASSWORD', 'OPENBOTS_PUBLIC_URL'],
         getUrl: 'https://bluebubbles.app/install',
         getLabel: 'Install BlueBubbles Server',
         steps: [
             'On a Mac that stays on and is signed in to Messages, install BlueBubbles Server and set a password.',
-            'Enter its URL and password here (or set them on your engine), plus this engine’s public URL above.',
+            'Enter its URL and password here (or set them on your engine).',
+            'Give the engine an address your Mac can reach in Public URL above. It doesn’t have to be public: on the same Mac, http://127.0.0.1:8787 works; from another machine on your network, use its private address and start the engine with OPENBOTS_HOST=0.0.0.0.',
             'The engine registers its webhook on your Mac when it starts.',
         ],
         icon: MessageCircle,
@@ -142,8 +152,16 @@ const INFO: Record<Ai | Texting | 'resend', Info> = {
         steps: [
             'Create a Twilio account (Twilio bills you directly for numbers and texts).',
             'Enter the Account SID and Auth token here (or set them on your engine), plus this engine’s public URL above.',
-            'Get a number in Numbers. Texting US numbers needs A2P 10DLC registration in Twilio.',
+            'Get a number in Numbers.',
         ],
+        notice: (
+            <>
+                <span className="font-medium">Texting US numbers needs registration first.</span> Twilio blocks texts from a US local number until its{' '}
+                <DocLink href="https://www.twilio.com/docs/messaging/compliance/a2p-10dlc">A2P 10DLC registration</DocLink> is approved, which takes days to weeks. A toll-free
+                number with <DocLink href="https://www.twilio.com/docs/messaging/compliance/toll-free/console-onboarding">toll-free verification</DocLink> is the alternative. A{' '}
+                <DocLink href="https://www.twilio.com/docs/messaging/guides/how-to-use-your-free-trial-account">trial account</DocLink> can only text numbers you’ve verified in Twilio.
+            </>
+        ),
         icon: Smartphone,
         next: { label: 'Get a number', view: 'numbers' },
         badge: 'SMS',
@@ -199,7 +217,7 @@ export function ConnectionsView() {
             </Toolbar>
             <Scroll>
                 <div className="mx-auto w-full max-w-5xl space-y-8 p-4 pb-16">
-                    <Engines runners={runners} orgoKey={saved?.find((s) => s.service === 'orgo')} />
+                    <Engines runners={runners} orgoKey={saved?.find((s) => s.service === 'orgo')} webhooks={!!saved?.some((s) => s.service === 'twilio' || s.service === 'sendblue') || !!runners?.some((r) => r.services?.some((s) => s.service === 'twilio' || s.service === 'sendblue'))} />
                     {runners && runners.length > 0 && !hasAi && (
                         <Card className="flex flex-row items-start gap-3 rounded-lg border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -249,6 +267,7 @@ function ServiceCard({ id, runners, saved }: { id: Ai | Texting | 'resend'; runn
                 </div>
             </div>
 
+            {info.notice && <p className="rounded-md bg-amber-50 p-2.5 text-[12px] leading-snug text-amber-900">{info.notice}</p>}
             {status && (
                 <div className="space-y-1">
                     <p className={cn('flex items-center gap-1.5 text-[12px]', status.ok ? 'text-emerald-700' : 'text-destructive')}>
@@ -340,30 +359,33 @@ function PublicUrl({ runner }: { runner: Runner }) {
     return (
         <div className="mt-1.5 space-y-1">
             <form
-                className="flex items-center gap-2"
+                className="flex min-w-0 items-center gap-2"
                 onSubmit={(e) => {
                     e.preventDefault()
                     void run(setUrl({ id: runner._id, publicUrl: value || undefined }))
                 }}>
-                <Input aria-label="Public URL" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Public URL, e.g. https://bots.example.com" className="h-8 w-72" />
+                <Input aria-label="Public URL" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Public URL, e.g. https://bots.example.com" className="h-8 min-w-0 flex-1 sm:max-w-72" />
                 <Btn type="submit" variant="primary" disabled={value === (runner.publicUrl ?? '')}>
                     Save
                 </Btn>
             </form>
-            <p className="text-[12px] text-neutral-500">Where Twilio, Sendblue or BlueBubbles reach this engine. Only needed for those.</p>
+            <p className="text-[12px] text-neutral-500">Where Twilio and Sendblue (a public HTTPS address) or BlueBubbles (any address your Mac can reach) reach this engine. Only needed for those.</p>
         </div>
     )
 }
 
-// The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
-function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) {
+// The engines you run, with tokens made here in the browser (Convex only ever gets a hash). `webhooks`: the workspace
+// texts through Twilio or Sendblue, so a new engine starts with the tunnel.
+function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?: Saved; webhooks: boolean }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
+    const resetToken = useMutation(api.runners.resetToken)
     const setComputerUse = useMutation(api.runners.setComputerUse)
     const run = useRun()
     const now = useNow(30_000)
     const [name, setName] = useState('')
-    const [token, setToken] = useState<string | null>(null)
+    // A token just made, shown once: for a new engine, or a reset one (named, so the setup says to restart it)
+    const [token, setToken] = useState<{ value: string; reset?: string } | null>(null)
     // How the next computer is added: on Orgo, or one the user runs themselves
     const [where, setWhere] = useState<'orgo' | 'own'>('orgo')
 
@@ -371,9 +393,15 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
         const fresh = newToken()
         const res = await run(create({ name, tokenHash: await hashToken(fresh) }))
         if (res.ok) {
-            setToken(fresh)
+            setToken({ value: fresh })
             setName('')
         }
+    }
+    // The same engine gets a new token in place; the old one stops working
+    const reset = async (r: Runner) => {
+        const fresh = newToken()
+        const res = await run(resetToken({ id: r._id, tokenHash: await hashToken(fresh) }))
+        if (res.ok) setToken({ value: fresh, reset: r.name })
     }
 
     return (
@@ -395,11 +423,12 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                         // What's stopping computer use here, like a Mac permission that isn't allowed yet
                         const computerError = r.services?.find((s) => s.service === 'computer')?.error
                         return (
-                            <div key={r._id} className="flex items-center gap-3 px-4 py-3">
+                            // On a phone the buttons wrap under the engine's details instead of squeezing them
+                            <div key={r._id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
                                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-neutral-100 text-neutral-700">
                                     <Bot className="size-4" />
                                 </span>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 basis-[calc(100%-3rem)] sm:basis-0">
                                     <p className="flex items-center gap-2 text-[13px] font-medium">
                                         <span className={cn('size-2 rounded-full', online ? 'bg-emerald-500' : 'bg-neutral-300')} aria-hidden />
                                         {r.name}
@@ -430,7 +459,14 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                     {onOrgo ? <OrgoControls runner={r} /> : !r.tunnelUrl && <PublicUrl runner={r} />}
                                 </div>
                                 {!onOrgo && (
-                                    <div className="flex shrink-0 gap-2">
+                                    <div className="ml-12 flex shrink-0 flex-wrap gap-2 sm:ml-0 sm:justify-end">
+                                        <ConfirmDelete
+                                            label="Reset token"
+                                            title={`Reset ${r.name}'s token?`}
+                                            description="Its current token stops working right away. You'll get a new one to paste into the engine when you restart it."
+                                            confirm="Reset"
+                                            onConfirm={() => void reset(r)}
+                                        />
                                         <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
                                     </div>
                                 )}
@@ -471,21 +507,45 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                         </Btn>
                     </form>
                 )}
-                {token && <Setup token={token} onDone={() => setToken(null)} />}
+                {token && <Setup token={token.value} reset={token.reset} webhooks={webhooks} onDone={() => setToken(null)} />}
             </Card>
         </section>
     )
 }
 
-// Shown once after adding an engine: the token and how to start it on that computer. The engine is one file this site
-// serves (built from the same code as the dashboard); the commands carry the token so nothing needs editing.
-function Setup({ token, onDone }: { token: string; onDone: () => void }) {
-    const [system, setSystem] = useState<System>(thisSystem)
-    const steps = setupSteps(system, token, CONVEX_URL, `${window.location.origin}/engine/openbots-engine.mjs`)
+// Shown once after adding an engine (or resetting its token): the token and how to start it on that computer. The
+// engine is one file this site serves (built from the same code as the dashboard). The token isn't in the commands, so
+// shell history never keeps it: the engine asks for it on first start, hidden, and saves it where only you can read it.
+function Setup({ token, reset, webhooks, onDone }: { token: string; reset?: string; webhooks: boolean; onDone: () => void }) {
+    const [system, setSystem] = useState<System>(() => thisSystem())
+    // Only Twilio and Sendblue need the engine reachable from the internet; Messages on a Mac and BlueBubbles don't
+    const [tunnel, setTunnel] = useState(webhooks)
+    const engineUrl = `${window.location.origin}/engine/openbots-engine.mjs`
+    const steps = setupSteps(system, CONVEX_URL, engineUrl, tunnel)
+    // A dev server serves the engine only once it's built (see vite.config.ts); say so instead of a download that fails
+    const missing = useEngineMissing(engineUrl)
+    if (reset)
+        return (
+            <div className="space-y-3 bg-neutral-50 px-4 py-4">
+                <p className="text-[13px] text-neutral-700">
+                    {reset} has a new token, shown only now. Its old one has stopped working: stop the engine on that computer and start it again the same way. When it says
+                    the saved token no longer works, paste this one.
+                </p>
+                <CopyBlock label="The new token" text={token} />
+                <Btn variant="primary" onClick={onDone}>
+                    I’ve copied it
+                </Btn>
+            </div>
+        )
     return (
         <div className="space-y-3 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                Run these on the computer you’re adding. They include its token, which is shown only now and isn’t stored anywhere, so copy them before you close this. Needs Node.js 22 or newer.
+                Run these on the computer you’re adding. It needs{' '}
+                <a href={NODE_URL} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
+                    Node.js {MIN_NODE} or newer
+                </a>
+                . The first time the engine starts, it asks for this computer’s token (below): paste it there, not into a command, so your shell history never keeps it.
+                The token is shown only now and isn’t stored anywhere, so copy it before you close this.
             </p>
             <div className="flex gap-1" role="group" aria-label="Computer’s system">
                 {SYSTEMS.map((s) => (
@@ -499,18 +559,50 @@ function Setup({ token, onDone }: { token: string; onDone: () => void }) {
                     </button>
                 ))}
             </div>
-            <CopyBlock label={`1. If you text through Twilio or Sendblue, install the tunnel they reach it through (${steps.shell})`} text={steps.tunnel} />
-            <CopyBlock label={`2. Download and start the engine (${steps.shell})`} text={steps.start} />
+            <label className="flex items-start gap-2 text-[12px] text-neutral-700">
+                <Switch aria-label="Texts through Twilio or Sendblue" checked={tunnel} onCheckedChange={setTunnel} />
+                <span>
+                    This computer texts through Twilio or Sendblue. They need to reach it from the internet, so the engine starts a free Cloudflare tunnel. Leave it off for
+                    Messages on a Mac or BlueBubbles, or if you set a Public URL of your own.
+                </span>
+            </label>
+            {missing && (
+                <p className="rounded-md bg-amber-50 p-2.5 text-[12px] text-amber-900">
+                    This site isn’t serving the engine yet, so the download below won’t work. On a dev server, run <code className="font-mono">npm run runner:build</code> once
+                    (or restart <code className="font-mono">npm run dev</code>); a production build includes it.
+                </p>
+            )}
+            {tunnel && <CopyBlock label={`1. Install the tunnel (${steps.shell})`} text={steps.tunnel} />}
+            <CopyBlock label={`${tunnel ? '2' : '1'}. Download and start the engine (${steps.shell})`} text={steps.start} />
             <p className="text-[12px] text-neutral-500">
                 Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
-                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Your keys come from the cards below.
+                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Your keys come from the cards
+                below.
             </p>
-            <CopyBlock label="Just the token" text={token} />
+            <CopyBlock label="This computer’s token (paste it when the engine asks)" text={token} />
             <Btn variant="primary" onClick={onDone}>
                 I’ve copied it
             </Btn>
         </div>
     )
+}
+
+// True once a check finds the engine file isn't served here (a dev server before the engine is built)
+function useEngineMissing(url: string) {
+    const [missing, setMissing] = useState(false)
+    useEffect(() => {
+        let live = true
+        fetch(url, { method: 'HEAD' })
+            .then((res) => {
+                // A dev server answers a missing file with the app's own page
+                if (live) setMissing(!res.ok || !!res.headers.get('content-type')?.includes('text/html'))
+            })
+            .catch(() => {})
+        return () => {
+            live = false
+        }
+    }, [url])
+    return missing
 }
 
 function CopyBlock({ label, text }: { label: string; text: string }) {

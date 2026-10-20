@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite'
+import { openDatabase, type DatabaseSync } from './sqlite'
 import type { Vault } from './crypto'
 import type { Channel } from './transports/types'
 
@@ -53,7 +53,7 @@ export class Store {
         path: string,
         private vault: Vault,
     ) {
-        this.db = new DatabaseSync(path)
+        this.db = openDatabase(path)
         this.db.exec(`
             PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS contacts (id INTEGER PRIMARY KEY, tag TEXT NOT NULL UNIQUE, handle TEXT NOT NULL, name TEXT NOT NULL, tags TEXT NOT NULL, notes TEXT NOT NULL, created_at INTEGER NOT NULL);
