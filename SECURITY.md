@@ -91,5 +91,11 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
 
 ## Reporting a vulnerability
 
-Please email security reports to hello@opendots.com with "Security" in the subject, rather than opening a public
-issue. We'll reply within a few days.
+Please report vulnerabilities privately through GitHub's private vulnerability reporting:
+[open a security advisory](https://github.com/shidhartha-sen/opendots/security/advisories/new). Don't open a public
+issue or pull request for a vulnerability. Include what's affected (dashboard, backend or engine, and the engine
+version if it's the engine), how to reproduce it, and what an attacker could do with it. The maintainers will reply
+in the advisory within a few days and credit you when a fix is published, unless you'd rather not be named.
+
+Fixes go into `main`, and engine fixes ship as a new `openbots-runner` release; there are no long-term support
+branches.
