@@ -238,4 +238,45 @@ describe('computer tasks', () => {
         await new Promise((r) => setTimeout(r, 0))
         expect(sent.at(-1)).toBe('Stopped “pay”: the agent was paused.')
     })
+
+    it('texts an approval request whole and takes your next text as the answer', async () => {
+        let answer: string | null = ''
+        const request = `Allow this on your computer?\n• type “${'x'.repeat(400)}”\nReply YES…`
+        const { tasks, ctx, sent, settle } = harness(async (h) => {
+            answer = await h.approve(request)
+            return { outcome: 'done', summary: 'ok', actions: 1 }
+        })
+        tasks.start('t', ctx)
+        await settle()
+        // Not cut to one SMS: the owner sees exactly what will be typed
+        expect(sent[0]).toBe(request)
+        expect(tasks.handle(7, 'YES ALL')).toBe(true)
+        await settle()
+        expect(answer).toBe('YES ALL')
+    })
+
+    it('treats an unanswered approval request as declined, and stop as stop', async () => {
+        vi.useFakeTimers()
+        try {
+            const got: (string | null)[] = []
+            const { tasks, ctx, sent } = harness(async (h) => {
+                got.push(await h.approve('Allow?'))
+                try {
+                    await h.approve('Allow again?')
+                } catch (e) {
+                    if (e instanceof Stopped) return { outcome: 'stopped', summary: e.message, actions: 1 }
+                    throw e
+                }
+                return { outcome: 'done', summary: 'x', actions: 1 }
+            })
+            tasks.start('t', ctx)
+            await vi.advanceTimersByTimeAsync(1001)
+            expect(got).toEqual([null])
+            expect(tasks.handle(7, 'stop')).toBe(true)
+            await vi.advanceTimersByTimeAsync(0)
+            expect(sent.at(-1)).toBe('Stopped “t”.')
+        } finally {
+            vi.useRealTimers()
+        }
+    })
 })

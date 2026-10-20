@@ -62,7 +62,10 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
   in their own one-to-one chat with the agent, can start a task. Claude must ask the owner ("Reply YES") before
   anything that can't be undone, each task stops after 200 steps or 30 minutes, and texting "stop" cancels it. Web
   pages and documents on the screen can try to mislead Claude into doing something else; the system prompt treats
-  screen text as information, not instructions, but that's a mitigation, not a guarantee, so watch what it does.
+  screen text as information, not instructions, but that's a mitigation, not a guarantee. What the engine enforces in
+  code: it never types text, presses Enter (or Cmd/Ctrl+Enter) or pastes until the owner has approved that action by
+  text, shown the exact text (hidden characters spelled out) and the window; no answer is a no. Clicks are not gated,
+  so a click on a button that's already there (like "Send" on a filled-in form) still relies on the prompt.
 
 ## Known limits
 
