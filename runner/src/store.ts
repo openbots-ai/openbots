@@ -200,6 +200,12 @@ export class Store {
         }))
     }
 
+    // How many replies the agent sent in this contact's chats since `since`, for the per-contact reply limit
+    repliesTo(contactId: number, since: number) {
+        const row = this.db.prepare("SELECT COUNT(*) AS n FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.contact_id = ? AND m.sender = 'agent' AND m.at >= ?").get(contactId, since) as { n: number }
+        return Number(row.n)
+    }
+
     // True the first time a conversation is seen on `day`
     countOnce(day: string, conversationId: number) {
         return this.db.prepare('INSERT OR IGNORE INTO counted (day, conversation_id) VALUES (?, ?)').run(day, conversationId).changes > 0

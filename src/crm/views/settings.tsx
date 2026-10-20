@@ -4,6 +4,7 @@ import { Bell, Building2, Database, Download, Gauge, MessageCircle, Users, type 
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
+import { DEFAULT_CONTACT_REPLIES_PER_HOUR, DEFAULT_DAILY_BUDGET, NEW_CONTACT_ALERTS_PER_HOUR } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -46,9 +47,11 @@ type Form = {
     newContactTag: string
     notifyNewContact: boolean
     notifyHandoff: boolean
-    // Kept as text so the field can be empty (no cap)
+    // Kept as text so the field can be empty (the default daily cap, or no weekly cap)
     dailyBudget: string
     weeklyBudget: string
+    // Blank means the default
+    contactRepliesPerHour: string
 }
 
 // Older workspaces have none of the optional settings; these are the defaults they start from
@@ -68,11 +71,13 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     notifyHandoff: w.notifyHandoff ?? true,
     dailyBudget: w.dailyBudget?.toString() ?? '',
     weeklyBudget: w.weeklyBudget?.toString() ?? '',
+    contactRepliesPerHour: w.contactRepliesPerHour?.toString() ?? '',
 })
 
-// '' means no budget; anything else must be a positive number
+// '' means the default daily budget, or no weekly budget; anything else must be a positive number
 const parseBudget = (s: string) => (s.trim() ? Number(s) : undefined)
 const budgetOk = (s: string) => !s.trim() || Number(s) > 0
+const repliesOk = (s: string) => !s.trim() || (Number.isInteger(Number(s)) && Number(s) >= 1 && Number(s) <= 1000)
 
 // Mirrors the server's cleanup so the form isn't left "unsaved" after a save
 const normalize = (f: Form): Form => ({
@@ -82,8 +87,10 @@ const normalize = (f: Form): Form => ({
     ownerEmail: f.ownerEmail.trim(),
     ownerHandle: f.ownerHandle.trim(),
     newContactTag: f.newContactTag.trim().toLowerCase(),
-    dailyBudget: f.dailyBudget.trim() && String(Number(f.dailyBudget)),
+    // The server reads a blank daily budget as the default, and shows it
+    dailyBudget: f.dailyBudget.trim() ? String(Number(f.dailyBudget)) : String(DEFAULT_DAILY_BUDGET),
     weeklyBudget: f.weeklyBudget.trim() && String(Number(f.weeklyBudget)),
+    contactRepliesPerHour: f.contactRepliesPerHour.trim() ? String(Number(f.contactRepliesPerHour)) : String(DEFAULT_CONTACT_REPLIES_PER_HOUR),
 })
 
 export function SettingsView() {
@@ -128,7 +135,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
     const emailOk = !form.ownerEmail.trim() || handleKind(form.ownerEmail) === 'email'
     const handleOk = !form.ownerHandle.trim() || !!handleKind(form.ownerHandle)
     const emailing = !!form.ownerEmail.trim() && emailOk && !!runners?.some((r) => r.services?.some((s) => s.service === 'resend' && !s.error))
-    const budgetsOk = budgetOk(form.dailyBudget) && budgetOk(form.weeklyBudget)
+    const budgetsOk = budgetOk(form.dailyBudget) && budgetOk(form.weeklyBudget) && repliesOk(form.contactRepliesPerHour)
     const valid = form.name.trim() && form.ownerName.trim() && emailOk && handleOk && form.quietStart && form.quietEnd && budgetsOk
     const timezones = Intl.supportedValuesOf('timeZone')
 
@@ -144,6 +151,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 newContactTag: f.newContactTag || undefined,
                 dailyBudget: parseBudget(f.dailyBudget),
                 weeklyBudget: parseBudget(f.weeklyBudget),
+                contactRepliesPerHour: parseBudget(f.contactRepliesPerHour),
             }),
         )
         setSaving(false)
@@ -215,7 +223,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                         ? `Your engine texts these to your phone and emails them to ${form.ownerEmail.trim()}. They name the contact but never quote them.`
                         : 'Your engine texts these to your phone (under General). They name the contact but never quote them. To get them by email too, set up Resend in Connections.'
                 }>
-                <Row label="New contact" description="When someone texts one of your agents for the first time." inline>
+                <Row label="New contact" description={`When someone texts one of your agents for the first time. At most ${NEW_CONTACT_ALERTS_PER_HOUR} an hour, then one note that more are texting.`} inline>
                     <Toggle label="New contact notifications" checked={form.notifyNewContact} onChange={(v) => set('notifyNewContact', v)} />
                 </Row>
                 <Row label="Handoffs" description="When an agent needs you to step in." inline>
@@ -223,12 +231,34 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
-                <Row label="Daily budget" description={budgetOk(form.dailyBudget) ? 'Credits per day (UTC). Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.dailyBudget)} htmlFor="s-daily">
-                    <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder="No cap" />
+            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you. The daily budget is on from the start, so texts from strangers can’t run up your AI and texting bills.">
+                <Row
+                    label="Daily budget"
+                    description={budgetOk(form.dailyBudget) ? `Credits per day (UTC), about one per reply. Leave blank for the default (${DEFAULT_DAILY_BUDGET}).` : 'Enter a number above 0, or leave blank.'}
+                    error={!budgetOk(form.dailyBudget)}
+                    htmlFor="s-daily">
+                    <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder={String(DEFAULT_DAILY_BUDGET)} />
                 </Row>
                 <Row label="Weekly budget" description={budgetOk(form.weeklyBudget) ? 'Credits per week, Monday to Sunday. Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.weeklyBudget)} htmlFor="s-weekly">
                     <Input id="s-weekly" inputMode="numeric" aria-invalid={!budgetOk(form.weeklyBudget)} value={form.weeklyBudget} onChange={(e) => set('weeklyBudget', e.target.value)} placeholder="No cap" />
+                </Row>
+                <Row
+                    label="Replies per contact"
+                    description={
+                        repliesOk(form.contactRepliesPerHour)
+                            ? `The most replies an agent sends one person in an hour. Past it, the agent stops replying to them and tells you once. Your own chats have no limit. Leave blank for the default (${DEFAULT_CONTACT_REPLIES_PER_HOUR}).`
+                            : 'Enter a whole number from 1 to 1000, or leave blank.'
+                    }
+                    error={!repliesOk(form.contactRepliesPerHour)}
+                    htmlFor="s-contact-replies">
+                    <Input
+                        id="s-contact-replies"
+                        inputMode="numeric"
+                        aria-invalid={!repliesOk(form.contactRepliesPerHour)}
+                        value={form.contactRepliesPerHour}
+                        onChange={(e) => set('contactRepliesPerHour', e.target.value)}
+                        placeholder={String(DEFAULT_CONTACT_REPLIES_PER_HOUR)}
+                    />
                 </Row>
             </Section>
 

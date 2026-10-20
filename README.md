@@ -43,9 +43,14 @@ and the Models page mention them, but nothing runs them yet.
 
 A text reaches the engine (from Messages, or posted to its web server by Twilio, Sendblue, BlueBubbles or a relay). The
 engine finds the agent for that number in Convex, stores the message locally, writes the reply with the Brain model
-(the Backup model if that fails) and sends it back the way it came. Convex only receives counts. When an agent can't
-reply or asks for a person, the engine texts the owner's phone, naming the contact but never quoting them, and stays
-out of that chat for 24 hours. [SECURITY.md](SECURITY.md) says exactly who can see what.
+(the Backup model if that fails) and sends it back the way it came. Knowledge documents are used with other people
+only when marked "Share with contacts"; the rest stay in the owner's own one-to-one chats. Convex only receives counts,
+which feed Analytics and the usage budget (200 credits a day until the owner sets their own). An agent sends one
+contact at most 20 replies an hour (set in Settings; the owner's own chats aren't limited), and new-contact alerts go
+out at most 3 an hour. When an agent can't reply or asks for a person, the engine texts the owner's phone, naming the
+contact but never quoting them. A provider error is retried after 1, 4 and 10 minutes first; when the agent asked for
+a person or a budget ran out, it stays out of that chat for 24 hours. [SECURITY.md](SECURITY.md) says exactly who can
+see what.
 
 ## Self-host it
 
