@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { Id } from '../../convex/_generated/dataModel'
 import { keyModels, resolveModels } from '../../convex/lib/models'
@@ -12,7 +11,7 @@ import { checkKeys } from './models'
 import { Pipeline } from './pipeline'
 import { check, ConnectError, sendEmail, sendText, type Credentials } from './providers'
 import { Server } from './server'
-import { buildServices, type Services } from './services'
+import { buildServices, hookSecrets, type Services } from './services'
 import { Scheduler } from './scheduler'
 import { Store } from './store'
 import { ConvexLink, type Status, type Task, type TaskResult } from './sync'
@@ -40,9 +39,11 @@ async function main() {
     console.log(`OpenBots engine ${VERSION}: connecting to your workspace…`)
     await link.connect((m) => console.error(m))
 
-    // Webhook paths carry a random secret, made once, so only your accounts know where to post
-    const secret = store.getMeta('hooks.secret') ?? randomBytes(18).toString('base64url')
-    store.setMeta('hooks.secret', secret)
+    // Each webhook channel has its own random secret in its path, made once, so only that account knows where to
+    // post. OPENBOTS_ROTATE_WEBHOOKS=true makes new ones; the new addresses are logged once the channels start.
+    const hooks = hookSecrets(store, base.rotateHooks)
+    let announceHooks = hooks.fresh
+    if (base.rotateHooks) console.log('Made new webhook secrets. Twilio numbers, Sendblue and BlueBubbles are pointed at the new addresses as they start; remove the old addresses from your Sendblue and BlueBubbles settings.')
     const server = new Server({ host: base.host, port: base.port })
 
     let settings = withDashboard(base, { secrets: {} })
@@ -108,7 +109,7 @@ async function main() {
         for (const t of Object.values(services.transports)) await t.stop().catch((e) => console.error(`Couldn't stop ${t.channel}: ${message(e)}`))
         server.clearRoutes()
         takeKeys(next)
-        services = buildServices(settings, { server, store, secret })
+        services = buildServices(settings, { server, store, secrets: hooks.secrets })
         pipeline.update({ transports: services.transports })
         for (const t of Object.values(services.transports)) {
             try {
@@ -123,6 +124,13 @@ async function main() {
         }
         if (server.hasRoutes || base.tunnel) await server.start()
         await repointTwilio()
+        if (announceHooks) {
+            for (const t of Object.values(services.transports)) {
+                if (!('hookUrl' in t)) continue
+                console.log(`${t.channel} webhook: ${String(t.hookUrl)}`)
+                announceHooks = false
+            }
+        }
         status = { ...status, channels: Object.keys(services.transports) as Channel[] }
         const channels = Object.keys(services.transports)
         console.log(channels.length ? `Answering through ${channels.join(', ')}${server.hasRoutes ? ` (listening on ${base.host}:${base.port})` : ''}.` : 'No way to text is set up yet. Add one in Connections, or set it on this engine. Waiting…')

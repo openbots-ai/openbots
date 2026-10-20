@@ -53,6 +53,7 @@ describe('webhooks', () => {
         const params = { From: '+12125550187', To: '+14155550101', Body: 'hello' }
         const post = (signature: string) => fetch(`${base}/hooks/twilio/abc`, { method: 'POST', headers: { 'X-Twilio-Signature': signature }, body: new URLSearchParams(params) })
         expect((await post('forged')).status).toBe(403)
+        expect((await fetch(`${base}/hooks/twilio/abc`, { method: 'POST', body: new URLSearchParams(params) })).status).toBe(403)
         expect(received).toEqual([])
         const res = await post(await twilioSignature('tok', hookUrl, params))
         expect(res.status).toBe(200)
@@ -60,17 +61,28 @@ describe('webhooks', () => {
         expect(received).toEqual([{ channel: 'twilio', from: '+12125550187', to: '+14155550101', body: 'hello' }])
     })
 
-    it('sendblue: skips its own outbound messages and keeps group chats', async () => {
+    it('sendblue: needs its signing secret, skips its own outbound messages, keeps group chats and flags SMS', async () => {
         stubProviderApis()
-        await new SendblueTransport(server, { keyId: 'k', secret: 's' }, 'https://agent.example.com/hooks/sendblue/abc').start(onText)
+        await new SendblueTransport(server, { keyId: 'k', secret: 's' }, 'https://agent.example.com/hooks/sendblue/abc', 'sign-me').start(onText)
+        // The webhook is registered with the signing secret
+        const registered = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST')
+        expect(JSON.parse(String(registered?.[1]?.body))).toEqual({ webhooks: [{ url: 'https://agent.example.com/hooks/sendblue/abc', secret: 'sign-me' }], type: 'receive' })
         await server.start()
-        const post = (body: unknown) => fetch(`${base}/hooks/sendblue/abc`, { method: 'POST', body: JSON.stringify(body) })
+        const post = (body: unknown, secret = 'sign-me') => fetch(`${base}/hooks/sendblue/abc`, { method: 'POST', headers: secret ? { 'sb-signing-secret': secret } : {}, body: JSON.stringify(body) })
+        const hey = { number: '+12125550187', content: 'hey', sendblue_number: '+14155550101', service: 'iMessage' }
+        expect((await post(hey, '')).status).toBe(401)
+        expect((await post(hey, 'sign-you')).status).toBe(401)
+        expect(received).toEqual([])
         await post({ is_outbound: true, number: '+12125550187', content: 'from us' })
-        await post({ number: '+12125550187', content: 'hey', sendblue_number: '+14155550101', group_id: 'g1', group_display_name: 'Crew' })
-        expect(received).toEqual([{ channel: 'sendblue', from: '+12125550187', to: '+14155550101', body: 'hey', thread: { key: 'g1', title: 'Crew' } }])
+        await post({ ...hey, group_id: 'g1', group_display_name: 'Crew' })
+        await post({ ...hey, content: 'by sms', service: 'SMS' })
+        expect(received).toEqual([
+            { channel: 'sendblue', from: '+12125550187', to: '+14155550101', body: 'hey', thread: { key: 'g1', title: 'Crew' } },
+            { channel: 'sendblue', from: '+12125550187', to: '+14155550101', body: 'by sms', thread: undefined, sms: true },
+        ])
     })
 
-    it("bluebubbles: takes new messages that aren't from you, and spots group chats", async () => {
+    it("bluebubbles: takes new messages that aren't from you, spots group chats and flags SMS", async () => {
         stubProviderApis()
         await new BlueBubblesTransport(server, { serverUrl: 'http://mac.local:1234', password: 'p' }, 'http://agent.local/hooks/bluebubbles/abc').start(onText)
         await server.start()
@@ -78,9 +90,11 @@ describe('webhooks', () => {
         await post({ isFromMe: true, text: 'mine', handle: { address: '+12125550187' } })
         await post({ text: 'one to one', handle: { address: '+12125550187' }, chats: [{ guid: 'iMessage;-;+12125550187' }] })
         await post({ text: 'in the group', handle: { address: '+12125550187' }, chats: [{ guid: 'iMessage;+;chat7', displayName: 'Family' }] })
+        await post({ text: 'forwarded sms', handle: { address: '+12125550187', service: 'SMS' }, chats: [{ guid: 'SMS;-;+12125550187' }] })
         expect(received).toEqual([
             { channel: 'bluebubbles', from: '+12125550187', body: 'one to one', thread: undefined },
             { channel: 'bluebubbles', from: '+12125550187', body: 'in the group', thread: { key: 'iMessage;+;chat7', title: 'Family' } },
+            { channel: 'bluebubbles', from: '+12125550187', body: 'forwarded sms', thread: undefined, sms: true },
         ])
         expect((await fetch(`${base}/hooks/bluebubbles/wrong`, { method: 'POST', body: '{}' })).status).toBe(404)
     })
