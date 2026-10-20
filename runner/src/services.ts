@@ -19,7 +19,10 @@ export function buildServices(settings: Settings, deps: { server: Server; store:
     const hook = (channel: Channel) => `${settings.publicUrl}/hooks/${channel}/${deps.secret}`
     const reachable = (service: Webhooked) => {
         if (settings.publicUrl) return true
-        problems.push({ service, error: 'Set this engine’s public URL in Connections, so your account can reach it' })
+        problems.push({
+            service,
+            error: service === 'bluebubbles' ? 'Set this engine’s Public URL in Connections to an address your Mac can reach (a private one works)' : 'Set this engine’s public URL in Connections, so your account can reach it',
+        })
         return false
     }
 

@@ -4,6 +4,7 @@ import { Bell, Building2, Database, Download, Gauge, MessageCircle, Users, type 
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
+import { CREDITS_NOTE } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -175,8 +176,8 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="messaging" title="Messaging" description="How your agents behave in iMessage.">
-                <Row label="Default agent" description="Pre-selected when you add a contact or a number." htmlFor="s-default-agent">
+            <Section id="messaging" title="Messaging" description="How your agents behave when they text.">
+                <Row label="Default agent" description="Answers texts to numbers that have no agent of their own." htmlFor="s-default-agent">
                     <Select
                         id="s-default-agent"
                         value={form.defaultAgentId}
@@ -187,7 +188,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 <Row label="Reply delay" description="A short pause before replying feels more human." htmlFor="s-delay">
                     <Select id="s-delay" value={form.replyDelaySec} onChange={(v) => set('replyDelaySec', v)} options={REPLY_DELAYS} />
                 </Row>
-                <Row label="Quiet hours" description="Agents hold non-urgent messages until quiet hours end." inline>
+                <Row label="Quiet hours" description="Every reply to a text that arrives in quiet hours waits until they end, and so do watch alerts and check-ins. Reminders still go out on time." inline>
                     <Toggle label="Quiet hours" checked={form.quietEnabled} onChange={(v) => set('quietEnabled', v)} />
                 </Row>
                 {form.quietEnabled && (
@@ -223,7 +224,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="usage" title="Usage budget" description="Every reply uses credits (see Analytics). When a budget runs out, agents stop replying and hand conversations to you.">
+            <Section id="usage" title="Usage budget" description={`${CREDITS_NOTE} When a budget runs out, agents stop replying and hand conversations to you. See Analytics for what you used.`}>
                 <Row label="Daily budget" description={budgetOk(form.dailyBudget) ? 'Credits per day (UTC). Leave blank for no cap.' : 'Enter a number above 0, or leave blank.'} error={!budgetOk(form.dailyBudget)} htmlFor="s-daily">
                     <Input id="s-daily" inputMode="numeric" aria-invalid={!budgetOk(form.dailyBudget)} value={form.dailyBudget} onChange={(e) => set('dailyBudget', e.target.value)} placeholder="No cap" />
                 </Row>

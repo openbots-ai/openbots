@@ -13,6 +13,9 @@ export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: num
     backup: { one: 'takeover', many: 'takeovers', weight: 1 },
 }
 
+// How budgets count, in a line for wherever they're shown: credits are this app's own unit, not money or tokens
+export const CREDITS_NOTE = `Budgets count credits: 1 reply = ${SLOT_UNITS.brain.weight} credit, 1 computer-use step = ${SLOT_UNITS.computer.weight} credits.`
+
 export const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 export const addDays = (day: string, n: number) => dayKey(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000)
 
