@@ -208,6 +208,12 @@ describe('allowed people', () => {
         expect((await base.query(api.runner.config, { token }))!.allowed).toEqual([{ name: 'Dana', handle: 'Dana@iCloud.com' }])
     })
 
+    it('pauses every agent for an engine that doesn’t ignore strangers', async () => {
+        const { base, token } = await setup()
+        expect((await base.query(api.runner.config, { token, allowedOnly: true }))!.agents.map((a) => a.status)).toEqual(['live'])
+        expect((await base.query(api.runner.config, { token }))!.agents.map((a) => a.status)).toEqual(['paused'])
+    })
+
     it('keeps each workspace’s list to itself', async () => {
         const { base, owner } = await setup()
         const id = await owner.mutation(api.allowed.add, { name: 'Lee', handle: '(212) 555-0222' })
