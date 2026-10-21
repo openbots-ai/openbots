@@ -27,9 +27,11 @@ async function runnerFor(ctx: QueryCtx, token: string) {
 
 // Everything the engine needs to reply: your settings, agents, numbers and knowledge. Reactive, so edits in
 // the dashboard reach the engine right away.
+// An engine that ignores strangers says so with `allowedOnly`. One from before Allowed people existed doesn't, and would
+// answer anyone, so it gets every agent as paused: it then answers only your verified phone until you update it.
 export const config = query({
-    args: { token: v.string() },
-    handler: async (ctx, { token }) => {
+    args: { token: v.string(), allowedOnly: v.optional(v.boolean()) },
+    handler: async (ctx, { token, allowedOnly }) => {
         const runner = await runnerFor(ctx, token)
         const { workspaceId } = runner
         const ws = await ctx.db.get('workspace', workspaceId)
@@ -45,7 +47,7 @@ export const config = query({
         const ownerHandle = verifiedOwner(ws)
         return {
             workspace: withDefaults({ ...workspace, ownerHandle, ownerVerifiedAt: ownerHandle ? ws.ownerVerifiedAt : undefined, ownerVerifiedKey: ownerHandle ? ws.ownerVerifiedKey : undefined }),
-            agents,
+            agents: allowedOnly ? agents : agents.map((a) => ({ ...a, status: 'paused' as const })),
             numbers,
             knowledge,
             // The people agents answer besides you; everyone else is ignored

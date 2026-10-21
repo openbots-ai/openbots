@@ -62,7 +62,8 @@ export class ConvexLink implements Link {
             let first = true
             const sub = this.client.onUpdate(
                 api.runner.config,
-                { token: this.token },
+                // This engine answers only you and Allowed people (see convex/runner.ts:config)
+                { token: this.token, allowedOnly: true },
                 (config) => {
                     this.latest = config
                     if (first && config) {
