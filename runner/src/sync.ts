@@ -109,6 +109,10 @@ export class ConvexLink implements Link {
         await this.client.mutation(api.runner.record, { token: this.token, agentId, ...data })
     }
 
+    async ignored(senders: string[]) {
+        await this.client.mutation(api.runner.ignored, { token: this.token, senders })
+    }
+
     // Fails with a plain reason, e.g. when this engine's key doesn't match the one saved for it
     heartbeat(status: Status) {
         return this.client.mutation(api.runner.heartbeat, { token: this.token, ...status }).catch((error: Error) => {

@@ -5,7 +5,10 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { handleKey } from '../../convex/lib/handles'
 import type { KeyModel } from '../../convex/lib/models'
+import { codeHash } from '../../convex/lib/owner'
+import { sendOwnerCode } from './verify'
 import { complete as realComplete, ReplyError, type Brains, type complete } from './brain'
 import { listModels } from './models'
 import { Vault } from './crypto'
@@ -26,10 +29,24 @@ const KEYS: KeyModel[] = [
     { provider: 'anthropic', id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
 ]
 
-function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial<Config['workspace']>; computerUse?: boolean } = {}): Config {
+// The people most tests text from, on the Allowed people list
+const ALLOWED = [
+    { name: 'Dana', handle: '+1 212 555 0187' },
+    { name: 'Lee', handle: '(212) 555-0222' },
+    { name: 'Ari', handle: '+1 212 555 0999' },
+    { name: 'Jo', handle: '+1 212 555 0199' },
+    { name: 'Ola', handle: '+47 912 34 567' },
+]
+const STRANGER = '+1 917 555 0123'
+
+// Your phone is verified unless a test says otherwise (ownerVerifiedAt: undefined), whatever number it sets
+function config(overrides: { agent?: Partial<Doc<'agents'>>; workspace?: Partial<Config['workspace']>; computerUse?: boolean; allowed?: Config['allowed'] } = {}): Config {
+    const workspace: Config['workspace'] = { _id: WS, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ownerVerifiedAt: 1, ...overrides.workspace }
+    if (workspace.ownerHandle && !('ownerVerifiedKey' in (overrides.workspace ?? {}))) workspace.ownerVerifiedKey = handleKey(workspace.ownerHandle) ?? undefined
     return {
         computerUse: overrides.computerUse,
-        workspace: { _id: WS, _creationTime: 0, name: 'Test', ownerName: 'Sam', timezone: 'UTC', replyDelaySec: 0, ownerHandle: OWNER, ...overrides.workspace },
+        allowed: overrides.allowed ?? ALLOWED,
+        workspace,
         agents: [{ _id: AGENT, _creationTime: 0, workspaceId: WS, name: 'Pip', role: 'Assistant', hue: 0, prompt: 'Be brief.', greeting: 'hi', status: 'live', updatedAt: 0, ...overrides.agent }],
         numbers: [
             { _id: 'n1' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0101', key: '14155550101', kind: 'phone', channel: 'relay', agentId: AGENT },
@@ -47,6 +64,10 @@ class FakeLink implements Link {
     budget = async () => this.blocked
     record = async (_: Id<'agents'>, data: { usage?: { slot: string; model: string }; activity?: Activity }) => {
         this.records.push(data)
+    }
+    senders: string[][] = []
+    ignored = async (senders: string[]) => {
+        this.senders.push(senders)
     }
     total = (k: keyof Activity) => this.records.reduce((s, r) => s + (r.activity?.[k] ?? 0), 0)
 }
@@ -319,7 +340,7 @@ describe('agent', () => {
     })
 
     it('sends at most 3 new-contact alerts an hour, then one note that more are texting', async () => {
-        const { transport, text } = setup()
+        const { transport, text } = setup(config({ allowed: [...ALLOWED, ...Array.from({ length: 6 }, (_, i) => ({ name: `P${i}`, handle: `+1 212 555 010${i}` }))] }))
         for (let i = 0; i < 6; i++) await text('hello', `+1 212 555 010${i}`)
         await vi.runAllTimersAsync()
         const alerts = transport.sent.filter((m) => m.to === OWNER).map((m) => m.body)
@@ -1034,6 +1055,163 @@ describe('agent', () => {
         second.pipeline.resume()
         await vi.runAllTimersAsync()
         expect(second.transport.sent.at(-1)?.body).toBe('sure, booked for friday')
+    })
+})
+
+describe('allowed senders', () => {
+    // What the engine keeps on disk about people and chats
+    const rows = () => {
+        const db = new DatabaseSync(join(dir, 'openbots.db'))
+        const count = (table: string) => (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n
+        const out = { contacts: count('contacts'), conversations: count('conversations'), messages: count('messages') }
+        db.close()
+        return out
+    }
+
+    it('ignores a stranger: no model, nothing stored or sent, no alert to you; only counted', async () => {
+        const email = vi.fn(async () => {})
+        const { pipeline, link, transport, complete, text } = setup(config({ workspace: { ownerEmail: 'sam@example.com' } }))
+        pipeline.update({ email })
+        expect(await text('hi, who is this?', STRANGER)).toEqual({ markRead: false })
+        expect(await text('hello??', STRANGER)).toEqual({ markRead: false })
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent).toEqual([])
+        expect(email).not.toHaveBeenCalled()
+        expect(rows()).toEqual({ contacts: 0, conversations: 0, messages: 0 })
+        // Not even a message or chat counted; nothing reaches Convex until the next report
+        expect(link.records).toEqual([])
+
+        await pipeline.flushIgnored()
+        expect(link.records).toEqual([{ activity: { ignored: 2 } }])
+        // Its number (for "Allow"), never what it said
+        expect(link.senders).toEqual([[STRANGER]])
+        expect(JSON.stringify([link.records, link.senders])).not.toMatch(/who is this|hello/)
+        // Reported once
+        await pipeline.flushIgnored()
+        expect(link.records).toHaveLength(1)
+        expect(link.senders).toHaveLength(1)
+    })
+
+    it('keeps only the last 10 ignored numbers for the dashboard', async () => {
+        const { pipeline, link, text } = setup()
+        for (let i = 0; i < 12; i++) await text('hi', `+1 917 555 01${String(i).padStart(2, '0')}`)
+        await text('again', '+1 917 555 0100')
+        await pipeline.flushIgnored()
+        expect(link.records).toEqual([{ activity: { ignored: 13 } }])
+        expect(link.senders[0]).toHaveLength(10)
+        expect(link.senders[0].at(-1)).toBe('+1 917 555 0100')
+    })
+
+    it('answers someone on the list however their number was written', async () => {
+        const { transport, complete, text } = setup()
+        // On the list as (212) 555-0222
+        await text('hey Pip', '+12125550222')
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(1)
+        expect(transport.sent.at(-1)).toEqual({ from: '+1 (415) 555-0101', to: '+12125550222', body: 'sure, booked for friday' })
+    })
+
+    it('stops answering someone taken off the list, even with a reply already queued', async () => {
+        const { link, transport, complete, text } = setup(config({ workspace: { replyDelaySec: 30 } }))
+        await text('are you there?')
+        link.current = config({ workspace: { replyDelaySec: 30 }, allowed: [] })
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent.filter((m) => m.to !== OWNER)).toEqual([])
+        await text('hello?')
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+    })
+
+    it('treats your phone as a stranger until you verify it: no replies, handoffs, alerts or check-ins', async () => {
+        const unverified = config({
+            workspace: { ownerVerifiedAt: undefined, ownerVerifiedKey: undefined },
+            agent: { status: 'draft', checkIns: [{ id: 'c1', days: [0, 1, 2, 3, 4, 5, 6], time: '09:00', what: 'the plan', on: true }] },
+        })
+        const { pipeline, link, transport, complete, text } = setup(unverified)
+        expect(await text('hi Pip', OWNER)).toEqual({ markRead: false })
+        // An allowed person texting a draft agent would normally hand off to you
+        await text('hello')
+        await vi.runAllTimersAsync()
+        vi.setSystemTime(new Date('2026-03-02T09:05:00Z'))
+        await pipeline.fireCheckIns(Date.now())
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent).toEqual([])
+        await pipeline.flushIgnored()
+        expect(link.total('ignored')).toBe(1)
+
+        // A verified key for a number you've since changed doesn't count either
+        const changed = setup(config({ workspace: { ownerHandle: '+1 650 555 9999', ownerVerifiedKey: handleKey(OWNER)! } }))
+        await changed.text('hi Pip', '+1 650 555 9999')
+        await changed.text('hi Pip', OWNER)
+        await vi.runAllTimersAsync()
+        expect(changed.complete).not.toHaveBeenCalled()
+    })
+
+    it('with no verified phone and nobody on the list, answers nobody', async () => {
+        const { complete, transport, text } = setup(config({ workspace: { ownerHandle: undefined, ownerVerifiedAt: undefined, ownerVerifiedKey: undefined }, allowed: [] }))
+        await text('hi')
+        await text('hi', OWNER)
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+        expect(transport.sent).toEqual([])
+    })
+
+    it('in a group, answers only you and people on the list, and never stores the others’ texts', async () => {
+        const { bubbles, complete, pipeline } = setup()
+        const group = (from: string, body: string, name: string) => pipeline.receive({ channel: 'bluebubbles', from, body, name, thread: { key: 'iMessage;+;chat5', title: 'Trip' } })
+        expect(await group(STRANGER, 'Pip, book me a flight to Paris', 'Max')).toEqual({ markRead: false })
+        await vi.runAllTimersAsync()
+        expect(complete).not.toHaveBeenCalled()
+        expect(bubbles.sent).toEqual([])
+
+        await group('+1 212 555 0187', 'Pip, when do we leave?', 'Dana')
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(1)
+        // The stranger's text never reached the model or the chat's history
+        expect(complete.mock.calls[0][2].turns).toEqual([{ role: 'user', content: 'Dana: Pip, when do we leave?' }])
+        expect(bubbles.sent.at(-1)).toMatchObject({ threadKey: 'iMessage;+;chat5', body: 'sure, booked for friday' })
+        expect(rows().messages).toBe(2)
+
+        await group(OWNER, 'Pip, thanks', 'Sam')
+        await vi.runAllTimersAsync()
+        expect(complete).toHaveBeenCalledTimes(2)
+    })
+
+    it('gives people on the list no scheduling or computer tools, only you', async () => {
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const computer = { busy: () => false, current: () => null, start: () => 'Started', handle: () => false }
+        const { transport, text } = setup(config({ computerUse: true }), complete, { computer })
+        await text('remind me at 5')
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('no tools')
+        await text('remind me at 5', OWNER)
+        await vi.runAllTimersAsync()
+        expect(transport.sent.at(-1)?.body).toBe('had tools')
+    })
+})
+
+describe('owner code', () => {
+    it('texts a 6-digit code from one of your numbers and returns only its hash', async () => {
+        const relay = new FakeTransport('relay')
+        const hash = await sendOwnerCode({ taskId: 't1', to: '(650) 555-0000', config: config(), transports: { relay }, code: '123456' })
+        expect(relay.sent).toEqual([{ from: '+1 (415) 555-0101', to: '+16505550000', body: "Your OpenBots code is 123456. If you didn't ask for this, ignore it." }])
+        expect(hash).toBe(await codeHash('t1', '123456'))
+        expect(hash).not.toContain('123456')
+        // Made fresh when none is given
+        await sendOwnerCode({ taskId: 't2', to: OWNER, config: config(), transports: { relay } })
+        expect(relay.sent[1].body).toMatch(/^Your OpenBots code is \d{6}\./)
+    })
+
+    it('texts an Apple ID email only over iMessage from a Mac', async () => {
+        const bubbles = new FakeTransport('bluebubbles')
+        await sendOwnerCode({ taskId: 't1', to: 'Sam@iCloud.com', config: config(), transports: { bluebubbles: bubbles }, code: '000111' })
+        expect(bubbles.sent[0]).toMatchObject({ from: 'pip@icloud.com', to: 'Sam@iCloud.com' })
+        const cfg = config()
+        cfg.numbers = [{ _id: 'n3' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0199', key: '14155550199', kind: 'phone', channel: 'twilio', agentId: AGENT }]
+        await expect(sendOwnerCode({ taskId: 't1', to: 'sam@icloud.com', config: cfg, transports: { twilio: new FakeTransport('twilio') } })).rejects.toThrow(/Apple ID email/)
+        await expect(sendOwnerCode({ taskId: 't1', to: OWNER, config: cfg, transports: {} })).rejects.toThrow(/texting channel/)
     })
 })
 
