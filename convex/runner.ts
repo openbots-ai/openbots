@@ -2,15 +2,18 @@ import { v } from 'convex/values'
 import { env, mutation, query, type QueryCtx } from './_generated/server'
 import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/sealed'
 import { canComputerUse } from './lib/computers'
+import { handleKey } from './lib/handles'
 import { insertNumber } from './lib/numbers'
+import { IGNORED_KEPT, MAX_ALLOWED, verifiedOwner } from './lib/owner'
 import { TASK_EXPIRED, TASK_PENDING_MS } from './lib/tasks'
 import { hashToken } from './lib/tokens'
 import { creditsFor, dayKey, weekStart, withDefaults } from './lib/usage'
 import { channel, keyModel, service, taskResult } from './schema'
 
 // The API your engine (runner/) calls. Every function takes the engine's token, checks it, and stays inside that
-// engine's workspace. None of them accepts or returns message text or contact details; `dashboard` returns the keys
-// saved in Connections for that workspace.
+// engine's workspace. None of them accepts or returns message text. The only contact details are the ones you typed
+// into Settings (your phone, Allowed people) and the numbers of the last few strangers the engine ignored (`ignored`).
+// `dashboard` returns the keys saved in Connections for that workspace.
 
 async function runnerFor(ctx: QueryCtx, token: string) {
     const tokenHash = await hashToken(token)
@@ -31,13 +34,24 @@ export const config = query({
         const { workspaceId } = runner
         const ws = await ctx.db.get('workspace', workspaceId)
         if (!ws) return null
-        const [agents, numbers, knowledge] = await Promise.all([
+        const [agents, numbers, knowledge, people] = await Promise.all([
             ctx.db.query('agents').withIndex('by_workspace_and_updatedAt', (q) => q.eq('workspaceId', workspaceId)).take(500),
             ctx.db.query('numbers').withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', workspaceId)).take(500),
             ctx.db.query('knowledge').withIndex('by_workspace_and_updatedAt', (q) => q.eq('workspaceId', workspaceId)).take(500),
+            ctx.db.query('allowedPeople').withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', workspaceId)).take(MAX_ALLOWED),
         ])
         const { userId, notifyDigest, lastDigestDay, ...workspace } = ws
-        return { workspace: withDefaults(workspace), agents, numbers, knowledge, computerUse: runner.computerUse === true && canComputerUse(runner) }
+        // An unverified phone isn't sent at all, so no engine (even one older than verification) treats it as yours
+        const ownerHandle = verifiedOwner(ws)
+        return {
+            workspace: withDefaults({ ...workspace, ownerHandle, ownerVerifiedAt: ownerHandle ? ws.ownerVerifiedAt : undefined, ownerVerifiedKey: ownerHandle ? ws.ownerVerifiedKey : undefined }),
+            agents,
+            numbers,
+            knowledge,
+            // The people agents answer besides you; everyone else is ignored
+            allowed: people.map(({ name, handle }) => ({ name, handle })),
+            computerUse: runner.computerUse === true && canComputerUse(runner),
+        }
     },
 })
 
@@ -113,7 +127,7 @@ export const dashboard = query({
 })
 
 const count = v.optional(v.number())
-const COUNTS = ['conversations', 'newContacts', 'messagesIn', 'messagesOut', 'handoffs'] as const
+const COUNTS = ['conversations', 'newContacts', 'messagesIn', 'messagesOut', 'handoffs', 'ignored'] as const
 
 // Adds to today's counts for one agent: model usage for the budget, and activity for Analytics
 export const record = mutation({
@@ -121,7 +135,7 @@ export const record = mutation({
         token: v.string(),
         agentId: v.id('agents'),
         usage: v.optional(v.object({ slot: v.string(), model: v.string() })),
-        activity: v.optional(v.object({ conversations: count, newContacts: count, messagesIn: count, messagesOut: count, handoffs: count })),
+        activity: v.optional(v.object({ conversations: count, newContacts: count, messagesIn: count, messagesOut: count, handoffs: count, ignored: count })),
     },
     handler: async (ctx, { token, agentId, usage, activity }) => {
         const { workspaceId } = await runnerFor(ctx, token)
@@ -146,6 +160,41 @@ export const record = mutation({
             if (row) await ctx.db.patch('activity', row._id, next)
             else await ctx.db.insert('activity', { workspaceId, agentId, day, ...next })
         }
+    },
+})
+
+// The numbers of people whose texts the engine just ignored (not on Allowed people), so the dashboard can offer to
+// allow them. Numbers only, never what they wrote; only the newest IGNORED_KEPT are kept.
+export const ignored = mutation({
+    args: { token: v.string(), senders: v.array(v.string()) },
+    handler: async (ctx, { token, senders }) => {
+        const { workspaceId } = await runnerFor(ctx, token)
+        if (senders.length > IGNORED_KEPT) throw new Error('Too many to report')
+        const now = Date.now()
+        for (const raw of senders) {
+            const handle = raw.trim().slice(0, 100)
+            const key = handleKey(handle)
+            if (!key) continue
+            // Someone allowed meanwhile isn't a stranger
+            const allowed = await ctx.db
+                .query('allowedPeople')
+                .withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', workspaceId).eq('key', key))
+                .first()
+            if (allowed) continue
+            const row = await ctx.db
+                .query('ignoredSenders')
+                .withIndex('by_workspace_and_key', (q) => q.eq('workspaceId', workspaceId).eq('key', key))
+                .first()
+            if (row) await ctx.db.patch('ignoredSenders', row._id, { at: now })
+            else await ctx.db.insert('ignoredSenders', { workspaceId, handle, key, at: now })
+        }
+        const kept = await ctx.db
+            .query('ignoredSenders')
+            .withIndex('by_workspace_and_at', (q) => q.eq('workspaceId', workspaceId))
+            .order('desc')
+            .take(IGNORED_KEPT * 3)
+        for (const r of kept.slice(IGNORED_KEPT)) await ctx.db.delete('ignoredSenders', r._id)
+        return null
     },
 })
 
@@ -190,6 +239,19 @@ export const finishTask = mutation({
         // Only the engine that claimed it, and only while it's open
         if (!task || task.workspaceId !== workspaceId || task.status !== 'running' || task.runnerId !== runner._id) return
         const { request } = task
+        // A verification code: only its hash is kept, on its ownerCodes row, and never on the task the dashboard reads
+        if (request.kind === 'ownerCode') {
+            const row = await ctx.db
+                .query('ownerCodes')
+                .withIndex('by_taskId', (q) => q.eq('taskId', id))
+                .unique()
+            const hash = result && 'codeHash' in result ? result.codeHash : undefined
+            if (error || !row || !hash || !/^[0-9a-f]{64}$/.test(hash)) return void (await ctx.db.patch('tasks', id, { status: 'failed', error: (error ?? 'Your engine didn’t send the code').slice(0, 300) }))
+            await ctx.db.patch('ownerCodes', row._id, { codeHash: hash, sentAt: Date.now() })
+            return void (await ctx.db.patch('tasks', id, { status: 'done', result: { sentTo: request.to } }))
+        }
+        // A code's hash only ever answers an ownerCode request
+        if (result && 'codeHash' in result) return void (await ctx.db.patch('tasks', id, { status: 'failed', error: 'Unexpected answer from your engine' }))
         if (!error && result && 'sid' in result && (request.kind === 'twilioBuy' || request.kind === 'twilioUse')) {
             try {
                 await insertNumber(ctx, { workspaceId, handle: result.phoneNumber, channel: 'twilio', externalId: result.sid, agentId: request.agentId })

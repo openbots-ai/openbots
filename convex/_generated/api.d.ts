@@ -9,6 +9,7 @@
  */
 
 import type * as agents from "../agents.js";
+import type * as allowed from "../allowed.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as knowledge from "../knowledge.js";
@@ -19,6 +20,7 @@ import type * as lib_keyModels from "../lib/keyModels.js";
 import type * as lib_models from "../lib/models.js";
 import type * as lib_numbers from "../lib/numbers.js";
 import type * as lib_orgo from "../lib/orgo.js";
+import type * as lib_owner from "../lib/owner.js";
 import type * as lib_prompt from "../lib/prompt.js";
 import type * as lib_quiet from "../lib/quiet.js";
 import type * as lib_sealed from "../lib/sealed.js";
@@ -44,6 +46,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
+  allowed: typeof allowed;
   auth: typeof auth;
   http: typeof http;
   knowledge: typeof knowledge;
@@ -54,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "lib/models": typeof lib_models;
   "lib/numbers": typeof lib_numbers;
   "lib/orgo": typeof lib_orgo;
+  "lib/owner": typeof lib_owner;
   "lib/prompt": typeof lib_prompt;
   "lib/quiet": typeof lib_quiet;
   "lib/sealed": typeof lib_sealed;
