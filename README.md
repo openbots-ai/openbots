@@ -42,7 +42,14 @@ and the Models page mention them, but nothing runs them yet.
 | **Engine** | `runner/` (Node.js) | A computer you control, or an Orgo computer | Contacts, conversations and messages in an encrypted local SQLite file; keys set as environment variables |
 
 A text reaches the engine (from Messages, or posted to its web server by Twilio, Sendblue, BlueBubbles or a relay). The
-engine finds the agent for that number in Convex, stores the message locally, writes the reply with the Brain model
+engine first checks who sent it: agents answer only the owner (once their phone is verified) and the people on the
+owner's **Allowed people** list (Settings). A text from anyone else is dropped there: no model is called, no contact,
+chat or message is stored, nothing is sent back, and the owner isn't texted or emailed about it, so strangers can't
+spend the owner's AI keys or texting credit. The engine only counts them, and the dashboard shows how many were
+ignored today and the last few numbers, with **Allow** next to each. In a group chat, only allowed senders' texts
+reach the agent. With no verified phone yet, agents answer nobody.
+
+For an allowed text, the engine finds the agent for that number in Convex, stores the message locally, writes the reply with the Brain model
 (the Backup model if that fails) and sends it back the way it came. Knowledge documents are used with other people
 only when marked "Share with contacts"; the rest stay in the owner's own one-to-one chats. Convex only receives counts,
 which feed Analytics and the usage budget (200 credits a day until the owner sets their own). An agent sends one
@@ -119,8 +126,11 @@ or set as environment variables on the engine, where they never leave that machi
   Twilio account (US texting needs A2P 10DLC registration), or their own relay. Twilio, Sendblue and BlueBubbles post
   incoming texts to the engine, so it needs a public HTTPS address; `OPENBOTS_TUNNEL=true` gets one from Cloudflare's
   quick tunnel.
-- **Their phone number** (Settings → General), for handoff alerts and for texting their own agents reminders,
-  watches and computer use tasks.
+- **Their phone number** (Settings → General), verified with a 6-digit code their engine texts to it (so texting must
+  be set up first). Until it's verified, agents answer nobody. It's where handoff alerts and check-ins go, and the
+  number they text their own agents from for reminders, watches and computer use tasks. An Apple ID email works too
+  when the engine texts through iMessage on a Mac (Messages, BlueBubbles or a relay).
+- **Allowed people** (Settings): the other people their agents should answer, by name and phone or Apple ID email.
 - Optional: a **Resend** key to also email handoff alerts, and an **Anthropic** key with Computer use turned on for a
   Windows or Mac computer.
 

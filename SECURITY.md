@@ -7,7 +7,7 @@ OpenBots has three parts, and message content exists in only one of them.
 | Part | Runs on | Holds |
 | --- | --- | --- |
 | **Engine** (`runner/`) | A machine the workspace owner chooses | Contacts, conversations, message text (encrypted at rest with a local key), AI keys, Twilio / Sendblue / BlueBubbles / Resend logins. |
-| **Backend** (`convex/`) | A Convex deployment | Each user's workspace: settings, agents, model choices, knowledge, their numbers, engine token hashes, keys saved in Connections (encrypted with the server's `ENCRYPTION_KEY`), daily counts, and what each engine reports as set up (which services, which model ids its keys can use, which addresses it texts from). |
+| **Backend** (`convex/`) | A Convex deployment | Each user's workspace: settings, agents, model choices, knowledge, their numbers, their own phone and Allowed people list, the numbers (never the texts) of the last 10 people whose texts were ignored, a hash of any pending phone verification code, engine token hashes, keys saved in Connections (encrypted with the server's `ENCRYPTION_KEY`), daily counts, and what each engine reports as set up (which services, which model ids its keys can use, which addresses it texts from). |
 | **Dashboard** (`src/`) | The browser | Nothing beyond what the backend holds. It never receives messages, and never receives a saved key back. |
 
 So whoever runs the backend or hosts the dashboard (including the OpenBots developers, Convex, or anyone with a
@@ -19,7 +19,7 @@ database backup) cannot read messages, because they never receive them, not even
 | --- | --- | --- | --- | --- |
 | The person texting, and the engine's machine | Yes | Yes | Yes | Yes |
 | The model provider the owner picked | Yes, for each reply (none with a local model) | The prompt includes the contact's name, number and notes | No | The assistant's prompt and knowledge |
-| The OpenBots backend / developers / Convex | **No** | **No** | Daily counts only | Yes, plus the owner's own numbers, which models their keys can use, and the keys saved in Connections (stored encrypted; whoever holds the server's `ENCRYPTION_KEY` can decrypt them) |
+| The OpenBots backend / developers / Convex | **No** | Only the owner's own phone, their Allowed people, and the last 10 ignored numbers | Daily counts only | Yes, plus the owner's own numbers, which models their keys can use, and the keys saved in Connections (stored encrypted; whoever holds the server's `ENCRYPTION_KEY` can decrypt them) |
 | Another OpenBots user | No | No | No | No: every function checks the signed-in user's workspace |
 | Someone holding the engine's database file but not its key | No | No | No | n/a |
 | Someone holding an engine token | No | No | No | That workspace's, read-only, **including the keys saved in Connections**; can add to counts and answer its Twilio requests. Revoke a token you think was leaked |
@@ -37,6 +37,26 @@ many each agent has. Check-ins (days, time and what to send) are agent settings,
 prompt.
 
 Between the engine's machine and the person texting, iMessage provides Apple's end-to-end encryption.
+
+## Who the agents answer
+
+By default, agents answer **nobody**. They reply only to:
+
+- **The owner**, from the phone (or Apple ID email) in Settings, once it's **verified**: the dashboard asks the
+  owner's engine to text a 6-digit code to it, and the owner types the code back. Convex stores only a SHA-256 hash of
+  the code (salted with the request it came from), accepts it for 10 minutes and 5 tries, and sends at most 3 codes an
+  hour. Changing the number undoes the verification; phones saved before verification existed count as unverified.
+  The engine is given the owner's phone only while it's verified, and checks that again itself, so an unverified
+  number gets no replies, handoffs, alerts, check-ins or owner powers.
+- **Allowed people**: names with a phone or Apple ID email that the owner adds in Settings (compared in E.164 form, so
+  formatting doesn't matter). They get replies, and documents marked "Share with contacts", within the budget and the
+  per-contact reply limit, but none of the owner's powers (computer use, reminders, watches, task approvals).
+
+A text from anyone else is dropped by the engine before anything else happens: no model call, no contact, chat or
+message stored, no reply, and no text or email to the owner. That keeps strangers from spending the owner's AI keys
+and texting credit. The engine reports only how many it dropped per agent per day, and the numbers (never the text)
+of the last few senders, so the owner can allow them in one click. In a group chat each text is checked by its sender;
+other members' texts never reach the agent, its history or the model.
 
 ## Design choices
 
@@ -85,11 +105,21 @@ Between the engine's machine and the person texting, iMessage provides Apple's e
   backup alone doesn't reveal them, but the OpenBots operators hold `ENCRYPTION_KEY` and could decrypt them, and a
   leaked engine token can read them until it's revoked. If you'd rather nobody else could, set your keys as environment
   variables on the engine instead; they never leave that machine.
-- **The owner is recognised by their phone number**, and caller ID can be spoofed on SMS. Someone faking the owner's
-  number could text the agent as the owner. Computer use raises the stakes, since the owner can start tasks on the
-  computer, but a task's questions and results always go to the owner's real number, so the owner sees them and can
-  text "stop".
-- **Counts reveal volume:** the backend knows how many conversations, texts and handoffs each agent had per day.
+- **Senders are recognised by their number**, and caller ID can be spoofed on SMS. A text from the owner's number over
+  SMS gets the owner's chat but none of the owner's powers (computer use, reminders, watches, task answers); those
+  need iMessage. Someone faking an allowed person's (or the owner's) number over SMS can still get replies, so they
+  could spend some of the budget; the daily budget and the per-contact reply limit cap that, and the replies go to the
+  real number, not to them.
+- **Verification proves the code reached the phone, as far as the owner's engine tells it.** The engine makes and
+  texts the code and reports its hash, so someone who controls the owner's engine (normally the owner) could skip the
+  text. What it guards against is a mistyped or someone else's number receiving handoffs and check-ins, or being
+  treated as the owner. A 6-digit code's hash can be brute-forced by whoever can read the database, which is why it
+  expires in 10 minutes and the dashboard never sees it.
+- **Counts reveal volume:** the backend knows how many conversations, texts, handoffs and ignored texts each agent had
+  per day.
+- **Engines older than this change** don't know about Allowed people. The backend tells them every agent is paused,
+  so they answer only the owner's verified phone (they may still text the owner once per new chat that an agent is paused)
+  until they're updated.
 - This design hasn't had an external security review yet.
 
 ## Reporting a vulnerability

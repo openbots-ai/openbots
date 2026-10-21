@@ -8,8 +8,9 @@ every engine you run gets them, and a key saved there wins over the same variabl
 
 **Messages never leave it.** Contacts, conversations and message text are kept in a local SQLite file, encrypted
 with a key that sits next to it. Keys you set here stay here too (keys saved in Connections are stored in Convex, encrypted by the backend). The OpenBots dashboard and its Convex
-backend only ever see your settings (agents, models, knowledge, numbers), anonymous daily counts, and what the engine
-reports as set up: which services, which models your keys can use, and which addresses it texts from.
+backend only ever see your settings (agents, models, knowledge, numbers, your phone and Allowed people), anonymous daily
+counts, the numbers of the last few people whose texts were ignored, and what the engine reports as set up: which
+services, which models your keys can use, and which addresses it texts from.
 
 The one exception is the model you pick: a cloud model (OpenAI, Anthropic, Google, xAI) receives each conversation
 so it can write the reply. Use a local model server if nothing should leave your machines.
@@ -101,16 +102,40 @@ Use **Re-check** in Connections after you get access to a new model.
 - **Out:** the engine POSTs `{ "type": "message", from, to, body }` to `OPENBOTS_RELAY_URL` (with
   `Authorization: Bearer $OPENBOTS_RELAY_SECRET` if set), and `{ "type": "typing", from, to }` just before a reply.
 
+## How a text flows
+
+1. A text arrives (Messages, a relay, or a post from Twilio, Sendblue or BlueBubbles) and the engine finds the agent
+   for the number it was sent to.
+2. **Who sent it?** Your agents answer only you, from your phone in Settings once you've verified it, and the people
+   on your **Allowed people** list (Settings). Numbers match however they're written. Anyone else's text stops here:
+   the engine calls no model, stores no contact, chat or message, sends nothing back, and doesn't text or email you
+   about it. It only counts it; each heartbeat reports the count and the last few numbers (never the text), which the
+   dashboard shows with **Allow** next to each. Ignored texts are left unread. In a group chat each text is checked
+   by its sender, so other members' texts never reach the agent or its history.
+3. The engine stores the text (encrypted), and after the reply delay and quiet hours asks the agent's Brain (or its
+   Backup) for a reply, within your budget and the per-contact reply limit, and sends it back the way it came.
+
+Allowed people get replies, not your powers: only you, texting over iMessage, can set reminders and watches, start
+computer use tasks and answer their questions. Until your phone is verified the engine treats it like any other
+number: no replies, no handoff texts, alerts or check-ins to it.
+
+**Verifying your phone.** In Settings → General, type your phone and choose **Send code**. The dashboard asks your
+engine (it must be running, with a texting channel and one of your numbers on it) to text "Your OpenBots code is
+123456…" from one of your numbers. The engine reports only the code's hash to Convex; type the code in the dashboard
+within 10 minutes (5 tries, 3 codes an hour). An Apple ID email can be verified only through iMessage on a Mac
+(Messages, a relay or BlueBubbles); Twilio and Sendblue text phone numbers. Changing the number undoes the
+verification, and a phone saved before verification existed has to be verified again.
+
 ## Handoffs
 
 When an agent can't or shouldn't answer (it asked for you, its model failed, the budget ran out, it's paused), the
-engine texts **your phone** (Settings → General) from the engine's number, for example "Dana needs you (Pip)", and
+engine texts **your verified phone** (Settings → General) from the engine's number, for example "Dana needs you (Pip)", and
 emails you too if Resend is set up. The alert names the contact (or the group) but never quotes them. Answer them
 yourself; the engine stays out of that chat for 24 hours. In a group chat it only answers when someone uses its name.
 
 ## Reminders, watches and check-ins
 
-Text your agent from your own phone (Settings → General): "remind me at 5 to call Dana", "text me if the Oilers game
+Text your agent from your own verified phone (Settings → General): "remind me at 5 to call Dana", "text me if the Oilers game
 gets moved", "what do I have scheduled?", "cancel 2". Up to 50 reminders and 10 watches per agent; a watch checks
 at most every 30 minutes, texts you only when the answer changes, and stops after 30 days or 3 failed checks.
 Check-ins are set on the agent's page and go out at their time in your timezone. Quiet hours hold check-ins and watch
