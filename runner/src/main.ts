@@ -18,6 +18,7 @@ import { Scheduler } from './scheduler'
 import { Store } from './store'
 import { ConvexLink, type Status, type Task, type TaskResult } from './sync'
 import type { Channel } from './transports/types'
+import { sendOwnerCode } from './verify'
 
 // Set at build time from runner/package.json
 declare const __VERSION__: string
@@ -228,6 +229,8 @@ async function main() {
             waiting.push({ service: channel, error: `${agent.name} has reminders or watches waiting for ${channel}, which isn't running` })
         }
         const computing: Status['services'] = computerProblem ? [{ service: 'computer', error: computerProblem }] : []
+        // Texts ignored since the last beat (people not on your list): counts and numbers only
+        await pipeline.flushIgnored()
         return link.heartbeat({ ...status, services: perService([...status.services, ...waiting, ...computing]), jobs }).catch((e) => console.error(`Heartbeat failed: ${message(e)}`))
     }
     // A computer task the last run left unfinished: tell you in its chat once its channel is up. Runs at start and
@@ -307,6 +310,13 @@ async function main() {
             return
         }
         try {
+            // The code that verifies your phone, from whichever of your numbers can reach it
+            if (request.kind === 'ownerCode') {
+                const codeHash = await sendOwnerCode({ taskId: task._id, to: request.to, config: link.config(), transports: services.transports })
+                console.log(`Texted a verification code to …${request.to.replace(/\s/g, '').slice(-4)}`)
+                await link.finishTask(task._id, { result: { codeHash } }).catch((e) => console.error(`Couldn't report a task: ${message(e)}`))
+                return
+            }
             // A test text only needs your Twilio login, not a public address, so it works before webhooks are set up
             if (request.kind === 'twilioTestText') {
                 if (!settings.twilio) throw new ConnectError("Twilio isn't set up on this engine")

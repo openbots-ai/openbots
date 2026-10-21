@@ -2,6 +2,7 @@ import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { handleKey } from '../../convex/lib/handles'
 import { keyModels, NONE, resolveModels, type KeyModel, type ModelOption } from '../../convex/lib/models'
 import { knowledgeFor, MAX_TOKENS, parseReply, systemPrompt, toTurns } from '../../convex/lib/prompt'
+import { IGNORED_KEPT, verifiedOwner } from '../../convex/lib/owner'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey, DEFAULT_CONTACT_REPLIES_PER_HOUR, NEW_CONTACT_ALERTS_PER_HOUR } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
@@ -17,18 +18,22 @@ export type Config = {
     agents: Doc<'agents'>[]
     numbers: Doc<'numbers'>[]
     knowledge: Doc<'knowledge'>[]
+    // Settings → Allowed people: who agents answer besides you. Everyone else's texts are ignored.
+    allowed: { name: string; handle: string }[]
     // This engine may do tasks on your computer (Settings, for a Windows or Mac engine)
     computerUse?: boolean
 }
 
 // Counts sent to Convex for Analytics and the budget. Never names, numbers or text.
-export type Activity = Partial<Record<'conversations' | 'newContacts' | 'messagesIn' | 'messagesOut' | 'handoffs', number>>
+export type Activity = Partial<Record<'conversations' | 'newContacts' | 'messagesIn' | 'messagesOut' | 'handoffs' | 'ignored', number>>
 
 // The engine's link to Convex (sync.ts), kept behind an interface so tests can fake it
 export interface Link {
     config(): Config | null
     budget(today: string): Promise<string | null>
     record(agentId: Id<'agents'>, data: { usage?: { slot: string; model: string }; activity?: Activity }): Promise<void>
+    // The numbers (never the texts) of the last few people whose texts were ignored, for "Allow" in the dashboard
+    ignored(senders: string[]): Promise<void>
 }
 
 export type Deps = {
@@ -136,7 +141,8 @@ export class Pipeline {
     }
 
     // A text arrived on one of your channels. Stores it, counts it, and queues the agent's reply. In a group chat the
-    // agent only answers when someone uses its name.
+    // agent only answers when someone uses its name. Texts from anyone but you (once your phone is verified) and the
+    // people on your Allowed people list are ignored: see ignore.
     async receive(text: Incoming): Promise<{ markRead: boolean }> {
         const { store, link } = this.deps
         const { workspace: ws, numbers, agents } = this.config
@@ -153,6 +159,9 @@ export class Pipeline {
         if (!number) throw new Error(text.to ? `${text.to} isn't one of your numbers` : `Add your ${text.channel} number in Numbers`)
         const agent = agents.find((a) => a._id === (number.agentId ?? ws.defaultAgentId))
         if (!agent) throw new Error(`${number.handle} isn't assigned to an agent`)
+        // Before anything is stored, counted as a chat or sent to a model. In a group this is the sender, so other
+        // members' texts are dropped too and never reach the agent's history.
+        if (!fromOwner && !this.isAllowed(fromKey)) return this.ignore(agent._id, text.from.trim(), fromKey)
 
         const at = this.now()
         const { contact, isNew: newContact } = store.contact(fromKey, () => ({
@@ -183,10 +192,55 @@ export class Pipeline {
     }
 
     // You texting your own agent from the phone in Settings: it helps you directly, even before it's live, and never
-    // hands the chat to you or goes quiet, since you're the one it would hand it to
+    // hands the chat to you or goes quiet, since you're the one it would hand it to. Only once you've verified it.
     private isOwner(handle: string) {
-        const owner = this.config.workspace.ownerHandle
+        const owner = this.owner
         return !!owner && handleKey(owner) === handleKey(handle)
+    }
+
+    // Your phone, once verified in Settings: where handoffs, alerts and check-ins go. Convex sends it only when it's
+    // verified; it's checked here as well, so an unverified number is never texted or treated as you.
+    private get owner() {
+        return verifiedOwner(this.config.workspace)
+    }
+
+    private isAllowed(key: string) {
+        return (this.config.allowed ?? []).some((p) => handleKey(p.handle) === key)
+    }
+
+    // Someone not on your list: no contact, chat or message is stored, no model runs, nothing is sent to them or to you.
+    // Only a count per agent and their number (for "Allow" in the dashboard) are kept, in memory, until flushIgnored
+    // reports them. Left unread, so you still see it on your own devices.
+    private ignored = new Map<Id<'agents'>, number>()
+    private ignoredFrom = new Map<string, string>()
+    private ignore(agentId: Id<'agents'>, handle: string, key: string) {
+        this.ignored.set(agentId, (this.ignored.get(agentId) ?? 0) + 1)
+        this.ignoredFrom.delete(key)
+        this.ignoredFrom.set(key, handle)
+        while (this.ignoredFrom.size > IGNORED_KEPT) this.ignoredFrom.delete(this.ignoredFrom.keys().next().value!)
+        if (!this.ignoredLogged) this.log(`Ignored a text from …${key.slice(-4)}: not you or on your Allowed people list (Settings)`)
+        this.ignoredLogged = true
+        return { markRead: false }
+    }
+    // One log line per report, so a flood of strangers can't flood the log
+    private ignoredLogged = false
+
+    // Sends the ignored counts and numbers to Convex (the engine calls this with each heartbeat), in one call per
+    // agent instead of one per text
+    async flushIgnored() {
+        const counts = [...this.ignored]
+        const senders = [...this.ignoredFrom.values()]
+        this.ignored.clear()
+        this.ignoredFrom.clear()
+        this.ignoredLogged = false
+        const total = counts.reduce((s, [, n]) => s + n, 0)
+        if (total > 1) this.log(`Ignored ${total} texts from people not on your list`)
+        const { link } = this.deps
+        await Promise.all([
+            // Convex takes up to 1000 at a time
+            ...counts.map(([agentId, n]) => link.record(agentId, { activity: { ignored: Math.min(n, 1000) } })),
+            senders.length ? link.ignored(senders) : Promise.resolve(),
+        ]).catch((e) => this.log(`Couldn't report ignored texts: ${describe(e)}`))
     }
 
     // A note straight to you in your own chat, instead of a handoff alert about it
@@ -253,6 +307,9 @@ export class Pipeline {
         const contact = store.getContact(conversation.contactId)
         const owner = !!contact && this.isOwner(contact.handle)
         if (!agent || !contact || (agent.status !== 'live' && !owner)) return
+        // Someone taken off Allowed people since they texted (or a reply queued before this engine ignored strangers):
+        // no model call and no reply. In a group, receive already checked who sent the text being answered.
+        if (!owner && !conversation.threadKey && !this.isAllowed(handleKey(contact.handle) ?? '')) return this.log(`${agent.name} didn't reply: …${handleKey(contact.handle)?.slice(-4)} isn't on your Allowed people list`)
         // Your powers only when your latest text came over iMessage (see receive)
         const powers = owner && !store.getMeta(unverifiedKey(conversationId))
 
@@ -409,7 +466,8 @@ export class Pipeline {
     async fireCheckIns(now: number) {
         const { store } = this.deps
         const ws = this.config.workspace
-        if (!ws.ownerHandle) return
+        const owner = this.owner
+        if (!owner) return
         const tz = ws.timezone ?? 'UTC'
         const quietAt = (t: number) => (ws.quietEnabled && ws.quietStart && ws.quietEnd ? msUntilQuietEnds(t, tz, ws.quietStart, ws.quietEnd) : 0)
         if (quietAt(now) > 0) return
@@ -454,11 +512,11 @@ export class Pipeline {
                     this.log(`${agent.name}'s check-in got no reply, so nothing was sent`)
                     continue
                 }
-                await transport.send({ from: number.handle, to: ws.ownerHandle, body })
+                await transport.send({ from: number.handle, to: owner, body })
                 this.log(`${agent.name} sent a check-in`)
             } catch (e) {
                 this.log(`${agent.name}'s check-in failed: ${describe(e)}`)
-                await transport.send({ from: number.handle, to: ws.ownerHandle, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
+                await transport.send({ from: number.handle, to: owner, body: `${agent.name}'s check-in couldn't be sent: ${describe(e)}` }).catch((e2) => this.log(`Couldn't text you: ${describe(e2)}`))
             }
         }
         // One line a tick at most
@@ -473,7 +531,7 @@ export class Pipeline {
         const system = systemPrompt({
             agent,
             workspace: ws,
-            contact: { name: ws.ownerName, handle: ws.ownerHandle ?? '', tags: [], notes: '' },
+            contact: { name: ws.ownerName, handle: this.owner ?? '', tags: [], notes: '' },
             knowledge: knowledgeFor(this.config.knowledge, agent._id, true),
             now,
             withOwner: true,
@@ -557,9 +615,10 @@ export class Pipeline {
     private async alertOwner(conversation: Conversation, body: string) {
         const ws = this.config.workspace
         if (ws.ownerEmail && this.deps.email) await this.deps.email(ws.ownerEmail, body.split('. ')[0], body).catch((e) => this.log(`Couldn't email you: ${describe(e)}`))
-        if (!ws.ownerHandle) return this.log('Add your phone under Settings → General to get handoff texts')
+        const owner = this.owner
+        if (!owner) return this.log('Verify your phone under Settings → General to get handoff texts')
         const transport = this.deps.transports[conversation.channel]
         if (!transport) return
-        await transport.send({ from: conversation.number, to: ws.ownerHandle, body }).catch((e) => this.log(`Couldn't text you: ${describe(e)}`))
+        await transport.send({ from: conversation.number, to: owner, body }).catch((e) => this.log(`Couldn't text you: ${describe(e)}`))
     }
 }
