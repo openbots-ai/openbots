@@ -3,8 +3,9 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 // What's here: each user's workspace and settings, their agents, models, knowledge and numbers, the keys they save
-// in Connections (encrypted), and anonymous daily counts. What's never here: messages or contacts. Those live on the
-// user's own engine (runner/), which reads this configuration and reports back only counts and what it has set up.
+// in Connections (encrypted), the people they allow to text their agents, and anonymous daily counts. What's never
+// here: messages or contacts. Those live on the user's own engine (runner/), which reads this configuration and reports
+// back only counts, what it has set up, and the numbers (never the texts) of the last few strangers it ignored.
 
 export const agentStatus = v.union(v.literal('draft'), v.literal('live'), v.literal('paused'))
 
@@ -33,7 +34,8 @@ export const agentFields = {
 export const workspaceSettings = {
     // Workspace-wide model per slot (slot id → "provider:model"); see convex/lib/models.ts
     models: v.optional(v.record(v.string(), v.string())),
-    // Where your engine sends handoff alerts: a text to your own phone, and an email if the engine has Resend set up
+    // Your own phone (or Apple ID email), as typed in Settings. The engine only uses it once it's verified (see
+    // ownerVerifiedKey); it's set through workspace.sendOwnerCode, never through workspace.update.
     ownerHandle: v.optional(v.string()),
     ownerEmail: v.optional(v.string()),
     timezone: v.optional(v.string()),
@@ -108,10 +110,19 @@ export const taskRequest = v.union(
     v.object({ kind: v.literal('twilioUse'), sid: v.string(), phoneNumber: v.string(), agentId: v.optional(v.id('agents')) }),
     // Send one text from one of your Twilio numbers, to check texting works (Connections → Twilio → Send a test text)
     v.object({ kind: v.literal('twilioTestText'), from: v.string(), to: v.string(), body: v.string() }),
+    // Text a fresh verification code to the phone you entered in Settings (made only by workspace.sendOwnerCode)
+    v.object({ kind: v.literal('ownerCode'), to: v.string() }),
 )
 
 // What the engine sends back: numbers found, or the number now in use
-export const taskResult = v.union(v.object({ numbers: v.array(twilioNumber) }), v.object({ phoneNumber: v.string(), sid: v.string() }), v.object({ sentTo: v.string() }))
+// For ownerCode the engine answers with the code's hash (see lib/owner.ts); runner.finishTask moves it to ownerCodes
+// and keeps only { sentTo } on the task, so the dashboard never sees it.
+export const taskResult = v.union(
+    v.object({ numbers: v.array(twilioNumber) }),
+    v.object({ phoneNumber: v.string(), sid: v.string() }),
+    v.object({ sentTo: v.string() }),
+    v.object({ codeHash: v.string() }),
+)
 
 // A text an agent sends its owner on a schedule. `time` is HH:MM in the workspace's timezone; days are 0 = Sunday … 6.
 export const checkIn = v.object({ id: v.string(), days: v.array(v.number()), time: v.string(), what: v.string(), on: v.boolean() })
@@ -126,6 +137,11 @@ export default defineSchema({
         name: v.string(),
         ownerName: v.string(),
         ...workspaceSettings,
+        // When you typed the code texted to ownerHandle, and that handle's key (lib/handles.ts). ownerHandle counts as
+        // yours only while its key still matches, so changing the number undoes the verification; a workspace made
+        // before verification existed has neither, so its phone is unverified until you verify it.
+        ownerVerifiedAt: v.optional(v.number()),
+        ownerVerifiedKey: v.optional(v.string()),
         // Unused since the computer picker was removed; agents use the computer their engine runs on
         computerId: v.optional(v.id('runners')),
         // Left over from before agents ran on your own machine; migrations:purgeLegacy clears these
@@ -187,9 +203,44 @@ export default defineSchema({
         messagesIn: v.number(),
         messagesOut: v.number(),
         handoffs: v.number(),
+        // Texts from people not on your Allowed people list, dropped unread (optional: rows made before it existed)
+        ignored: v.optional(v.number()),
     })
         .index('by_workspace_and_day', ['workspaceId', 'day'])
         .index('by_agent_and_day', ['agentId', 'day']),
+    // The people your agents answer besides you (Settings → Allowed people). Everyone else is ignored by the engine.
+    allowedPeople: defineTable({
+        ...ws,
+        name: v.string(),
+        handle: v.string(),
+        // handleKey(handle), so "+1 (415) 555-0101" and "4155550101" are the same person
+        key: v.string(),
+    }).index('by_workspace_and_key', ['workspaceId', 'key']),
+    // The last few numbers (at most IGNORED_KEPT per workspace) whose texts the engine ignored, so you can allow them
+    // in one click. Numbers and times only, never what they wrote.
+    ignoredSenders: defineTable({
+        ...ws,
+        handle: v.string(),
+        key: v.string(),
+        at: v.number(),
+    })
+        .index('by_workspace_and_key', ['workspaceId', 'key'])
+        .index('by_workspace_and_at', ['workspaceId', 'at']),
+    // Verification codes texted to your phone: only a hash of the code, made by the engine that sent it. One row per
+    // code asked for, so the last hour's rows are also the send limit (see lib/owner.ts).
+    ownerCodes: defineTable({
+        ...ws,
+        // The ownerCode task that sends it; its id salts the hash
+        taskId: v.id('tasks'),
+        handle: v.string(),
+        key: v.string(),
+        // Set when the engine reports the code sent; cleared once the code is used
+        codeHash: v.optional(v.string()),
+        sentAt: v.optional(v.number()),
+        attempts: v.number(),
+    })
+        .index('by_workspace', ['workspaceId'])
+        .index('by_taskId', ['taskId']),
     // The agents you run on your own machines. Convex only ever sees the token's hash, the engine's version, and
     // what it reports as set up: which services, which models its AI keys can use, and which lines it answers on.
     runners: defineTable({

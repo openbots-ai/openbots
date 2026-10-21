@@ -13,6 +13,8 @@ export const request = mutation({
     args: { request: taskRequest },
     handler: async (ctx, { request }) => {
         const ws = await requireWorkspace(ctx)
+        // Codes go out only through workspace.sendOwnerCode, which limits them and keeps their hash
+        if (request.kind === 'ownerCode') throw new Error('Send a code from Settings → Your phone')
         if ('agentId' in request && request.agentId) await owned(ctx, ws, 'agents', request.agentId)
         const online = await ctx.db
             .query('runners')

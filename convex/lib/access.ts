@@ -27,7 +27,7 @@ export async function requireWorkspace(ctx: Ctx) {
     return ws
 }
 
-type Owned = 'agents' | 'numbers' | 'knowledge' | 'runners' | 'tasks'
+type Owned = 'agents' | 'numbers' | 'knowledge' | 'runners' | 'tasks' | 'allowedPeople' | 'ignoredSenders'
 
 // Loads a document only if it belongs to this workspace; anything else reads as "not found"
 export async function owned<T extends Owned & TableNames>(ctx: Ctx, ws: Doc<'workspace'>, table: T, id: Id<T>): Promise<Doc<T>> {
