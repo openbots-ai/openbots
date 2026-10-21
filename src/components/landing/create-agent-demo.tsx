@@ -424,7 +424,7 @@ function EditorScreen({ e, compact }: { e: EditorState; compact: boolean }) {
                     <Field label="Personality & instructions" hint="How it talks, what it handles, and what it should hand back to you.">
                         <Input value={e.prompt} focused={e.focus === 'prompt'} multiline />
                     </Field>
-                    <Field label="Phone number" hint="The iMessage number people text to reach this agent.">
+                    <Field label="Phone number" hint="The iMessage number you, and the people you allow, text to reach this agent.">
                         <span className="relative block">
                             {e.numberMenu && <MenuPicture up items={numberOptions(s.number).map((n) => ({ id: n, label: n }))} selected={NONE} hovered={e.numberMenu} />}
                             <span className={cn('flex h-8 items-center justify-between rounded-md border px-2.5 text-[13px] transition-shadow', e.focus === 'number' ? 'border-neutral-400 ring-3 ring-neutral-300/50' : 'border-neutral-200')}>

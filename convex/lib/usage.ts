@@ -13,7 +13,7 @@ export const SLOT_UNITS: Record<SlotId, { one: string; many: string; weight: num
     backup: { one: 'takeover', many: 'takeovers', weight: 1 },
 }
 
-// The daily cap a workspace has until you set your own, so texts from strangers can't run up an open-ended bill.
+// The daily cap a workspace has until you set your own, so even the people you allow can't run up an open-ended bill.
 // About this many replies a day; raise it in Settings → Usage budget.
 export const DEFAULT_DAILY_BUDGET = 200
 

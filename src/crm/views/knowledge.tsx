@@ -108,7 +108,7 @@ function DocDialog({ doc, agents, onClose }: { doc?: Doc<'knowledge'>; agents: D
                     <span className="text-xs font-medium text-neutral-600">Share with contacts</span>
                     <span className="text-[11px] leading-snug text-muted-foreground">
                         {shareWithContacts
-                            ? 'Agents may use this when texting anyone, including people you don’t know.'
+                            ? 'Agents may use this when texting the people on your Allowed people list, and in their group chats.'
                             : 'Off: agents use this only when you text them yourself. Documents start off, including ones added before this setting.'}
                     </span>
                 </span>

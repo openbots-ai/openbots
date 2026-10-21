@@ -55,7 +55,7 @@ export function NumbersView() {
                         title="No numbers yet"
                         body={
                             texting.length
-                                ? 'Add a number your engine texts from, then point it at an agent. People text that number to reach the agent.'
+                                ? 'Add a number your engine texts from, then point it at an agent. You and the people in Settings → Allowed people text that number to reach the agent; texts from anyone else are ignored.'
                                 : 'First set up texting in Connections (Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS).'
                         }
                         action={runners && add}

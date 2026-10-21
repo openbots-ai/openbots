@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useConvex, useMutation, useQuery } from 'convex/react'
-import { Bell, Building2, Database, Download, Gauge, MessageCircle, Users, type LucideIcon } from 'lucide-react'
+import { Bell, Building2, Database, Download, Gauge, MessageCircle, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { handleKind } from '@convex/lib/handles'
@@ -10,11 +10,14 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AllowedPeople } from '../allowed-people'
+import { OwnerPhone } from '../owner-phone'
 import { useRun } from '../use-run'
 import { Btn, Content, PaneItem, Scroll, Select, SidePane, Toggle, Toolbar } from '../ui'
 
 const SECTIONS: { id: string; label: string; icon: LucideIcon }[] = [
     { id: 'general', label: 'General', icon: Building2 },
+    { id: 'allowed', label: 'Allowed people', icon: ShieldCheck },
     { id: 'messaging', label: 'Messaging', icon: MessageCircle },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -37,7 +40,6 @@ type Form = {
     name: string
     ownerName: string
     ownerEmail: string
-    ownerHandle: string
     timezone: string
     defaultAgentId: string
     quietEnabled: boolean
@@ -59,7 +61,6 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     name: w.name,
     ownerName: w.ownerName,
     ownerEmail: w.ownerEmail ?? '',
-    ownerHandle: w.ownerHandle ?? '',
     timezone: w.timezone ?? browserTimezone(),
     defaultAgentId: w.defaultAgentId ?? '',
     quietEnabled: w.quietEnabled ?? false,
@@ -85,7 +86,6 @@ const normalize = (f: Form): Form => ({
     name: f.name.trim(),
     ownerName: f.ownerName.trim(),
     ownerEmail: f.ownerEmail.trim(),
-    ownerHandle: f.ownerHandle.trim(),
     newContactTag: f.newContactTag.trim().toLowerCase(),
     // The server reads a blank daily budget as the default, and shows it
     dailyBudget: f.dailyBudget.trim() ? String(Number(f.dailyBudget)) : String(DEFAULT_DAILY_BUDGET),
@@ -122,7 +122,7 @@ export function SettingsView() {
     )
 }
 
-function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
+function SettingsForm({ workspace }: { workspace: Doc<'workspace'> & { ownerVerified: boolean } }) {
     const run = useRun()
     const update = useMutation(api.workspace.update)
     const agents = useQuery(api.agents.list)
@@ -133,10 +133,9 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
     const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }))
     const dirty = JSON.stringify(normalize(form)) !== JSON.stringify(toForm(workspace))
     const emailOk = !form.ownerEmail.trim() || handleKind(form.ownerEmail) === 'email'
-    const handleOk = !form.ownerHandle.trim() || !!handleKind(form.ownerHandle)
     const emailing = !!form.ownerEmail.trim() && emailOk && !!runners?.some((r) => r.services?.some((s) => s.service === 'resend' && !s.error))
     const budgetsOk = budgetOk(form.dailyBudget) && budgetOk(form.weeklyBudget) && repliesOk(form.contactRepliesPerHour)
-    const valid = form.name.trim() && form.ownerName.trim() && emailOk && handleOk && form.quietStart && form.quietEnd && budgetsOk
+    const valid = form.name.trim() && form.ownerName.trim() && emailOk && form.quietStart && form.quietEnd && budgetsOk
     const timezones = Intl.supportedValuesOf('timeZone')
 
     const save = async () => {
@@ -146,7 +145,6 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
             update({
                 ...f,
                 ownerEmail: f.ownerEmail || undefined,
-                ownerHandle: f.ownerHandle || undefined,
                 defaultAgentId: f.defaultAgentId ? (f.defaultAgentId as Id<'agents'>) : undefined,
                 newContactTag: f.newContactTag || undefined,
                 dailyBudget: parseBudget(f.dailyBudget),
@@ -167,8 +165,8 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 <Row label="Your name" description="Shown in the sidebar." htmlFor="s-owner">
                     <Input id="s-owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} />
                 </Row>
-                <Row label="Your phone" description={!handleOk ? 'Enter a phone number or an Apple ID email.' : 'Your engine texts you here when it needs you. Use your own number, not one of your agents’.'} error={!handleOk} htmlFor="s-handle">
-                    <Input id="s-handle" aria-invalid={!handleOk} value={form.ownerHandle} onChange={(e) => set('ownerHandle', e.target.value)} placeholder="+1 415 555 0100" />
+                <Row label="Your phone" description="Your own number (or Apple ID email), not one of your agents’. Once you’ve verified it with the code your engine texts, your agents answer you from it and text you handoffs, alerts and check-ins there." htmlFor="s-handle">
+                    <OwnerPhone />
                 </Row>
                 <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where your engine also emails you, if it has Resend set up.'} error={!emailOk} htmlFor="s-email">
                     <Input id="s-email" type="email" aria-invalid={!emailOk} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />
@@ -181,6 +179,14 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                         options={(timezones.includes(form.timezone) ? timezones : [form.timezone, ...timezones]).map((tz) => ({ value: tz, label: tz.replaceAll('_', ' ') }))}
                     />
                 </Row>
+            </Section>
+
+            <Section
+                id="allowed"
+                title="Allowed people"
+                description="Your agents answer only you and the people on this list. Texts from anyone else are ignored: never read by a model, kept or answered, and you aren’t alerted. So strangers can’t use your AI keys or texting credit. People here get replies, not your powers (computer use, reminders, watches)."
+                >
+                <AllowedPeople ownerVerified={workspace.ownerVerified} />
             </Section>
 
             <Section id="messaging" title="Messaging" description="How your agents behave when they text.">
@@ -221,9 +227,9 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 description={
                     emailing
                         ? `Your engine texts these to your phone and emails them to ${form.ownerEmail.trim()}. They name the contact but never quote them.`
-                        : 'Your engine texts these to your phone (under General). They name the contact but never quote them. To get them by email too, set up Resend in Connections.'
+                        : 'Your engine texts these to your phone once it’s verified (under General). They name the contact but never quote them. To get them by email too, set up Resend in Connections.'
                 }>
-                <Row label="New contact" description={`When someone texts one of your agents for the first time. At most ${NEW_CONTACT_ALERTS_PER_HOUR} an hour, then one note that more are texting.`} inline>
+                <Row label="New contact" description={`When someone on your Allowed people list texts one of your agents for the first time. At most ${NEW_CONTACT_ALERTS_PER_HOUR} an hour, then one note that more are texting.`} inline>
                     <Toggle label="New contact notifications" checked={form.notifyNewContact} onChange={(v) => set('notifyNewContact', v)} />
                 </Row>
                 <Row label="Handoffs" description="When an agent needs you to step in." inline>
@@ -231,7 +237,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> }) {
                 </Row>
             </Section>
 
-            <Section id="usage" title="Usage budget" description={`${CREDITS_NOTE} When a budget runs out, agents stop replying and hand conversations to you. The daily budget is on from the start, so texts from strangers can’t run up your AI and texting bills. See Analytics for what you used.`}>
+            <Section id="usage" title="Usage budget" description={`${CREDITS_NOTE} When a budget runs out, agents stop replying and hand conversations to you. The daily budget is on from the start, so even the people you allow can’t run up your AI and texting bills. See Analytics for what you used.`}>
                 <Row
                     label="Daily budget"
                     description={budgetOk(form.dailyBudget) ? `Credits per day (UTC), about one per reply. Leave blank for the default (${DEFAULT_DAILY_BUDGET}).` : 'Enter a number above 0, or leave blank.'}
