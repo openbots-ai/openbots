@@ -68,8 +68,8 @@ export function AllowedPeople({ ownerVerified }: { ownerVerified: boolean }) {
                     e.preventDefault()
                     void save()
                 }}>
-                <Input aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-                <Input aria-label="Phone or Apple ID email" aria-invalid={!handleOk} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="Phone or Apple ID email" />
+                <Input aria-label="Their name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+                <Input aria-label="Their phone or Apple ID email" aria-invalid={!handleOk} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="Phone or Apple ID email" />
                 <Btn type="submit" variant="primary" disabled={busy || !name.trim() || !handle.trim() || !handleOk}>
                     Add
                 </Btn>
@@ -78,7 +78,7 @@ export function AllowedPeople({ ownerVerified }: { ownerVerified: boolean }) {
 
             {ignored && (ignored.today > 0 || ignored.recent.length > 0) && (
                 <div className="space-y-2 border-t border-neutral-100 pt-4">
-                    <p className="text-[12px] text-neutral-600">{ignoredLine(ignored.today) || 'No texts from people not on your list were ignored today.'} Your engine didn’t read, keep or answer them.</p>
+                    <p className="text-[12px] text-neutral-600">{ignoredLine(ignored.today) || 'No texts from people not on your list were ignored today.'} Your engine didn’t answer them, keep them or pass them to a model.</p>
                     {ignored.recent.length > 0 && (
                         <ul className="space-y-1">
                             {ignored.recent.map((r) => (
