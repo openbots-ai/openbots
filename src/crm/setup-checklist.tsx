@@ -3,9 +3,11 @@ import { Check } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import { AI_PROVIDERS } from '@convex/lib/models'
 import { cn } from '@/lib/utils'
+import { codeSender } from './lib/owner'
 import type { View } from './lib/view'
 import { useNav } from './nav'
 import { Btn } from './ui'
+import { useNow } from './use-now'
 
 // What's left before agents answer real texts. Hidden once everything is done.
 export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
@@ -15,9 +17,13 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
     const numbers = useQuery(api.numbers.list)
     const saved = useQuery(api.secrets.list)
     const workspace = useQuery(api.workspace.get)
+    const now = useNow()
     if (!runners || !agents || !numbers || !saved || workspace === undefined) return null
 
-    const steps: { done: boolean; title: string; body: string; action: string; go?: View; onClick?: () => void }[] = [
+    const verified = !!workspace?.ownerVerified
+    // The code is texted by your engine, from one of your numbers
+    const sender = codeSender(runners, numbers, now)
+    const steps: { done: boolean; title: string; body: string; action: string; go?: View; onClick?: () => void; waiting?: boolean }[] = [
         // A key saved in Connections counts before any engine runs: every engine picks it up when it starts
         {
             done: runners.some((r) => r.models?.length) || saved.some((k) => (AI_PROVIDERS as readonly string[]).includes(k.service)),
@@ -33,21 +39,26 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
             action: 'Add your engine',
             go: 'connections',
         },
+        { done: agents.length > 0, title: 'Create an agent', body: 'Give it a job and a personality.', action: 'Create an agent', onClick: onCreate },
+        { done: runners.some((r) => r.channels?.length), title: 'Set up texting', body: 'Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS.', action: 'See how', go: 'connections' },
+        { done: numbers.some((n) => n.agentId), title: 'Give it a number', body: 'The number you, and the people you allow, text to reach your agent.', action: 'Add a number', go: 'numbers' },
+        {
+            done: verified,
+            title: 'Verify your phone',
+            body: sender.ready
+                ? 'Your engine texts it a code. Until it’s verified your agents answer nobody, you included, and can’t text you handoffs or check-ins.'
+                : `Needs a running engine that can text, since the code is sent by text. ${sender.why}`,
+            action: 'Verify in Settings',
+            go: 'settings',
+            waiting: !sender.ready,
+        },
         {
             done: agents.some((a) => a.status === 'live'),
-            title: 'Create an agent and set it live',
-            body: agents.length ? 'Open an agent below and set its Status to Live.' : 'Give it a job and a personality.',
-            action: agents.length ? '' : 'Create an agent',
-            onClick: onCreate,
-        },
-        { done: runners.some((r) => r.channels?.length), title: 'Set up texting', body: 'Messages on a Mac, BlueBubbles or Sendblue for iMessage, Twilio for SMS.', action: 'See how', go: 'connections' },
-        { done: numbers.some((n) => n.agentId), title: 'Give it a number', body: 'The number people text to reach your agent.', action: 'Add a number', go: 'numbers' },
-        {
-            done: !!workspace?.ownerHandle,
-            title: 'Add your phone',
-            body: 'Where agents text you handoffs, reminders, watch alerts and check-ins. Without it they have nowhere to go.',
-            action: 'Open Settings',
-            go: 'settings',
+            title: 'Set an agent live',
+            body: verified
+                ? 'Open an agent below and set its Status to Live. It answers only you and the people in Settings → Allowed people.'
+                : 'Verify your phone first: until then a live agent answers nobody. Then set its Status to Live; it answers only you and the people in Settings → Allowed people.',
+            action: '',
         },
     ]
     const left = steps.filter((s) => !s.done).length
@@ -72,7 +83,7 @@ export function SetupChecklist({ onCreate }: { onCreate: () => void }) {
                         </span>
                         <span className="text-[12px] leading-snug text-neutral-500">{s.body}</span>
                         {!s.done && s.action && (
-                            <Btn className="mt-auto self-start" onClick={() => (s.onClick ? s.onClick() : s.go && go(s.go))}>
+                            <Btn className="mt-auto self-start" disabled={s.waiting} onClick={() => (s.onClick ? s.onClick() : s.go && go(s.go))}>
                                 {s.action}
                             </Btn>
                         )}

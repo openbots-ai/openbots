@@ -597,7 +597,7 @@ export class Pipeline {
     }
 
     // Tells you about a new contact, at most a few times an hour: the next one says more are texting and the rest wait
-    // for the hour to pass, so a flood of strangers can't flood your phone and inbox too
+    // for the hour to pass, so many new people at once can't flood your phone and inbox
     private async newContactAlert(conversation: Conversation, body: string) {
         const { store } = this.deps
         const now = this.now()

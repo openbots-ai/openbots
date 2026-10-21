@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Hand, MessagesSquare, Users, type LucideIcon } from 'lucide-react'
+import { Hand, MessagesSquare, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -15,6 +15,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis 
 import { UsageGauge } from '@/components/usage-gauge'
 import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
+import { ignoredLine } from '../lib/owner'
 import { dayLabel } from '../lib/time'
 import { useNav } from '../nav'
 import { Content, Scroll, Toolbar } from '../ui'
@@ -93,6 +94,8 @@ export function AnalyticsView() {
     const workspace = useQuery(api.workspace.get)
     // Daily totals your agents report; the conversations themselves stay on your engine
     const activity = useQuery(api.usage.activity, { since: addDays(today, -29) })
+    // Texts from people not on your Allowed people list, which your engine dropped unread
+    const ignored = useQuery(api.allowed.ignored, { today })
     const all = rows ?? []
 
     // Windows like Claude Code's: today, and the week that started on Monday
@@ -122,6 +125,26 @@ export function AnalyticsView() {
                         <Tile icon={Hand} label="Handoffs" value={activity && compact(activity.handoffs)} note="Texted to you, last 30 days" />
                         <Tile icon={Users} label="New contacts" value={activity && compact(activity.newContacts)} note="First texts, last 30 days" />
                     </div>
+
+                    {workspace && !workspace.ownerVerified && (
+                        <Card role="alert" className="flex flex-row flex-wrap items-center justify-between gap-2 rounded-lg border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+                            Your phone isn’t verified, so your agents answer nobody right now.
+                            <button type="button" onClick={() => go('settings')} className="cursor-pointer text-[12px] font-medium underline-offset-2 hover:underline">
+                                Verify it in Settings →
+                            </button>
+                        </Card>
+                    )}
+                    {!!ignored?.today && (
+                        <Card className="flex flex-row flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 text-[13px] text-neutral-700">
+                            <span className="flex items-center gap-2">
+                                <ShieldCheck className="size-4 shrink-0 text-neutral-500" aria-hidden />
+                                {ignoredLine(ignored.today)} They didn’t use your AI keys or texting credit.
+                            </span>
+                            <button type="button" onClick={() => go('settings')} className="cursor-pointer text-[12px] text-neutral-500 underline-offset-2 hover:text-neutral-900 hover:underline">
+                                Allowed people →
+                            </button>
+                        </Card>
+                    )}
 
                     <Section title="Usage budget" aside={`${CREDITS_NOTE} Set your budget in Settings.`}>
                         <div className="grid gap-6 sm:grid-cols-3">
