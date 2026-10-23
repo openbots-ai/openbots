@@ -1,4 +1,3 @@
-import { authTables } from '@convex-dev/auth/server'
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
@@ -130,10 +129,10 @@ export const checkIn = v.object({ id: v.string(), days: v.array(v.number()), tim
 const ws = { workspaceId: v.id('workspace') }
 
 export default defineSchema({
-    ...authTables,
     // One per signed-in user
     workspace: defineTable({
-        userId: v.id('users'),
+        // The Clerk user's tokenIdentifier ("<issuer>|<user id>")
+        userId: v.string(),
         name: v.string(),
         ownerName: v.string(),
         ...workspaceSettings,

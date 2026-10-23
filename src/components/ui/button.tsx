@@ -9,7 +9,7 @@ const buttonVariants = cva('cursor-pointer inline-flex items-center justify-cent
             default: 'bg-primary text-primary-foreground hover:bg-primary/90',
             // Hero-only showpiece: brand gradient with an inner sheen and glow
             hero: 'bg-primary-gradient text-white font-semibold [text-shadow:0_1px_1px_rgb(0_0_0/0.25)] shadow-md shadow-indigo-950/25 inset-ring inset-ring-white/15 hover:brightness-105 hover:shadow-lg hover:shadow-indigo-950/30 transition-[filter,box-shadow,scale]',
-            destructive: 'bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90',
+            destructive: 'bg-destructive text-white shadow-md hover:bg-destructive/90',
             outline: 'shadow-sm bg-foreground/5 shadow-black/10  ring-1 ring-foreground/10 duration-200 hover:bg-muted/50',
             secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
             ghost: 'hover:bg-foreground/6.5 hover:text-accent-foreground',

@@ -11,8 +11,7 @@ const modules = import.meta.glob('./**/*.ts')
 
 async function setup() {
     const base = convexTest(schema, modules)
-    const userId = await base.run((ctx) => ctx.db.insert('users', {}))
-    const owner = base.withIdentity({ subject: `${userId}|s`, tokenIdentifier: `t|${userId}` })
+    const owner = base.withIdentity({ subject: 'user', tokenIdentifier: 'test|user' })
     await owner.mutation(api.workspace.create, { name: 'W', ownerName: 'Sam', timezone: 'America/Regina' })
     const token = newToken()
     const id = await owner.mutation(api.runners.create, { name: 'PC', tokenHash: await hashToken(token) })

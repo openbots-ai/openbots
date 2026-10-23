@@ -1,4 +1,3 @@
-import { getAuthUserId } from '@convex-dev/auth/server'
 import type { Doc, Id, TableNames } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
@@ -6,18 +5,19 @@ type Ctx = QueryCtx | MutationCtx
 
 // The signed-in user's workspace, or null before they've set one up
 export async function currentWorkspace(ctx: Ctx) {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) return null
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
     return ctx.db
         .query('workspace')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
         .unique()
 }
 
+// The signed-in Clerk user, as Convex identifies them
 export async function requireUser(ctx: Ctx) {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Sign in to continue')
-    return userId
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Sign in to continue')
+    return identity
 }
 
 export async function requireWorkspace(ctx: Ctx) {

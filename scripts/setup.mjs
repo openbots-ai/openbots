@@ -1,4 +1,5 @@
-// Sets up a Convex deployment for OpenBots: generates the server's own secrets and stores them on the deployment,
+// Sets up a Convex deployment for OpenBots: generates the server's own secrets, asks for the Clerk Frontend API URL
+// and stores them on the deployment,
 // so nothing secret is ever written to a file or typed by hand. Users' own keys are saved in Connections (encrypted with
 // ENCRYPTION_KEY) or set on their engine (runner/).
 //
@@ -9,7 +10,8 @@
 // Connections are encrypted with it and could no longer be read).
 
 import { spawnSync } from 'node:child_process'
-import { generateKeyPairSync, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
+import { createInterface } from 'node:readline/promises'
 
 const target = process.argv.slice(2)
 
@@ -44,15 +46,22 @@ console.log('Setting up OpenBots on this deployment…')
 if (existing.has('ENCRYPTION_KEY')) console.log('  · ENCRYPTION_KEY already set, kept')
 else set('ENCRYPTION_KEY', randomBytes(32).toString('base64'))
 
-// Sign-in keys (Convex Auth): an RS256 pair. They belong together, so a half-set pair is replaced whole,
-// which signs everyone out once.
-if (existing.has('JWT_PRIVATE_KEY') && existing.has('JWKS')) console.log('  · Sign-in keys already set, kept')
+// Sign-in (Clerk): the Frontend API URL, so Convex trusts Clerk's tokens. It isn't secret, but it's asked for
+// rather than generated.
+if (existing.has('CLERK_JWT_ISSUER_DOMAIN')) console.log('  · CLERK_JWT_ISSUER_DOMAIN already set, kept')
 else {
-    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
-    const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).trimEnd().replace(/\n/g, ' ')
-    const jwk = publicKey.export({ format: 'jwk' })
-    set('JWT_PRIVATE_KEY', pem)
-    set('JWKS', JSON.stringify({ keys: [{ use: 'sig', alg: 'RS256', ...jwk }] }))
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    const domain = (await rl.question('  Clerk Frontend API URL (Clerk dashboard → Configure → API keys): ')).trim().replace(/\/+$/, '')
+    rl.close()
+    if (!/^https:\/\/\S+$/.test(domain)) {
+        console.error('\nThat should look like https://your-app.clerk.accounts.dev. Run setup again when you have it.')
+        process.exit(1)
+    }
+    if (convex(['env', 'set', 'CLERK_JWT_ISSUER_DOMAIN', '--', domain]) === null) {
+        console.error('\nCould not set CLERK_JWT_ISSUER_DOMAIN.')
+        process.exit(1)
+    }
+    console.log('  ✓ CLERK_JWT_ISSUER_DOMAIN stored')
 }
 
 console.log('\nDone. AI keys, texting accounts and email are saved by each person in Connections.')

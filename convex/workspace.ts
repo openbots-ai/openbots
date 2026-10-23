@@ -30,13 +30,12 @@ export const get = query({
 export const create = mutation({
     args: { name: v.string(), ownerName: v.string(), timezone: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const userId = await requireUser(ctx)
+        const identity = await requireUser(ctx)
         if (await currentWorkspace(ctx)) throw new Error('Your workspace is already set up')
         const name = args.name.trim()
         const ownerName = args.ownerName.trim()
         if (!name || !ownerName) throw new Error('Workspace and owner name are required')
-        const user = await ctx.db.get('users', userId)
-        return ctx.db.insert('workspace', { userId, name, ownerName, timezone: args.timezone, ownerEmail: user?.email, dailyBudget: DEFAULT_DAILY_BUDGET })
+        return ctx.db.insert('workspace', { userId: identity.tokenIdentifier, name, ownerName, timezone: args.timezone, ownerEmail: identity.email, dailyBudget: DEFAULT_DAILY_BUDGET })
     },
 })
 

@@ -31,8 +31,7 @@ function fakeOrgo({ failOn }: { failOn?: string } = {}) {
 }
 
 async function user(base: ReturnType<typeof convexTest>, name = 'Sam') {
-    const userId = await base.run((ctx) => ctx.db.insert('users', {}))
-    const t = base.withIdentity({ subject: `${userId}|session`, tokenIdentifier: `test|${userId}` })
+    const t = base.withIdentity({ subject: name, tokenIdentifier: `test|${name}` })
     await t.mutation(api.workspace.create, { name: `${name}'s agents`, ownerName: name, timezone: 'UTC' })
     return t
 }

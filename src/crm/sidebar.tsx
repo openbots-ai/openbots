@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react'
 import { useQuery } from 'convex/react'
 import { BookOpen, Bot, ChartLine, CircleHelp, Cpu, Gauge, LogOut, MessageCircle, Plug, Settings, Sparkles, type LucideIcon } from 'lucide-react'
-import { useAuthActions } from '@convex-dev/auth/react'
+import { useClerk } from '@clerk/react'
 import { api } from '@convex/_generated/api'
 import type { Doc } from '@convex/_generated/dataModel'
 import { CREDITS_NOTE, creditsFor, dayKey, weekStart } from '@convex/lib/usage'
@@ -145,7 +145,7 @@ function UsageCard({ workspace, onClick }: { workspace?: Doc<'workspace'> | null
 }
 
 function SignOut() {
-    const { signOut } = useAuthActions()
+    const { signOut } = useClerk()
     return (
         <Button variant="ghost" size="icon-xs" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} className="text-neutral-500 hover:text-neutral-900">
             <LogOut />

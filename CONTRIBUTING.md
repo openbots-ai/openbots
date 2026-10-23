@@ -12,7 +12,7 @@ You need Node.js 22.13 or newer and a free [Convex](https://convex.dev) account.
 ```sh
 npm ci              # install exactly what package-lock.json pins
 npx convex dev      # log in, create your own dev deployment, write .env.local, and watch convex/
-npm run setup       # in another terminal: generate the deployment's ENCRYPTION_KEY and sign-in keys
+npm run setup       # in another terminal: generate ENCRYPTION_KEY and store your Clerk Frontend API URL
 npm run dev         # the site and dashboard on http://localhost:5173 (dashboard at /dashboard)
 npm run runner      # build and start the engine; put OPENBOTS_CONVEX_URL and OPENBOTS_TOKEN in runner/.env
 ```
