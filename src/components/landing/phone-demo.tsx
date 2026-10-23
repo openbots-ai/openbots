@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
+    AlarmClock,
     ChevronLeft,
     ChevronRight,
     ListFilter,
+    MessageCircle,
     Mic,
+    MicOff,
+    Phone,
     Plus,
     Search,
     ArrowUp,
     SquarePen,
+    UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { AnimatePresence, motion, useInView, type Variants } from 'motion/react'
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { callBackground } from '@/lib/avatars'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 type Message = { from: 'me' | 'them'; text: string }
@@ -59,8 +65,8 @@ const contacts: Contact[] = [
         messages: [
             { from: 'them', text: 'checked invoices against payments: 3 overdue, $2,400 total. one client paid this morning ☕️' },
             { from: 'them', text: 'marked that one paid. drafted follow-ups for the other two, with invoice links. ready for your review.' },
-            { from: ME, text: 'send the first one here' },
-            { from: 'them', text: 'here’s the draft for Acme, link included. reply YES and i’ll send it, nothing goes out until then ☕️' },
+            { from: ME, text: 'call me and walk me through the drafts' },
+            { from: 'them', text: 'calling now 📞 nothing sends until you approve.' },
         ],
     },
     { name: 'Lulu', role: 'Trip Planner', hue: 45, preview: 'compared 12 stays. 3 fit your $600 trip budget ☀️', time: 'Yesterday' },
@@ -69,9 +75,11 @@ const contacts: Contact[] = [
     { name: 'Pip', role: 'Writing Buddy', hue: 45, preview: 'your landlord reply is drafted, with the repair dates included ✨', time: 'Monday' },
 ]
 
+type CallPhase = 'incoming' | 'answering'
 type Step =
     | { view: 'list'; read: number[]; press?: number }
     | { view: 'chat'; chat: number; shown: number; arrives?: boolean; pressBack?: boolean }
+    | { view: 'call'; chat: number; phase: CallPhase }
 
 // Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
 const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
@@ -89,8 +97,12 @@ const steps: Step[] = [
     { view: 'list', read: [TOFU, RISHI] },
     { view: 'list', read: [TOFU, RISHI], press: MOCHI },
     ...chatSteps(MOCHI),
+    { view: 'call', chat: MOCHI, phase: 'incoming' },
+    { view: 'call', chat: MOCHI, phase: 'answering' },
 ]
 
+// The incoming call rings briefly, then the answer slider swipes across
+const RING = steps.findIndex((s) => s.view === 'call')
 // What is on screen for a list of items whose last one is still arriving until the beat settles
 const arrival = (items: Message[], shown: number, settled: boolean) => {
     const arriving = !settled && shown > 0 ? items[shown - 1] : undefined
@@ -137,8 +149,8 @@ const Battery = () => (
     </svg>
 )
 
-const StatusBar = () => (
-    <div className="flex items-center justify-between px-7 pb-1 pt-3.5 text-[13px] font-semibold">
+const StatusBar = ({ dark }: { dark?: boolean }) => (
+    <div className={cn('flex items-center justify-between px-7 pb-1 pt-3.5 text-[13px] font-semibold', dark && 'text-white')}>
         <span className="w-12">9:41</span>
         <span className="flex items-center gap-[5px]">
             <Signal />
@@ -148,8 +160,8 @@ const StatusBar = () => (
     </div>
 )
 
-const HomeIndicator = () => (
-    <span className="absolute bottom-2 left-1/2 z-10 h-1 w-28 -translate-x-1/2 rounded-full bg-black" />
+const HomeIndicator = ({ dark }: { dark?: boolean }) => (
+    <span className={cn('absolute bottom-2 left-1/2 z-10 h-1 w-28 -translate-x-1/2 rounded-full', dark ? 'bg-white' : 'bg-black')} />
 )
 
 const glass = 'bg-white/90 shadow-[0_2px_12px_rgba(0,0,0,0.08)] ring-1 ring-black/5 backdrop-blur'
@@ -346,14 +358,227 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
 }
 
 
-// iOS-style navigation: chats push in from the right, going back slides them out.
-const nav: Variants = {
-    enter: (dir: number) => ({ x: dir > 0 ? '100%' : '-30%', zIndex: dir > 0 ? 2 : 1 }),
-    center: { x: 0 },
-    exit: (dir: number) => ({ x: dir > 0 ? '-30%' : '100%', zIndex: dir > 0 ? 1 : 2 }),
+// Contact block in the top-left, the way iOS 17+ lays out calls
+const CallHeader = ({ contact, subtitle }: { contact: Contact; subtitle: ReactNode }) => (
+    <div className="flex items-center gap-3 px-6 pt-9">
+        <Avatar
+            contact={contact}
+            className="size-[46px] text-lg"
+        />
+        <div className="min-w-0">
+            <p className="text-[13px] leading-tight tabular-nums text-white/55">{subtitle}</p>
+            <p className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-white">{contact.name}</p>
+        </div>
+    </div>
+)
+
+const InfoButton = () => (
+    <span className="absolute right-6 top-[3.4rem] flex size-[22px] items-center justify-center rounded-full ring-[1.5px] ring-white/85">
+        <span className="text-[13px] font-semibold leading-none text-white/90">i</span>
+    </span>
+)
+
+function IncomingCall({ contact, slide }: { contact: Contact; slide: MotionValue<number> }) {
+    // The thumb's track grows with the scroll; the hint nudge and label give way as soon as it starts moving
+    const width = useTransform(slide, (p) => `calc(52px + (100% - 52px) * ${p})`)
+    const labelOpacity = useTransform(slide, [0, 0.4], [1, 0])
+    const [idle, setIdle] = useState(slide.get() === 0)
+    useMotionValueEvent(slide, 'change', (p) => setIdle(p === 0))
+
+    return (
+        <div
+            className="relative flex h-full flex-col text-white"
+            style={{ background: callBackground(contact.hue) }}>
+            <StatusBar dark />
+            <InfoButton />
+            <CallHeader
+                contact={contact}
+                subtitle="mobile"
+            />
+
+            <div className="mt-auto px-6 pb-14">
+                <div className="mb-7 flex justify-between px-5 text-[12px] text-white/85">
+                    <span className="flex flex-col items-center gap-1.5">
+                        <AlarmClock className="size-[22px]" />
+                        Remind Me
+                    </span>
+                    <span className="flex flex-col items-center gap-1.5">
+                        <MessageCircle className="size-[22px]" />
+                        Message
+                    </span>
+                </div>
+
+                {/* Slide to answer */}
+                <div className="relative flex h-[62px] items-center rounded-full bg-white/15 p-[5px] backdrop-blur-xl">
+                    <motion.span
+                        style={{ opacity: labelOpacity }}
+                        className="shimmer-text absolute inset-0 flex items-center justify-center pl-12 text-[17px]">
+                        slide to answer
+                    </motion.span>
+                    <motion.div
+                        style={{ width }}
+                        className="relative flex h-[52px] justify-end">
+                        <motion.span
+                            animate={idle ? { x: [0, 10, 0] } : { x: 0 }}
+                            transition={idle ? { duration: 1.2, repeat: Infinity, repeatDelay: 0.8 } : { duration: 0.15 }}
+                            className="flex size-[52px] items-center justify-center rounded-full bg-white">
+                            <Phone
+                                className="size-6 text-[#34C759]"
+                                fill="currentColor"
+                                strokeWidth={0}
+                            />
+                        </motion.span>
+                    </motion.div>
+                </div>
+            </div>
+            <HomeIndicator dark />
+        </div>
+    )
 }
 
-function Screen({ step, settled }: { step: Step; settled: boolean }) {
+// Glyphs drawn to match iOS rather than generic icon-set shapes
+const SpeakerGlyph = () => (
+    <svg
+        viewBox="0 0 24 24"
+        className="size-[26px]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round">
+        <path
+            d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"
+            fill="currentColor"
+            stroke="none"
+        />
+        <path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.3 6.6a7.6 7.6 0 0 1 0 10.8" />
+    </svg>
+)
+
+const KeypadGlyph = () => (
+    <svg
+        viewBox="0 0 24 24"
+        className="size-[26px]"
+        fill="currentColor">
+        {[5, 12, 19].flatMap((y) =>
+            [5, 12, 19].map((x) => (
+                <circle
+                    key={`${x}-${y}`}
+                    cx={x}
+                    cy={y}
+                    r="2.3"
+                />
+            ))
+        )}
+    </svg>
+)
+
+const callControls = [
+    { label: 'Audio', icon: <SpeakerGlyph /> },
+    { label: 'FaceTime', icon: <Video className="size-[26px]" fill="currentColor" strokeWidth={0} /> },
+    { label: 'Mute', icon: <MicOff className="size-6" strokeWidth={2.2} /> },
+    { label: 'Add', icon: <UserRoundPlus className="size-6" strokeWidth={2.2} /> },
+    {
+        label: 'End',
+        end: true,
+        icon: (
+            <Phone
+                className="size-[26px] rotate-[135deg]"
+                fill="currentColor"
+                strokeWidth={0}
+            />
+        ),
+    },
+    { label: 'Keypad', icon: <KeypadGlyph /> },
+]
+
+function InCall({ contact }: { contact: Contact }) {
+    const [seconds, setSeconds] = useState(0)
+    const timer = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+
+    useEffect(() => {
+        const id = window.setInterval(() => setSeconds((s) => s + 1), 1000)
+        return () => clearInterval(id)
+    }, [])
+
+    return (
+        <div
+            className="relative flex h-full flex-col text-white"
+            style={{ background: callBackground(contact.hue) }}>
+            <StatusBar dark />
+            <InfoButton />
+            <CallHeader
+                contact={contact}
+                subtitle={timer}
+            />
+
+            <div className="mt-auto px-6 pb-12">
+                <div className="grid grid-cols-3 gap-x-5 gap-y-4">
+                    {callControls.map(({ label, icon, end }) => (
+                        <span
+                            key={label}
+                            className="flex flex-col items-center gap-1.5">
+                            <span
+                                className={cn(
+                                    'flex size-[66px] items-center justify-center rounded-full backdrop-blur-xl',
+                                    end ? 'bg-[#FF3B30]' : 'bg-white/[0.16]'
+                                )}>
+                                {icon}
+                            </span>
+                            <span className="text-[12px] text-white/90">{label}</span>
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <HomeIndicator dark />
+        </div>
+    )
+}
+
+// The swipe completes, then the screen settles into the in-call view with a running timer
+function CallFlow({ contact, phase, slide }: { contact: Contact; phase: CallPhase; slide: MotionValue<number> }) {
+    const [connected, setConnected] = useState(false)
+
+    useEffect(() => {
+        if (phase !== 'answering') return
+        const id = window.setTimeout(() => setConnected(true), 750)
+        return () => {
+            clearTimeout(id)
+            setConnected(false)
+        }
+    }, [phase])
+
+    return (
+        <AnimatePresence
+            mode="wait"
+            initial={false}>
+            <motion.div
+                key={connected ? 'in-call' : 'incoming'}
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}>
+                {connected ? (
+                    <InCall contact={contact} />
+                ) : (
+                    <IncomingCall
+                        contact={contact}
+                        slide={slide}
+                    />
+                )}
+            </motion.div>
+        </AnimatePresence>
+    )
+}
+
+// iOS-style navigation: chats push in from the right, going back slides them out.
+const nav: Variants = {
+    enter: (dir: number) => (dir === 0 ? { opacity: 0, scale: 1.04 } : { x: dir > 0 ? '100%' : '-30%', zIndex: dir > 0 ? 2 : 1 }),
+    center: { x: 0, opacity: 1, scale: 1 },
+    exit: (dir: number) => (dir === 0 ? { opacity: 0 } : { x: dir > 0 ? '-30%' : '100%', zIndex: dir > 0 ? 1 : 2 }),
+}
+
+function Screen({ step, settled, slide }: { step: Step; settled: boolean; slide: MotionValue<number> }) {
     let key: string
     let dir: number
     let content: ReactNode
@@ -367,7 +592,7 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
                 press={step.press}
             />
         )
-    } else {
+    } else if (step.view === 'chat') {
         key = `chat-${step.chat}`
         dir = 1
         content = (
@@ -377,6 +602,16 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
                 settled={settled || !step.arrives}
                 pressBack={step.pressBack}
                 badge={0}
+            />
+        )
+    } else {
+        key = 'call'
+        dir = 0
+        content = (
+            <CallFlow
+                contact={contacts[step.chat]}
+                phase={step.phase}
+                slide={slide}
             />
         )
     }
@@ -403,7 +638,7 @@ function Screen({ step, settled }: { step: Step; settled: boolean }) {
 const PHONE_HEIGHT = 690
 const fitScale = () => Math.min(1.6, (window.innerHeight - 64 - 32) / PHONE_HEIGHT, (window.innerWidth - 32) / 336)
 
-// Autoplay timing (ms): the typing half of a beat, the settled half, and how long the last reply holds before looping
+// Autoplay timing (ms): the typing half of a beat, the settled half, and how long the answered call holds before looping
 const TYPING_MS = 600
 const SETTLED_MS = 1100
 const readingTime = (step: Step) => {
@@ -411,6 +646,7 @@ const readingTime = (step: Step) => {
     const text = contacts[step.chat].messages?.[step.shown - 1]?.text ?? ''
     return Math.max(SETTLED_MS, text.split(/\s+/).length * 220)
 }
+const SWIPE_MS = 800
 const HOLD_MS = 2500
 // A row tap only flashes its highlight before the chat opens, like a real iMessage tap
 const TAP_MS = 150
@@ -430,17 +666,32 @@ export function PhoneDemo() {
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
+    const slide = useMotionValue(0)
+
     // Step through the beats on a timer while the phone is on screen, then start over
     useEffect(() => {
         if (!inView) return
+        const ringing = beat === RING * 2 + 1
+        if (ringing) {
+            const swipe = animate(slide, 1, { delay: 0.4, duration: SWIPE_MS / 1000, ease: 'easeInOut' })
+            const id = setTimeout(() => setBeat(beat + 1), 400 + SWIPE_MS + 150)
+            return () => {
+                swipe.stop()
+                clearTimeout(id)
+            }
+        }
         const id = setTimeout(
-            () => setBeat(beat === LAST_BEAT ? 1 : beat + 1),
+            () => {
+                if (beat === LAST_BEAT) slide.set(0)
+                setBeat(beat === LAST_BEAT ? 1 : beat + 1)
+            },
             beat === LAST_BEAT ? HOLD_MS : isTap(steps[beat >> 1]) ? (beat & 1 ? TAP_MS : 0) : beat & 1 ? readingTime(steps[beat >> 1]) : TYPING_MS,
         )
         return () => clearTimeout(id)
-    }, [inView, beat])
+    }, [inView, beat, slide])
 
     const step = steps[beat >> 1]
+    const onCall = step.view === 'call' && step.phase === 'answering'
 
     return (
         <div
@@ -474,6 +725,7 @@ export function PhoneDemo() {
                         <Screen
                             step={step}
                             settled={(beat & 1) === 1}
+                            slide={slide}
                         />
                     </div>
                     <img
@@ -482,6 +734,19 @@ export function PhoneDemo() {
                         draggable={false}
                         className="pointer-events-none absolute inset-0 size-full select-none"
                     />
+                    {/* Orange mic-in-use dot in the Dynamic Island while the call is live */}
+                    <AnimatePresence>
+                        {onCall && (
+                            <motion.span
+                                className="absolute size-[1.5%] -translate-1/2 rounded-full bg-[#FF9F0A]"
+                                style={{ left: '53.3%', top: '6%', aspectRatio: 1 }}
+                                initial={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0 }}
+                                transition={{ delay: 0.8, duration: 0.25 }}
+                            />
+                        )}
+                    </AnimatePresence>
                 </motion.div>
             </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
-import { AlarmClock, BookOpen, Check, ChevronRight, Cloud, Laptop, Plus } from 'lucide-react'
+import { Brain, Check, ChevronRight, Cloud, FileText, Plus, Server } from 'lucide-react'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { cn } from '@/lib/utils'
 
@@ -95,15 +95,15 @@ const Msg = ({ mine, children, className }: { mine?: boolean; children: ReactNod
     </motion.div>
 )
 
-/* 1. Knowledge: Biscuit's reply quietly uses what's in the docs you gave it */
+/* 1. Memory: months later, Biscuit's reply quietly uses what it learned back in january and march */
 
-const KNOWLEDGE_DELAYS = [1300, 1100, 1300, 3800] as const
+const MEMORY_DELAYS = [1300, 1100, 1300, 3800] as const
 
-export function KnowledgeVisual() {
-    const { ref, tick, reduce } = useTicks(KNOWLEDGE_DELAYS)
-    // 0 your ask, 1 typing, 2 the reply, 3 what it read in its docs lights up
-    const phase = reduce ? 3 : tick % KNOWLEDGE_DELAYS.length
-    const loop = Math.floor(tick / KNOWLEDGE_DELAYS.length)
+export function MemoryVisual() {
+    const { ref, tick, reduce } = useTicks(MEMORY_DELAYS)
+    // 0 your ask, 1 typing, 2 the reply, 3 what it remembered lights up
+    const phase = reduce ? 3 : tick % MEMORY_DELAYS.length
+    const loop = Math.floor(tick / MEMORY_DELAYS.length)
     const recalled = phase >= 3
     const mark = (text: string) => (
         <span className={cn('rounded-[4px] whitespace-nowrap transition-colors duration-500', recalled && 'bg-primary/10 text-primary')}>{text}</span>
@@ -153,12 +153,12 @@ export function KnowledgeVisual() {
                                                 transition={{ duration: 0.4, ease }}
                                                 className="mt-2 flex items-center gap-1.5 text-[11px] whitespace-nowrap text-neutral-500">
                                                 <span className="flex items-center gap-1">
-                                                    <BookOpen className="text-primary size-3.5" />
-                                                    <span className="@max-sm:hidden">from its docs</span>
+                                                    <Brain className="text-primary size-3.5" />
+                                                    <span className="@max-sm:hidden">remembered</span>
                                                 </span>
                                                 {[
-                                                    ['vegetarian', 'food rules'],
-                                                    ['mom: no dairy', 'family'],
+                                                    ['vegetarian', 'jan'],
+                                                    ['mom: no dairy', 'mar'],
                                                 ].map(([fact, when], k) => (
                                                     <motion.span
                                                         key={fact}
@@ -182,15 +182,15 @@ export function KnowledgeVisual() {
     )
 }
 
-/* 2. Reminders: you text Mochi a reminder, it lands in its follow-ups, and at 5 Mochi texts you first */
+/* 2. Self-improving: you correct Mochi once, the rule lands in its instructions, the next reply is one line */
 
-const REMINDER_DELAYS = [1800, 1400, 1700, 3600] as const
+const LEARNING_DELAYS = [1800, 1400, 1700, 3600] as const
 
-export function RemindersVisual() {
-    const { ref, tick, reduce } = useTicks(REMINDER_DELAYS)
-    // 0 your ask, 1 its reply, 2 the reminder is saved, 3 at 5pm it texts you first
-    const phase = reduce ? 3 : tick % REMINDER_DELAYS.length
-    const saved = phase >= 2
+export function LearningVisual() {
+    const { ref, tick, reduce } = useTicks(LEARNING_DELAYS)
+    // 0 a long reply, 1 your correction, 2 the rule is saved, 3 next morning's reply is one line
+    const phase = reduce ? 3 : tick % LEARNING_DELAYS.length
+    const learned = phase >= 2
 
     return (
         <div
@@ -203,58 +203,56 @@ export function RemindersVisual() {
                         mode="popLayout"
                         initial={false}>
                         {phase < 3 && (
-                            <Msg
-                                key="ask"
-                                mine>
-                                <Bubble
-                                    mine
-                                    tail={phase < 1}>
-                                    remind me at 5 to call the dentist
+                            <Msg key="long">
+                                <Bubble tail={phase < 1}>
+                                    here's your week: standup moved to 10 on monday, dentist tuesday at 2, dinner with maya wednesday at 7, and the acme invoice is
+                                    due thursday ☕️
                                 </Bubble>
                             </Msg>
                         )}
                         {phase >= 1 && phase < 3 && (
                             <Msg
-                                key="ok"
+                                key="fix"
+                                mine
                                 className="mt-2">
-                                <Bubble>got it, i’ll text you at 5 ☕️</Bubble>
+                                <Bubble mine>too long, keep it to one line</Bubble>
                             </Msg>
                         )}
                         {phase === 3 && (
                             <motion.p
-                                key="later"
+                                key="next"
                                 layout="position"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 className="mb-2 text-center text-[11px] text-neutral-400">
-                                <span className="font-medium text-neutral-500">Today</span> 5:00 PM
+                                <span className="font-medium text-neutral-500">Tomorrow</span> 8:00 AM
                             </motion.p>
                         )}
                         {phase === 3 && (
-                            <Msg key="nudge">
-                                <Bubble>it’s 5: time to call the dentist 🦷</Bubble>
+                            <Msg key="short">
+                                <Bubble>dentist at 2, dinner with maya at 7 ☕️</Bubble>
                             </Msg>
                         )}
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* Mochi's follow-ups, gaining the one you just asked for */}
+            {/* Mochi's instructions doc, the way the dashboard shows it, gaining one line */}
             <div className={cn(card, 'rounded-2xl px-4 py-2.5')}>
                 <div className="flex items-center gap-2 text-[12px]">
-                    <AlarmClock className="size-3.5 text-neutral-400" />
-                    <span className="font-semibold">Mochi's follow-ups</span>
-                    <span className="ml-auto text-[11px] text-neutral-400">{saved ? 'Added just now' : '1 scheduled'}</span>
+                    <FileText className="size-3.5 text-neutral-400" />
+                    <span className="font-semibold">Mochi's instructions</span>
+                    <span className="ml-auto text-[11px] text-neutral-400">{learned ? 'Updated just now' : 'Updated 2d ago'}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-[12px] leading-snug">
                     <p className="flex items-center gap-2 text-neutral-500">
                         <span className="size-1 shrink-0 rounded-full bg-neutral-300" />
-                        weekdays 8:00 AM · morning check-in
+                        lowercase, warm, no jargon
                     </p>
                     <div className="h-[22px]">
                         <AnimatePresence initial={false}>
-                            {saved && (
+                            {learned && (
                                 <motion.p
                                     initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
                                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -265,8 +263,8 @@ export function RemindersVisual() {
                                         className="text-primary size-3 shrink-0"
                                         strokeWidth={3}
                                     />
-                                    <span className="truncate">today 5:00 PM · call the dentist</span>
-                                    <span className="text-primary ml-auto shrink-0 text-[11px] font-normal">from your text</span>
+                                    <span className="truncate">keep replies to one line</span>
+                                    <span className="text-primary ml-auto shrink-0 text-[11px] font-normal">from your reply</span>
                                 </motion.p>
                             )}
                         </AnimatePresence>
@@ -292,7 +290,7 @@ const UPDATES = [
     { name: 'Rishi', time: '11:30 AM', text: 'those headphones dropped to $89. link saved 🐶' },
     { name: 'Lulu', time: '2:15 PM', text: 'checked you in for friday. seat 14a, window ☀️' },
     { name: 'Biscuit', time: '6:40 PM', text: 'groceries ordered, arriving at 7. used the pantry first 🥕' },
-    { name: 'Mochi', time: '11:48 PM', text: 'that flight you asked me to watch dropped to $212 ☕️' },
+    { name: 'Mochi', time: '11:48 PM', text: 'picked the tax doc back up where we left off. 2 sections to go ☕️' },
 ]
 const ROWS = 4
 const ALWAYS_DELAYS = [2200] as const
@@ -370,11 +368,11 @@ export function AlwaysOnVisual() {
     )
 }
 
-/* 4. Hosting: it's yours to run, on your own computer or in your own cloud; the agent underneath doesn't change */
+/* 4. Hosting: a settings choice flips between our cloud and your servers; the agent underneath doesn't change */
 
 const HOSTS = [
-    { id: 'computer', Icon: Laptop, title: 'Your computer', body: 'the engine on your Mac, PC or server', host: 'engine · my-macbook' },
-    { id: 'cloud', Icon: Cloud, title: 'Your own cloud', body: 'your copy, deployed to Convex + Vercel', host: 'bots.yourdomain.com' },
+    { id: 'cloud', Icon: Cloud, title: 'OpenBots Cloud', body: 'we run it for you', host: 'mochi.openbots.app' },
+    { id: 'self', Icon: Server, title: 'Self-hosted', body: 'same platform, your servers', host: 'bots.acme.internal' },
 ] as const
 const HOSTING_DELAYS = [3400, 2800] as const
 
@@ -409,6 +407,7 @@ export function HostingVisual() {
                                 <span className="min-w-0 flex-1">
                                     <span className={cn('flex items-center gap-2 text-[13px] font-semibold transition-colors duration-300', on ? 'text-neutral-900' : 'text-neutral-500')}>
                                         {h.title}
+                                        {h.id === 'cloud' && <span className="rounded-full bg-neutral-100 px-1.5 py-px text-[11px] font-medium text-neutral-500">Default</span>}
                                     </span>
                                     <span className="block truncate text-[12px] text-neutral-500">{h.body}</span>
                                 </span>
