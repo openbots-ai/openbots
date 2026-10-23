@@ -10,7 +10,6 @@
 
 import type * as agents from "../agents.js";
 import type * as allowed from "../allowed.js";
-import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as knowledge from "../knowledge.js";
 import type * as lib_access from "../lib/access.js";
@@ -47,7 +46,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
   allowed: typeof allowed;
-  auth: typeof auth;
   http: typeof http;
   knowledge: typeof knowledge;
   "lib/access": typeof lib_access;

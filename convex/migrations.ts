@@ -1,6 +1,7 @@
 import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
-import { internalMutation } from './_generated/server'
+import { v } from 'convex/values'
+import { env, internalMutation } from './_generated/server'
 import { handleKey } from './lib/handles'
 
 // Tables from before messages, contacts and credentials moved onto your engine. They're no longer in the schema,
@@ -8,7 +9,7 @@ import { handleKey } from './lib/handles'
 const LEGACY = ['messages', 'conversations', 'contacts', 'notifications', 'connections'] as const
 type Loose = { query: (t: string) => { take: (n: number) => Promise<{ _id: string }[]> }; delete: (id: string) => Promise<void> }
 
-type LegacyWorkspace = { _id: Id<'workspace'>; userId?: Id<'users'>; ownerId?: Id<'users'> }
+type LegacyWorkspace = { _id: Id<'workspace'>; userId?: string; ownerId?: string }
 const WORKSPACE_TABLES = ['agents', 'numbers', 'knowledge', 'usage', 'activity', 'runners', 'tasks'] as const
 
 // Brings rows from before sign-in and agent channels up to the current schema: a workspace still owned through
@@ -21,7 +22,7 @@ export const upgradeLegacy = internalMutation({
         const removed = new Set<string>()
         for (const ws of (await ctx.db.query('workspace').take(1000)) as unknown as LegacyWorkspace[]) {
             if (removed.has(ws._id)) continue
-            const patch: Record<string, undefined | Id<'users'>> = { ownerId: undefined, readReceipts: undefined, typingIndicator: undefined }
+            const patch: Record<string, undefined | string> = { ownerId: undefined, readReceipts: undefined, typingIndicator: undefined }
             if (!ws.userId) {
                 if (!ws.ownerId) throw new Error(`Workspace ${ws._id} has no owner; delete it or set userId by hand`)
                 const fresh = await ctx.db
@@ -94,5 +95,46 @@ export const rekeyHandles = internalMutation({
             }
         }
         return `${changed} numbers keyed again`
+    },
+})
+
+// Hands a workspace made under Convex Auth (email and password) to that person's Clerk account. Sign in with Clerk
+// once, copy your user id (user_…) from the Clerk dashboard, then:
+//   npx convex run migrations:moveToClerk '{"email":"you@example.com","clerkUserId":"user_…"}'
+// If that Clerk account already set up a workspace, add "replace":true to delete it and everything in it first.
+export const moveToClerk = internalMutation({
+    args: { email: v.string(), clerkUserId: v.string(), replace: v.optional(v.boolean()) },
+    handler: async (ctx, { email, clerkUserId, replace }) => {
+        const issuer = env.CLERK_JWT_ISSUER_DOMAIN?.replace(/\/+$/, '')
+        if (!issuer) throw new Error('Set CLERK_JWT_ISSUER_DOMAIN first')
+        // The old Convex Auth table, no longer in the schema
+        const users = (await (ctx.db as unknown as Loose).query('users').take(1000)) as unknown as { _id: string; email?: string }[]
+        const user = users.find((u) => u.email?.toLowerCase() === email.trim().toLowerCase())
+        if (!user) throw new Error(`No Convex Auth account for ${email}`)
+        const ws = await ctx.db
+            .query('workspace')
+            .withIndex('by_user', (q) => q.eq('userId', user._id))
+            .unique()
+        if (!ws) throw new Error(`${email} has no workspace`)
+        const tokenIdentifier = `${issuer}|${clerkUserId}`
+        const fresh = await ctx.db
+            .query('workspace')
+            .withIndex('by_user', (q) => q.eq('userId', tokenIdentifier))
+            .unique()
+        let removed = 0
+        if (fresh) {
+            if (!replace) throw new Error(`That Clerk account already set up workspace ${fresh._id}; pass "replace":true to delete it`)
+            const db = ctx.db as unknown as Loose
+            for (const table of [...WORKSPACE_TABLES, 'secrets', 'allowedPeople', 'ignoredSenders', 'ownerCodes']) {
+                for (const doc of await db.query(table).take(1000)) {
+                    if ((doc as unknown as { workspaceId: string }).workspaceId !== fresh._id) continue
+                    await db.delete(doc._id)
+                    removed++
+                }
+            }
+            await ctx.db.delete('workspace', fresh._id)
+        }
+        await ctx.db.patch('workspace', ws._id, { userId: tokenIdentifier })
+        return `workspace ${ws._id} now belongs to ${clerkUserId}${fresh ? ` (deleted workspace ${fresh._id} and ${removed} rows in it)` : ''}`
     },
 })

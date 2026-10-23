@@ -79,33 +79,37 @@ static site (the repo includes a `vercel.json`).
    npx convex dev
    ```
 
-3. **Generate the server's secrets.** In another terminal:
+3. **Set up sign-in with [Clerk](https://clerk.com).** Create a Clerk application, turn on its Convex integration
+   (Configure → Integrations → Convex), and put its publishable key in `.env.local` as `VITE_CLERK_PUBLISHABLE_KEY`.
+
+4. **Store the server's settings.** In another terminal:
 
    ```sh
    npm run setup
    ```
 
-   This stores `ENCRYPTION_KEY` (encrypts the keys people save in Connections) and the sign-in key pair
-   (`JWT_PRIVATE_KEY`, `JWKS`) on the deployment, so nothing secret goes in a file. Running it again only fills in what's
-   missing, and it never replaces `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the
-   dashboard shows a setup screen instead of the sign-in page.
+   This generates `ENCRYPTION_KEY` (encrypts the keys people save in Connections) and asks for
+   `CLERK_JWT_ISSUER_DOMAIN`, your Clerk app's Frontend API URL (Configure → API keys), and stores both on the
+   deployment, so nothing secret goes in a file. Running it again only fills in what's missing, and it never replaces
+   `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the dashboard shows a setup screen
+   instead of the sign-in page.
 
-4. **Run the site.** `npm run dev` and open <http://localhost:5173/dashboard>. Sign up with an email and password.
+5. **Run the site.** `npm run dev` and open <http://localhost:5173/dashboard>. Sign up with an email code or Google.
 
-5. **Deploy to production** when you're ready:
+6. **Deploy to production** when you're ready:
 
    ```sh
    npx convex deploy          # push the functions to your production deployment
-   npm run setup -- --prod    # production needs its own secrets
+   npm run setup -- --prod    # production needs its own secrets, and your Clerk production instance's URL
    ```
 
    Then host the site. On Vercel, import the repository and set `VITE_CONVEX_URL` to the production deployment's URL
-   (`https://<name>.convex.cloud`); `vercel.json` already sets the build command, the output directory and the rewrite
+   (`https://<name>.convex.cloud`) and `VITE_CLERK_PUBLISHABLE_KEY` to your Clerk production key; `vercel.json` already sets the build command, the output directory and the rewrite
    that sends every path to `index.html`. Any static host works if it does the same. The build also bundles the engine
    into `/engine/openbots-engine.mjs`, which the dashboard's start commands and Orgo computers download from your own
    site.
 
-6. **Start an engine.** In the dashboard, open **Connections**, name a computer and add it. Connections shows, once,
+7. **Start an engine.** In the dashboard, open **Connections**, name a computer and add it. Connections shows, once,
    the commands to start the engine on Windows, Mac or Linux with that computer's token filled in. Or click **Create on
    Orgo** after saving an Orgo API key. To run an engine from this checkout instead, put `OPENBOTS_CONVEX_URL` and
    `OPENBOTS_TOKEN` in `runner/.env` and run `npm run runner`. Every setting, the Mac permissions, the Docker image and

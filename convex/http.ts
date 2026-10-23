@@ -1,9 +1,6 @@
 import { httpRouter } from 'convex/server'
-import { auth } from './auth'
 
+// Sign-in is Clerk's and texting webhooks go to your engine, so nothing is served here yet
 const http = httpRouter()
-
-// Sign-in endpoints for Convex Auth. Texting webhooks go to your engine, not here.
-auth.addHttpRoutes(http)
 
 export default http

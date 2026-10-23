@@ -10,8 +10,7 @@ const morning = { id: 'a', days: [1, 2, 3, 4, 5], time: '08:00', what: 'Weather 
 
 async function setup() {
     const base = convexTest(schema, modules)
-    const userId = await base.run((ctx) => ctx.db.insert('users', {}))
-    const owner = base.withIdentity({ subject: `${userId}|s`, tokenIdentifier: `t|${userId}` })
+    const owner = base.withIdentity({ subject: 'user', tokenIdentifier: 'test|user' })
     await owner.mutation(api.workspace.create, { name: 'W', ownerName: 'Sam', timezone: 'America/Regina' })
     const id = await owner.mutation(api.agents.create, { name: 'Iris', role: 'Assistant', hue: 1, prompt: '', greeting: 'hi', status: 'live' })
     return { base, owner, id }
