@@ -1,42 +1,42 @@
-import { Database, Gauge, Hand, HardDrive, PauseCircle, ShieldCheck } from 'lucide-react'
+import { Brain, Database, History, KeyRound, PauseCircle, ShieldCheck } from 'lucide-react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 
 const controls = [
     {
+        icon: Brain,
+        title: 'memory you can actually edit',
+        body: 'see what your assistant remembers, fix anything that is off, or delete it for good.',
+        detail: 'view · edit · forget',
+    },
+    {
+        icon: KeyRound,
+        title: 'access, app by app',
+        body: 'calendar can be read-only while email needs approval. every app gets its own rules.',
+        detail: 'read · write · always ask',
+    },
+    {
         icon: ShieldCheck,
         title: 'you approve the real stuff',
-        body: 'before it does anything on your computer that can’t be undone, it asks and waits for you to reply yes.',
+        body: 'sending, buying, posting, and anything sensitive waits for your yes.',
         detail: 'nothing sneaky ships',
     },
     {
-        icon: Hand,
-        title: 'it knows when to hand off',
-        body: 'when it can’t reply or someone asks for a person, it texts you, then stays out of that chat for a day.',
-        detail: 'straight to your phone',
-    },
-    {
-        icon: HardDrive,
-        title: 'messages stay on your machine',
-        body: 'conversations and contacts live encrypted on the engine you run. your backend only ever sees counts.',
-        detail: 'encrypted at rest',
-    },
-    {
-        icon: Gauge,
-        title: 'a budget it can’t blow',
-        body: 'set a daily or weekly usage budget. once it’s used up, agents stop replying and let you know.',
-        detail: 'daily · weekly',
+        icon: History,
+        title: 'the whole story, logged',
+        body: 'see what it opened, changed, sent, and why. every action has a trail.',
+        detail: 'searchable activity',
     },
     {
         icon: PauseCircle,
-        title: 'one switch means stop',
-        body: 'pause any agent instantly without deleting its setup. switch it back on when you’re ready.',
-        detail: 'live · paused',
+        title: 'one tap means stop',
+        body: 'pause one assistant or the whole squad instantly without deleting your setup.',
+        detail: 'pause anytime',
     },
     {
         icon: Database,
         title: 'your data stays yours',
-        body: 'it runs on your own deployment. export your setup as a file from settings, and delete anything you want.',
+        body: 'choose what stays, export a copy, and delete your data when you want.',
         detail: 'keep · export · delete',
     },
 ]
@@ -48,7 +48,7 @@ export default function Trust() {
             className="px-6 py-44 md:py-52 lg:py-60 xl:py-72 ">
             <SectionHeading
                 title="helpful, not weird about it"
-                description="it can know you really well without owning your life. you decide what it knows, what it does, and where it all lives."
+                description="it can know you really well without owning your life. you decide what it remembers, touches, and does."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

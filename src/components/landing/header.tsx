@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
-import { GitHubMark, Logo } from '@/components/landing/logo'
+import { ArrowRight, Menu, X } from 'lucide-react'
+import { Logo } from '@/components/landing/logo'
 import { Button } from '@/components/ui/button'
-import { GITHUB_URL, sectionHref } from '@/lib/site'
+import { sectionHref } from '@/lib/site'
 
 const menuItems = [
     { name: 'Product', href: sectionHref('product') },
@@ -42,11 +42,8 @@ export const Header = () => {
                     className="ml-auto hidden md:inline-flex"
                     nativeButton={false}
                     render={
-                        <a
-                            href={GITHUB_URL}
-                            target="_blank"
-                            rel="noreferrer">
-                            <GitHubMark /> Star on GitHub
+                        <a href={sectionHref('early-access')}>
+                            Coming soon <ArrowRight data-icon="inline-end" />
                         </a>
                     }
                 />
@@ -71,15 +68,6 @@ export const Header = () => {
                             </a>
                         </li>
                     ))}
-                    <li>
-                        <a
-                            href={GITHUB_URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="type-subheading flex items-center gap-2 py-2">
-                            <GitHubMark /> GitHub
-                        </a>
-                    </li>
                 </ul>
             )}
         </header>

@@ -1,7 +1,5 @@
 import { lazy, Suspense } from 'react'
 import { Button } from '@/components/ui/button'
-import { GitHubMark } from '@/components/landing/logo'
-import { GITHUB_URL } from '@/lib/site'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { AgentCursors } from '@/components/landing/agent-cursors'
 
@@ -25,31 +23,17 @@ export default function HeroSection() {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        <span data-cursor-target="phrase" className="whitespace-nowrap">Build it piece by piece.</span> Pick the models behind it, set its personality and rules, and give it the docs it should know. Then just text it in iMessage or SMS. Free and open source, on your own computer.
+                        <span data-cursor-target="phrase" className="whitespace-nowrap">Build it piece by piece.</span> Pick the model behind every single part, set its personality, voice and rules, and decide what it remembers. Then just text it in iMessage.
                     </p>
                 </StaggerItem>
-                <StaggerItem className="mt-10 flex flex-wrap items-center justify-center gap-3">
+                <StaggerItem>
                     <Button
                         variant="hero"
                         size="lg"
-                        className="type-body h-13 px-8"
+                        className="type-body mt-10 h-13 px-8"
                         nativeButton={false}
                         render={
                             <a href="/dashboard">Explore the builder</a>
-                        }
-                    />
-                    <Button
-                        variant="ghost"
-                        size="lg"
-                        className="type-body h-13 px-6"
-                        nativeButton={false}
-                        render={
-                            <a
-                                href={GITHUB_URL}
-                                target="_blank"
-                                rel="noreferrer">
-                                <GitHubMark /> Self-host it
-                            </a>
                         }
                     />
                 </StaggerItem>
@@ -61,7 +45,7 @@ export default function HeroSection() {
                 <Suspense fallback={<div className="min-h-[40rem]" />}>
                     <CreateAgentDemo />
                 </Suspense>
-                <p className="type-caption text-muted-foreground mt-6 text-center">Example agents · an illustrated walkthrough of the dashboard</p>
+                <p className="type-caption text-muted-foreground mt-6 text-center">Example agents · not live assistants yet</p>
             </div>
         </section>
     )

@@ -3,10 +3,9 @@ import { ArrowRight, Check, Lock, MousePointer2, type LucideIcon } from 'lucide-
 import { AnimatePresence, motion } from 'motion/react'
 import { SectionHeading } from '@/components/landing/section-heading'
 import { useLoopedSteps } from '@/components/landing/use-looped-steps'
-import { BrainMock, KnowledgeMock, PersonalityMock } from '@/components/landing/feature-mocks'
+import { BrainMock, DecisionsMock, MemoryMock, PersonalityMock, VoiceMock } from '@/components/landing/feature-mocks'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
-import { README_URL } from '@/lib/site'
 import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
 import { slotOf, type Provider, type SlotId } from '@convex/lib/models'
@@ -237,14 +236,13 @@ const SlotPicker = ({ slot }: { slot: SlotId }) => {
 
 // Each card shows one thing you customize, changing on its own
 const features = [
-    { label: 'computer use', title: 'let it do the clicking on your computer.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
-    { label: 'brain', title: 'pick the brain behind every reply, and a backup.', mock: <BrainMock /> },
+    { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
+    { label: 'brain', title: 'pick the brain behind every reply.', mock: <BrainMock /> },
+    { label: 'voice', title: 'give it a voice. literally.', mock: <VoiceMock /> },
     { label: 'personality', title: 'tune its personality, down to the vibe.', mock: <PersonalityMock /> },
-    { label: 'knowledge', title: 'give it docs, and it reads them before it replies.', mock: <KnowledgeMock /> },
+    { label: 'personal memory', title: 'you decide what it remembers.', mock: <MemoryMock /> },
+    { label: 'decisions', title: 'quick calls, each with a confidence score.', mock: <DecisionsMock /> },
 ]
-
-// Parts the model catalog lists that don't run yet; named here so nothing above reads as more than it is
-const roadmap = ['voice notes', 'understanding your voice notes', 'calls', 'reading photos']
 
 export default function Features() {
     return (
@@ -253,7 +251,7 @@ export default function Features() {
             className="px-6 py-28 md:py-40">
             <SectionHeading
                 title="you pick its superpowers."
-                description="pick its brain and its backup, let it use your computer, tune how it talks and give it docs to know. every part is your build. (demos below are illustrative.)"
+                description="pick its brain, how it browses, what it remembers and how it sounds. every part is your build. (demos below are illustrative.)"
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
@@ -272,9 +270,7 @@ export default function Features() {
                                 <p className="type-label text-muted-foreground">{label}</p>
                                 <h3 className="type-heading mt-2 text-balance">{title}</h3>
                                 <a
-                                    href={README_URL}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                    href="/#early-access"
                                     className="type-body mt-6 inline-flex items-center gap-1.5 font-medium">
                                     Learn more
                                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -284,10 +280,6 @@ export default function Features() {
                     </StaggerItem>
                 ))}
             </Stagger>
-
-            <p className="type-body-sm text-muted-foreground mx-auto mt-10 max-w-xl text-center text-balance">
-                <span className="text-foreground font-medium">On the roadmap, not built yet:</span> {roadmap.join(', ')}.
-            </p>
         </section>
     )
 }
