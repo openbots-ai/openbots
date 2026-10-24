@@ -1,5 +1,6 @@
 import { defineApp } from 'convex/server'
 import { v } from 'convex/values'
+import rateLimiter from '@convex-dev/rate-limiter/convex.config'
 
 // The server's own settings. `npm run setup` stores them on the deployment, so none go in a file.
 // Message history never reaches Convex: it stays on each user's engine (runner/).
@@ -12,5 +13,8 @@ const app = defineApp({
         CLERK_JWT_ISSUER_DOMAIN: v.optional(v.string()),
     },
 })
+
+// Caps how often anyone can start pairing a computer (pairing.start needs no sign-in)
+app.use(rateLimiter)
 
 export default app

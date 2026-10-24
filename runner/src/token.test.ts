@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nodeTooOld, nodeVersionError } from './nodeVersion'
+import { pair, type PairLink } from './pair'
 import { findToken, saveToken, tokenFile } from './token'
 
 const TOKEN = 'obr_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG'
@@ -16,24 +17,43 @@ const dir = () => {
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
 
 describe('the engine token', () => {
-    it('prefers OPENBOTS_TOKEN, then the saved file', async () => {
+    it('prefers OPENBOTS_TOKEN, then the saved file, without pairing', async () => {
         const d = dir()
         saveToken(d, TOKEN)
-        expect(await findToken({ envToken: 'obr_env', dataDir: d })).toEqual({ token: 'obr_env', source: 'env' })
-        expect(await findToken({ dataDir: d })).toEqual({ token: TOKEN, source: 'file' })
+        const pairNow = vi.fn()
+        expect(await findToken({ envToken: 'obr_env', dataDir: d, pair: pairNow })).toEqual({ token: 'obr_env', source: 'env' })
+        expect(await findToken({ dataDir: d, pair: pairNow })).toEqual({ token: TOKEN, source: 'file' })
+        expect(pairNow).not.toHaveBeenCalled()
     })
 
-    it('asks once, hidden, until a real token is pasted, and saves it where only you can read it', async () => {
+    it('pairs when it has none, and saves the token where only you can read it', async () => {
         const d = dir()
-        const ask = vi.fn().mockResolvedValueOnce('oops').mockResolvedValueOnce(`  ${TOKEN}  `)
-        expect(await findToken({ dataDir: d, ask })).toEqual({ token: TOKEN, source: 'typed' })
-        expect(ask).toHaveBeenCalledTimes(2)
+        expect(await findToken({ dataDir: d, pair: async () => TOKEN })).toEqual({ token: TOKEN, source: 'paired' })
         expect(readFileSync(tokenFile(d), 'utf8').trim()).toBe(TOKEN)
         if (process.platform !== 'win32') expect(statSync(tokenFile(d)).mode & 0o777).toBe(0o600)
     })
+})
 
-    it('says how to give it a token when there is no terminal to ask at', async () => {
-        await expect(findToken({ dataDir: dir() })).rejects.toThrow(/OPENBOTS_TOKEN/)
+describe('pairing', () => {
+    it('sends only a hash, shows a link with the code, and makes a new code when one expires', async () => {
+        const started: { tokenHash: string; name: string; os: string }[] = []
+        const approvals = [false, true]
+        const link: PairLink = {
+            start: async (tokenHash, name, os) => {
+                started.push({ tokenHash, name, os })
+                return { code: started.length === 1 ? 'AAAA-BBBB' : 'CCCC-DDDD', expiresAt: 0 }
+            },
+            approved: async () => approvals.shift()!,
+            close: async () => {},
+        }
+        const shown: string[] = []
+        const token = await pair({ link, siteUrl: 'https://example.com/', name: 'Spare PC', os: 'windows', show: (p) => shown.push(p.url) })
+        expect(token).toMatch(/^obr_/)
+        expect(shown).toEqual(['https://example.com/dashboard?pair=AAAA-BBBB', 'https://example.com/dashboard?pair=CCCC-DDDD'])
+        expect(started.map((s) => s.tokenHash)).toEqual([expect.stringMatching(/^[0-9a-f]{64}$/), expect.stringMatching(/^[0-9a-f]{64}$/)])
+        // Each code gets its own token, and the token itself is never sent
+        expect(started[0].tokenHash).not.toBe(started[1].tokenHash)
+        expect(JSON.stringify(started)).not.toContain(token)
     })
 })
 

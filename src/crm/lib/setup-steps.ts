@@ -1,4 +1,4 @@
-// How to start the engine on each kind of computer: the commands shown once after adding one in Connections
+// How to start the engine on each kind of computer: the commands Connections shows for adding one
 export type System = 'windows' | 'mac' | 'linux'
 export const SYSTEMS: { id: System; label: string }[] = [
     { id: 'windows', label: 'Windows' },
@@ -24,9 +24,9 @@ const CLOUDFLARED_RELEASES = 'https://github.com/cloudflare/cloudflared/releases
 
 // `tunnel`: the engine gets a public address from Cloudflare's quick tunnel (OPENBOTS_TUNNEL=true). Only Twilio and
 // Sendblue need one, when the engine has no public URL of its own; Messages on a Mac and BlueBubbles don't.
-// The token is never in these commands, so shell history doesn't keep it: the engine asks for it on first start, with
-// the input hidden, and saves it where only you can read it.
-export function setupSteps(system: System, convexUrl: string, engineUrl: string, tunnel: boolean) {
+// No token in these commands: the engine pairs on first start (it shows a code to approve in the dashboard) and keeps
+// its own token where only you can read it. `siteUrl` is where that approval link points, when it isn't getopenbots.com.
+export function setupSteps(system: System, convexUrl: string, engineUrl: string, tunnel: boolean, siteUrl?: string) {
     if (system === 'windows')
         return {
             shell: 'PowerShell',
@@ -39,6 +39,7 @@ export function setupSteps(system: System, convexUrl: string, engineUrl: string,
                 'mkdir -Force $HOME\\openbots | Out-Null; cd $HOME\\openbots',
                 `curl.exe -fL -o openbots-engine.mjs ${engineUrl}`,
                 `$env:OPENBOTS_CONVEX_URL = "${convexUrl}"`,
+                ...(siteUrl ? [`$env:OPENBOTS_SITE_URL = "${siteUrl}"`] : []),
                 ...(tunnel ? ['$env:OPENBOTS_TUNNEL = "true"'] : []),
                 'node openbots-engine.mjs',
             ].join('\n'),
@@ -57,6 +58,7 @@ export function setupSteps(system: System, convexUrl: string, engineUrl: string,
             'mkdir -p ~/openbots && cd ~/openbots',
             `curl -fL -o openbots-engine.mjs ${engineUrl}`,
             `OPENBOTS_CONVEX_URL=${convexUrl} \\`,
+            ...(siteUrl ? [`OPENBOTS_SITE_URL=${siteUrl} \\`] : []),
             ...(tunnel && system === 'linux' ? ['OPENBOTS_CLOUDFLARED=~/openbots-cloudflared \\'] : []),
             ...(tunnel ? ['OPENBOTS_TUNNEL=true \\'] : []),
             'node openbots-engine.mjs',

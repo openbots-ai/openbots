@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Id } from '../../convex/_generated/dataModel'
 import { keyModels, resolveModels } from '../../convex/lib/models'
@@ -5,7 +6,8 @@ import type { SealedService } from '../../convex/lib/sealed'
 import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { nodeTooOld, nodeVersionError } from './nodeVersion'
-import { askForToken, findToken, hiddenPrompt, tokenFile } from './token'
+import { computerName, convexPairLink, pair, printPairing } from './pair'
+import { findToken, saveToken, tokenFile } from './token'
 import { startTunnel } from './tunnel'
 import { computerAllowed, driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
 import { Vault } from './crypto'
@@ -32,25 +34,34 @@ const osName = () => (process.platform === 'win32' ? 'windows' : process.platfor
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-// Connects with the token from OPENBOTS_TOKEN, the saved file or the terminal. A saved token that was reset or
-// revoked in Connections is asked for again, when someone is at the terminal.
-async function connect(convexUrl: string, envToken: string | undefined, dataDir: string) {
-    const ask = hiddenPrompt()
-    let { token, source } = await findToken({ envToken, dataDir, ask })
+// Connects with the token from OPENBOTS_TOKEN or the saved file, or pairs this computer to get one. A saved token
+// that was revoked in Connections is dropped, and the computer pairs again.
+async function connect(base: { convexUrl: string; token?: string; dataDir: string; siteUrl: string }) {
+    const pairNow = async () => {
+        const link = convexPairLink(base.convexUrl)
+        try {
+            return await pair({ link, siteUrl: base.siteUrl, name: computerName(), os: osName(), show: printPairing })
+        } finally {
+            await link.close().catch(() => {})
+        }
+    }
+    let { token, source } = await findToken({ envToken: base.token, dataDir: base.dataDir, pair: pairNow })
     for (;;) {
-        const link = new ConvexLink(convexUrl, token)
+        const link = new ConvexLink(base.convexUrl, token)
         try {
             await link.connect((m) => console.error(m))
-            if (source === 'typed') console.log(`Token saved in ${tokenFile(dataDir)}, so you won't be asked again.`)
+            if (source === 'paired') console.log('Connected. This computer stays connected, even after a restart.')
+            if (process.env.OPENBOTS_DESKTOP) console.log(`OPENBOTS_EVENT ${JSON.stringify({ type: 'connected' })}`)
             return link
         } catch (e) {
             await link.close().catch(() => {})
             const refused = /invalid or was revoked/.test(message(e))
             if (!refused || source === 'env') throw e
-            if (!ask) throw new Error(`${message(e)} Delete ${tokenFile(dataDir)} and start the engine in a terminal to paste the new one.`, { cause: e })
-            console.error(message(e))
-            token = await askForToken(dataDir, ask, `Paste the new token (it won't show as you paste): `)
-            source = 'typed'
+            console.error(`${message(e)} Pairing this computer again.`)
+            rmSync(tokenFile(base.dataDir), { force: true })
+            token = await pairNow()
+            saveToken(base.dataDir, token)
+            source = 'paired'
         }
     }
 }
@@ -64,7 +75,7 @@ async function main() {
     const store = new Store(join(base.dataDir, 'openbots.db'), Vault.open(base.dataDir))
 
     console.log(`OpenBots engine ${VERSION}: connecting to your workspace…`)
-    const link = await connect(base.convexUrl, base.token, base.dataDir)
+    const link = await connect(base)
 
     // Each webhook channel has its own random secret in its path, made once, so only that account knows where to
     // post. OPENBOTS_ROTATE_WEBHOOKS=true makes new ones; the new addresses are logged once the channels start.

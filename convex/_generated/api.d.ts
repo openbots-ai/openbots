@@ -29,6 +29,7 @@ import type * as lib_usage from "../lib/usage.js";
 import type * as migrations from "../migrations.js";
 import type * as numbers from "../numbers.js";
 import type * as orgo from "../orgo.js";
+import type * as pairing from "../pairing.js";
 import type * as platform from "../platform.js";
 import type * as runner from "../runner.js";
 import type * as runners from "../runners.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   numbers: typeof numbers;
   orgo: typeof orgo;
+  pairing: typeof pairing;
   platform: typeof platform;
   runner: typeof runner;
   runners: typeof runners;
@@ -100,4 +102,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

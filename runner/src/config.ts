@@ -8,8 +8,10 @@ import type { Credentials } from './providers'
 // Keys, account logins and history stay on this machine; see runner/README.md.
 export type Settings = {
     convexUrl: string
-    // OPENBOTS_TOKEN when set; otherwise the engine asks for it once and saves it (see token.ts)
+    // OPENBOTS_TOKEN when set; otherwise the engine pairs with your workspace once and saves its token (see token.ts)
     token?: string
+    // Where the dashboard is, for the pairing link (OPENBOTS_SITE_URL, default getopenbots.com)
+    siteUrl: string
     dataDir: string
     // The engine's web server, for your relay and your accounts' webhooks
     host: string
@@ -66,6 +68,7 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
     return {
         convexUrl,
         token,
+        siteUrl: get('OPENBOTS_SITE_URL') || 'https://getopenbots.com',
         dataDir: get('OPENBOTS_DATA_DIR') || join(homedir(), '.openbots'),
         host: get('OPENBOTS_HOST') || '127.0.0.1',
         port: Number(get('OPENBOTS_PORT') || 8787),
