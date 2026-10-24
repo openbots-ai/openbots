@@ -71,4 +71,5 @@ jobs:
                    -c.win.azureSignOptions.publisherName="${{ vars.AZURE_PUBLISHER }}")
           fi
           node build.mjs
+          node scripts/fetch-cloudflared.mjs
           npx electron-builder "${args[@]}"
