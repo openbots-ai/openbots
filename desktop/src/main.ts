@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, powerSaveBlocker, shell, systemPreferences, Tray, utilityProcess } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import QRCode from 'qrcode'
 import { Engine, type EngineState, type Spawned } from './engine'
@@ -36,14 +36,29 @@ const PANES = {
 // Signing in by itself after a restart: an OS setting no app can change, so the app opens it
 const AUTO_LOGIN = process.platform === 'darwin' ? 'x-apple.systempreferences:com.apple.Users-Groups-Settings.extension' : process.platform === 'win32' ? 'ms-settings:signinoptions' : null
 
+// Cloudflare's tunnel ships with the app, so Twilio and Sendblue reach this computer with nothing to set up. A dev
+// build uses one from scripts/fetch-cloudflared.mjs, or none (the engine then says texting needs a public address).
+const cloudflared = () => {
+    const exe = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'
+    const key = `${{ darwin: 'mac', win32: 'win' }[process.platform as string] ?? 'linux'}-${process.arch}`
+    const path = app.isPackaged ? join(process.resourcesPath, 'cloudflared', exe) : join(__dirname, '..', 'build', 'cloudflared', key, exe)
+    return existsSync(path) ? path : undefined
+}
+
 const enginePath = () => (app.isPackaged ? join(process.resourcesPath, 'engine', 'openbots-engine.mjs') : join(__dirname, 'engine', 'openbots-engine.mjs'))
+
+// A public address for the engine (Twilio and Sendblue post incoming texts to it), unless one is set already
+const tunnelEnv = (): Record<string, string> => {
+    const bin = cloudflared()
+    return bin && !process.env.OPENBOTS_PUBLIC_URL ? { OPENBOTS_TUNNEL: 'true', OPENBOTS_CLOUDFLARED: bin } : {}
+}
 
 // The engine runs in Electron's own Node.js (24), in a utility process: no separate Node install, no terminal
 function spawnEngine(): Spawned {
     const child = utilityProcess.fork(enginePath(), [], {
         serviceName: 'OpenBots engine',
         stdio: 'pipe',
-        env: { ...process.env, OPENBOTS_CONVEX_URL: CONVEX_URL, OPENBOTS_SITE_URL: SITE_URL, OPENBOTS_DESKTOP: '1' },
+        env: { ...process.env, OPENBOTS_CONVEX_URL: CONVEX_URL, OPENBOTS_SITE_URL: SITE_URL, OPENBOTS_DESKTOP: '1', ...tunnelEnv() },
     })
     const lines: ((line: string, stream: 'out' | 'err') => void)[] = []
     const split = (stream: 'out' | 'err') => {

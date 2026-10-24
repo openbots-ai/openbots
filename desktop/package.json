@@ -9,8 +9,8 @@
   "scripts": {
     "build": "node build.mjs",
     "start": "node build.mjs && electron .",
-    "dist": "node build.mjs && electron-builder --publish never",
-    "release": "node build.mjs && electron-builder --publish always"
+    "dist": "node build.mjs && node scripts/fetch-cloudflared.mjs && electron-builder --publish never",
+    "release": "node build.mjs && node scripts/fetch-cloudflared.mjs && electron-builder --publish always"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
