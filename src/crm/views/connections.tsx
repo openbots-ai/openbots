@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { AlertCircle, Bot, Check, Copy, ExternalLink, HardDrive, Laptop, Mail, MessageCircle, MessageSquareText, RefreshCw, Smartphone, Waypoints, type LucideIcon } from 'lucide-react'
+import { AlertCircle, Bot, Check, Copy, Download, ExternalLink, HardDrive, Laptop, Mail, MessageCircle, MessageSquareText, RefreshCw, Smartphone, Waypoints, type LucideIcon } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { SEALED_SERVICES, type SealedService } from '@convex/lib/sealed'
@@ -16,7 +16,7 @@ import { OrgoControls, OrgoCreate } from '../orgo'
 import { PairDialog } from '../pair-approval'
 import { TestText } from '../test-text'
 import { relativeTime } from '../lib/time'
-import { MIN_NODE, NODE_URL, setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
+import { downloads, MIN_NODE, NODE_URL, setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
 import { useNav } from '../nav'
 import { useNow } from '../use-now'
 import { useRun } from '../use-run'
@@ -350,6 +350,8 @@ function Recheck() {
 // The engine checks in every minute; a few missed beats and it shows as offline
 const ONLINE_MS = 3 * 60_000
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
+// Where the OpenBots app's installers are released ("owner/repo"); unset hides the Download buttons
+const RELEASES = import.meta.env.VITE_DESKTOP_RELEASES as string | undefined
 
 // Where outside services reach this engine
 function PublicUrl({ runner }: { runner: Runner }) {
@@ -493,14 +495,30 @@ function Setup({ webhooks }: { webhooks: boolean }) {
     // A dev server serves the engine only once it's built (see vite.config.ts); say so instead of a download that fails
     const missing = useEngineMissing(engineUrl)
     const codeOk = code.replace(/[^a-z0-9]/gi, '').length === 8
+    // The OpenBots app, once its installers are released (VITE_DESKTOP_RELEASES, e.g. "you/openbots-releases")
+    const apps = RELEASES ? downloads(system, RELEASES) : []
+    const [commands, setCommands] = useState(!RELEASES)
+    const codeForm = (
+        <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+                e.preventDefault()
+                if (codeOk) setApproving(code)
+            }}>
+            <span className="text-[12px] text-neutral-600">{apps.length && !commands ? '2' : tunnel ? '3' : '2'}. Enter the code it shows:</span>
+            <Input aria-label="Code from the computer" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH" className="h-8 w-32 font-mono" autoComplete="off" />
+            <Btn type="submit" variant="primary" disabled={!codeOk}>
+                Connect
+            </Btn>
+        </form>
+    )
     return (
         <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                A spare computer you keep on, or one you rent. Computer use works on Windows and Mac; Linux computers answer texts only. Run this on that computer (it needs{' '}
-                <a href={NODE_URL} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
-                    Node.js {MIN_NODE} or newer
-                </a>
-                ). It shows a code and a link: open the link on your phone, or type the code below.
+                A spare computer you keep on, or one you rent. Computer use works on Windows and Mac; Linux computers answer texts only.{' '}
+                {apps.length
+                    ? 'Install the OpenBots app on it. It shows a QR code: scan it with your phone, or type the code below.'
+                    : 'Run this on that computer. It shows a code and a link: open the link on your phone, or type the code below.'}
             </p>
             <div className="flex gap-1" role="group" aria-label="Computer’s system">
                 {SYSTEMS.map((s) => (
@@ -514,37 +532,56 @@ function Setup({ webhooks }: { webhooks: boolean }) {
                     </button>
                 ))}
             </div>
-            <label className="flex items-start gap-2 text-[12px] text-neutral-700">
-                <Switch aria-label="Texts through Twilio or Sendblue" checked={tunnel} onCheckedChange={setTunnel} />
-                <span>
-                    This computer texts through Twilio or Sendblue. They need to reach it from the internet, so the engine starts a free Cloudflare tunnel. Leave it off for
-                    Messages on a Mac or BlueBubbles, or if you set a Public URL of your own.
-                </span>
-            </label>
-            {missing && (
-                <p className="rounded-md bg-amber-50 p-2.5 text-[12px] text-amber-900">
-                    This site isn’t serving the engine yet, so the download below won’t work. On a dev server, run <code className="font-mono">npm run runner:build</code> once
-                    (or restart <code className="font-mono">npm run dev</code>); a production build includes it.
-                </p>
+            {apps.length > 0 && (
+                <>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="text-[12px] text-neutral-600">1.</span>
+                        <Btn variant="primary" nativeButton={false} render={<a href={apps[0].url} />}>
+                            <Download /> {apps[0].label}
+                        </Btn>
+                        {apps.slice(1).map((a) => (
+                            <a key={a.url} href={a.url} className="text-[12px] text-neutral-600 underline underline-offset-2">
+                                {a.label}
+                            </a>
+                        ))}
+                    </div>
+                    {!commands && codeForm}
+                    <button type="button" className="text-[12px] text-neutral-500 underline underline-offset-2" onClick={() => setCommands(!commands)}>
+                        {commands ? 'Hide the command' : 'Or start it with a command instead'}
+                    </button>
+                </>
             )}
-            {tunnel && <CopyBlock label={`1. Install the tunnel (${steps.shell})`} text={steps.tunnel} />}
-            <CopyBlock label={`${tunnel ? '2' : '1'}. Download and start the engine (${steps.shell})`} text={steps.start} />
-            <form
-                className="flex flex-wrap items-center gap-2"
-                onSubmit={(e) => {
-                    e.preventDefault()
-                    if (codeOk) setApproving(code)
-                }}>
-                <span className="text-[12px] text-neutral-600">{tunnel ? '3' : '2'}. Enter the code it shows:</span>
-                <Input aria-label="Code from the computer" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH" className="h-8 w-32 font-mono" autoComplete="off" />
-                <Btn type="submit" variant="primary" disabled={!codeOk}>
-                    Connect
-                </Btn>
-            </form>
-            <p className="text-[12px] text-neutral-500">
-                Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen. Next time,
-                run the same commands; it stays connected.
-            </p>
+            {commands && (
+                <>
+                    <label className="flex items-start gap-2 text-[12px] text-neutral-700">
+                        <Switch aria-label="Texts through Twilio or Sendblue" checked={tunnel} onCheckedChange={setTunnel} />
+                        <span>
+                            This computer texts through Twilio or Sendblue. They need to reach it from the internet, so the engine starts a free Cloudflare tunnel. Leave it off for
+                            Messages on a Mac or BlueBubbles, or if you set a Public URL of your own.
+                        </span>
+                    </label>
+                    {missing && (
+                        <p className="rounded-md bg-amber-50 p-2.5 text-[12px] text-amber-900">
+                            This site isn’t serving the engine yet, so the download below won’t work. On a dev server, run <code className="font-mono">npm run runner:build</code> once
+                            (or restart <code className="font-mono">npm run dev</code>); a production build includes it.
+                        </p>
+                    )}
+                    {tunnel && <CopyBlock label={`1. Install the tunnel (${steps.shell})`} text={steps.tunnel} />}
+                    <p className="text-[12px] text-neutral-500">
+                        It needs{' '}
+                        <a href={NODE_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                            Node.js {MIN_NODE} or newer
+                        </a>
+                        .
+                    </p>
+                    <CopyBlock label={`${tunnel ? '2' : '1'}. Download and start the engine (${steps.shell})`} text={steps.start} />
+                    {codeForm}
+                    <p className="text-[12px] text-neutral-500">
+                        Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen. Next time,
+                        run the same commands; it stays connected.
+                    </p>
+                </>
+            )}
             {approving && (
                 <PairDialog
                     code={approving}

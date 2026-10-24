@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { setupSteps, thisSystem } from './setup-steps'
+import { downloads, setupSteps, thisSystem } from './setup-steps'
 
 const URL = 'https://example-123.convex.cloud'
 const ENGINE = 'https://www.getopenbots.com/engine/openbots-engine.mjs'
@@ -78,5 +78,11 @@ describe("guessing the computer's system", () => {
         expect(setupSteps('mac', URL, ENGINE, false).start).not.toContain('OPENBOTS_SITE_URL')
         expect(setupSteps('mac', URL, ENGINE, false, 'http://localhost:5173').start).toContain('OPENBOTS_SITE_URL=http://localhost:5173 \\')
         expect(setupSteps('windows', URL, ENGINE, false, 'http://localhost:5173').start).toContain('$env:OPENBOTS_SITE_URL = "http://localhost:5173"')
+    })
+
+    it('links each system to its installer in the latest release', () => {
+        expect(downloads('mac', 'o/r')[0].url).toBe('https://github.com/o/r/releases/latest/download/OpenBots-mac-arm64.dmg')
+        expect(downloads('windows', 'o/r').map((d) => d.url.split('/').pop())).toEqual(['OpenBots-win-x64.exe', 'OpenBots-win-arm64.exe'])
+        expect(downloads('linux', 'o/r')[0].url).toMatch(/OpenBots-linux-x86_64\.AppImage$/)
     })
 })
