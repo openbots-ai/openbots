@@ -21,7 +21,7 @@ async function runnerFor(ctx: QueryCtx, token: string) {
         .query('runners')
         .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
         .unique()
-    if (!runner) throw new Error('This engine token is invalid or was revoked. Make a new one in Connections.')
+    if (!runner) throw new Error('This engine token is invalid or was revoked.')
     return runner
 }
 

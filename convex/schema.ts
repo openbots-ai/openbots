@@ -282,6 +282,19 @@ export default defineSchema({
         .index('by_tokenHash', ['tokenHash']),
     // Requests the dashboard queues for the engine (see taskRequest); one engine claims it (running), does it, and
     // writes back the result. Unclaimed or unanswered requests expire (see lib/tasks.ts).
+    // A computer asking to join a workspace (pairing.ts). It made its own token and sends only the hash; whoever
+    // approves the code in the dashboard adds it as a runner. Not tied to a workspace until then.
+    pairings: defineTable({
+        code: v.string(),
+        tokenHash: v.string(),
+        name: v.string(),
+        os: v.union(v.literal('windows'), v.literal('mac'), v.literal('linux'), v.literal('other')),
+        expiresAt: v.number(),
+        approvedAt: v.optional(v.number()),
+    })
+        .index('by_code', ['code'])
+        .index('by_tokenHash', ['tokenHash'])
+        .index('by_expiresAt', ['expiresAt']),
     tasks: defineTable({
         ...ws,
         request: taskRequest,

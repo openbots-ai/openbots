@@ -4,7 +4,6 @@ import { AlertCircle, Bot, Check, Copy, ExternalLink, HardDrive, Laptop, Mail, M
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { SEALED_SERVICES, type SealedService } from '@convex/lib/sealed'
-import { hashToken, newToken } from '@convex/lib/tokens'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -14,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { ProviderMark } from '@/components/agent-config-bar'
 import { KeyForm, type Saved } from '../key-form'
 import { OrgoControls, OrgoCreate } from '../orgo'
+import { PairDialog } from '../pair-approval'
 import { TestText } from '../test-text'
 import { relativeTime } from '../lib/time'
 import { MIN_NODE, NODE_URL, setupSteps, SYSTEMS, thisSystem, type System } from '../lib/setup-steps'
@@ -377,32 +377,12 @@ function PublicUrl({ runner }: { runner: Runner }) {
 // The engines you run, with tokens made here in the browser (Convex only ever gets a hash). `webhooks`: the workspace
 // texts through Twilio or Sendblue, so a new engine starts with the tunnel.
 function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?: Saved; webhooks: boolean }) {
-    const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
-    const resetToken = useMutation(api.runners.resetToken)
     const setComputerUse = useMutation(api.runners.setComputerUse)
     const run = useRun()
     const now = useNow(30_000)
-    const [name, setName] = useState('')
-    // A token just made, shown once: for a new engine, or a reset one (named, so the setup says to restart it)
-    const [token, setToken] = useState<{ value: string; reset?: string } | null>(null)
     // How the next computer is added: on Orgo, or one the user runs themselves
     const [where, setWhere] = useState<'orgo' | 'own'>('orgo')
-
-    const add = async () => {
-        const fresh = newToken()
-        const res = await run(create({ name, tokenHash: await hashToken(fresh) }))
-        if (res.ok) {
-            setToken({ value: fresh })
-            setName('')
-        }
-    }
-    // The same engine gets a new token in place; the old one stops working
-    const reset = async (r: Runner) => {
-        const fresh = newToken()
-        const res = await run(resetToken({ id: r._id, tokenHash: await hashToken(fresh) }))
-        if (res.ok) setToken({ value: fresh, reset: r.name })
-    }
 
     return (
         <section className="space-y-3">
@@ -439,7 +419,7 @@ function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?:
                                             ? `${online ? 'Online' : `Offline, last seen ${relativeTime(r.lastSeenAt, now)}`} · v${r.version}${r.channels?.length ? ` · texts through ${r.channels.join(', ')}` : ''}${r.demo ? ' · demo replies' : ''}`
                                             : onOrgo
                                               ? 'Not connected yet.'
-                                              : 'Never connected. Start it with the token you copied.'}
+                                              : 'Not connected yet.'}
                                     </p>
                                     {r.tunnelUrl && <p className="truncate font-mono text-[11px] text-neutral-500">Public address {r.tunnelUrl}</p>}
                                     {!onOrgo && r.os === 'linux' && <p className="text-[12px] text-amber-700">Texting only: computer use works on Windows and Mac.</p>}
@@ -461,13 +441,12 @@ function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?:
                                 {!onOrgo && (
                                     <div className="ml-12 flex shrink-0 flex-wrap gap-2 sm:ml-0 sm:justify-end">
                                         <ConfirmDelete
-                                            label="Reset token"
-                                            title={`Reset ${r.name}'s token?`}
-                                            description="Its current token stops working right away. You'll get a new one to paste into the engine when you restart it."
-                                            confirm="Reset"
-                                            onConfirm={() => void reset(r)}
+                                            label="Disconnect"
+                                            title={`Disconnect ${r.name}?`}
+                                            description="It stops working with your workspace right away. To use it again, it shows a new code to approve."
+                                            confirm="Disconnect"
+                                            onConfirm={() => void run(revoke({ id: r._id }))}
                                         />
-                                        <ConfirmDelete label="Revoke" what={`${r.name}'s token`} onConfirm={() => void run(revoke({ id: r._id }))} />
                                     </div>
                                 )}
                             </div>
@@ -493,59 +472,35 @@ function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?:
                     </div>
                     {where === 'orgo' && <OrgoCreate saved={orgoKey} />}
                 </div>
-                {where === 'own' && (
-                    <form
-                        className="flex flex-wrap items-center gap-2 px-4 py-3"
-                        onSubmit={(e) => {
-                            e.preventDefault()
-                            void add()
-                        }}>
-                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Computer use works on Windows and Mac; Linux computers (like Fedora) answer texts only. Name it to get its token:</span>
-                        <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
-                        <Btn type="submit" variant="primary" disabled={!name.trim()}>
-                            Add computer
-                        </Btn>
-                    </form>
-                )}
-                {token && <Setup token={token.value} reset={token.reset} webhooks={webhooks} onDone={() => setToken(null)} />}
+                {where === 'own' && <Setup webhooks={webhooks} />}
             </Card>
         </section>
     )
 }
 
-// Shown once after adding an engine (or resetting its token): the token and how to start it on that computer. The
-// engine is one file this site serves (built from the same code as the dashboard). The token isn't in the commands, so
-// shell history never keeps it: the engine asks for it on first start, hidden, and saves it where only you can read it.
-function Setup({ token, reset, webhooks, onDone }: { token: string; reset?: string; webhooks: boolean; onDone: () => void }) {
+// Adding a computer you run yourself: start the engine there, and it shows a code (and a link) to approve here. No
+// token to copy: the engine makes its own and sends only its hash (see convex/pairing.ts).
+function Setup({ webhooks }: { webhooks: boolean }) {
     const [system, setSystem] = useState<System>(() => thisSystem())
     // Only Twilio and Sendblue need the engine reachable from the internet; Messages on a Mac and BlueBubbles don't
     const [tunnel, setTunnel] = useState(webhooks)
+    const [code, setCode] = useState('')
+    const [approving, setApproving] = useState<string | null>(null)
     const engineUrl = `${window.location.origin}/engine/openbots-engine.mjs`
-    const steps = setupSteps(system, CONVEX_URL, engineUrl, tunnel)
+    // The engine's pairing link points at getopenbots.com unless told otherwise (a dev server or your own site)
+    const siteUrl = /^https:\/\/(www\.)?getopenbots\.com$/.test(window.location.origin) ? undefined : window.location.origin
+    const steps = setupSteps(system, CONVEX_URL, engineUrl, tunnel, siteUrl)
     // A dev server serves the engine only once it's built (see vite.config.ts); say so instead of a download that fails
     const missing = useEngineMissing(engineUrl)
-    if (reset)
-        return (
-            <div className="space-y-3 bg-neutral-50 px-4 py-4">
-                <p className="text-[13px] text-neutral-700">
-                    {reset} has a new token, shown only now. Its old one has stopped working: stop the engine on that computer and start it again the same way. When it says
-                    the saved token no longer works, paste this one.
-                </p>
-                <CopyBlock label="The new token" text={token} />
-                <Btn variant="primary" onClick={onDone}>
-                    I’ve copied it
-                </Btn>
-            </div>
-        )
+    const codeOk = code.replace(/[^a-z0-9]/gi, '').length === 8
     return (
-        <div className="space-y-3 bg-neutral-50 px-4 py-4">
+        <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 py-4">
             <p className="text-[13px] text-neutral-700">
-                Run these on the computer you’re adding. It needs{' '}
+                A spare computer you keep on, or one you rent. Computer use works on Windows and Mac; Linux computers answer texts only. Run this on that computer (it needs{' '}
                 <a href={NODE_URL} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
                     Node.js {MIN_NODE} or newer
                 </a>
-                . The first time the engine starts, it asks for this computer’s token (below): paste it there, not into a command, so your shell history never keeps it.
-                The token is shown only now and isn’t stored anywhere, so copy it before you close this.
+                ). It shows a code and a link: open the link on your phone, or type the code below.
             </p>
             <div className="flex gap-1" role="group" aria-label="Computer’s system">
                 {SYSTEMS.map((s) => (
@@ -574,15 +529,31 @@ function Setup({ token, reset, webhooks, onDone }: { token: string; reset?: stri
             )}
             {tunnel && <CopyBlock label={`1. Install the tunnel (${steps.shell})`} text={steps.tunnel} />}
             <CopyBlock label={`${tunnel ? '2' : '1'}. Download and start the engine (${steps.shell})`} text={steps.start} />
+            <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    if (codeOk) setApproving(code)
+                }}>
+                <span className="text-[12px] text-neutral-600">{tunnel ? '3' : '2'}. Enter the code it shows:</span>
+                <Input aria-label="Code from the computer" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH" className="h-8 w-32 font-mono" autoComplete="off" />
+                <Btn type="submit" variant="primary" disabled={!codeOk}>
+                    Connect
+                </Btn>
+            </form>
             <p className="text-[12px] text-neutral-500">
-                Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
-                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Your keys come from the cards
-                below.
+                Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen. Next time,
+                run the same commands; it stays connected.
             </p>
-            <CopyBlock label="This computer’s token (paste it when the engine asks)" text={token} />
-            <Btn variant="primary" onClick={onDone}>
-                I’ve copied it
-            </Btn>
+            {approving && (
+                <PairDialog
+                    code={approving}
+                    onClose={() => {
+                        setApproving(null)
+                        setCode('')
+                    }}
+                />
+            )}
         </div>
     )
 }

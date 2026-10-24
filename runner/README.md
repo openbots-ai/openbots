@@ -17,16 +17,16 @@ so it can write the reply. Use a local model server if nothing should leave your
 
 ## Start it
 
-1. In the dashboard, open **Connections**, name the computer and add it. Connections then shows, once, this
-   computer's token and the commands to start the engine on Windows, Mac or Linux. Convex keeps only the token's hash, so
-   copy it then.
+1. In the dashboard, open **Connections** → **Your own computer**. It shows the commands to start the engine on
+   Windows, Mac or Linux.
 2. Run those commands on the computer. It needs [Node.js](https://nodejs.org/en/download) **22.13 or newer**; the
    engine checks when it starts and says so if yours is older. The commands download the engine, a single file this
    site serves, and start it.
-3. The first time it starts, the engine asks for the token. Paste it there (it doesn't show as you paste). It's saved
-   in `token` in the data folder (`~/.openbots` by default), readable only by you, so later starts don't ask again.
-   The token never goes on the command line, so your shell history doesn't keep it; it unlocks every key saved in
-   Connections.
+3. The first time it starts, the engine shows a code and a link. Open the link (on your phone is fine) or type the code
+   in Connections, and approve it. That's pairing: the engine made its own token and sent Convex only its hash, so the
+   token never leaves the computer and is never typed or pasted. It's saved in `token` in the data folder
+   (`~/.openbots` by default), readable only by you, so later starts connect straight away. A code lasts 10 minutes; a
+   new one appears after that.
 4. Add your AI key(s) and a way to text in Connections, or as environment variables on the engine (see Settings
    below).
 
@@ -47,10 +47,10 @@ $env:OPENBOTS_CONVEX_URL = "https://<your-deployment>.convex.cloud"
 node openbots-engine.mjs
 ```
 
-If you text through Twilio or Sendblue, add `OPENBOTS_TUNNEL=true` (see below). Where no one is at a terminal to
-paste the token (Docker, a service), set `OPENBOTS_TOKEN` in its environment or an env file instead, or start it once
-by hand so the token is saved. **Reset token** in Connections gives the same engine a new token and stops the old one;
-on its next start the engine says the saved token no longer works and asks for the new one.
+If you text through Twilio or Sendblue, add `OPENBOTS_TUNNEL=true` (see below). Pairing works without a terminal too
+(Docker, a service): the code and link are in the engine's log. `OPENBOTS_TOKEN` still works if you'd rather set a
+token yourself. **Disconnect** in Connections cuts the computer off; on its next start the engine notices and shows a
+new code to approve.
 
 Keep the window open: the engine runs while it's open. Start it from your normal desktop session, not as a
 service, if you want computer use (it needs to see the screen).
@@ -78,7 +78,9 @@ Use **Re-check** in Connections after you get access to a new model.
 | Variable | |
 | --- | --- |
 | `OPENBOTS_CONVEX_URL` | Your Convex deployment URL (the dashboard's `VITE_CONVEX_URL`). Required. |
-| `OPENBOTS_TOKEN` | The token from Connections. Optional: without it the engine asks for the token once and saves it in `OPENBOTS_DATA_DIR`. Set it where there's no terminal (Docker, a service). |
+| `OPENBOTS_TOKEN` | Optional. Without it the engine pairs once (it shows a code to approve in the dashboard) and saves its own token in `OPENBOTS_DATA_DIR`. |
+| `OPENBOTS_SITE_URL` | Where the dashboard is, for the pairing link. Default `https://getopenbots.com`; set it if you host the site yourself. |
+| `OPENBOTS_NAME` | The name this computer shows in Connections. Default: its hostname. |
 | `OPENBOTS_DATA_DIR` | Where history, its key and the saved token live. Default `~/.openbots`; `/data` in Docker. |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` | Your AI keys. The engine lists the chat models each can use, and the dashboard offers exactly those. |
 | `OPENBOTS_LOCAL_URL` | A local, OpenAI-compatible model server, e.g. `http://localhost:11434/v1` for Ollama. Its models are listed too. `OPENBOTS_LOCAL_KEY` if it needs one. |

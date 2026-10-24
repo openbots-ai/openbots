@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { View } from './lib/view'
 import { NavContext } from './nav'
+import { PairDialog } from './pair-approval'
 import { Onboarding } from './onboarding'
 import { Sidebar } from './sidebar'
 import { useView } from './use-view'
@@ -22,6 +23,14 @@ export function Shell() {
     const { view, id, go } = useView()
     const workspace = useQuery(api.workspace.get)
     const [menuOpen, setMenuOpen] = useState(false)
+    // A computer's pairing link (getopenbots.com/dashboard?pair=CODE) opens the approval right away
+    const [pairCode, setPairCode] = useState(() => new URLSearchParams(window.location.search).get('pair'))
+    const closePair = () => {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('pair')
+        window.history.replaceState(null, '', url)
+        setPairCode(null)
+    }
 
     // Nothing below may load before the workspace does: its queries need one and would throw for a new account
     if (workspace === undefined) return <div className="min-h-dvh bg-[#f5f5f7]" />
@@ -52,6 +61,7 @@ export function Shell() {
                     </main>
                 </div>
             </div>
+            {pairCode && <PairDialog code={pairCode} onClose={closePair} />}
         </NavContext>
     )
 }

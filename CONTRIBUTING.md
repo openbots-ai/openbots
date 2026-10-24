@@ -17,7 +17,7 @@ npm run dev         # the site and dashboard on http://localhost:5173 (dashboard
 npm run runner      # build and start the engine; put OPENBOTS_CONVEX_URL and OPENBOTS_TOKEN in runner/.env
 ```
 
-Sign up in the dashboard, add a computer in **Connections** to get an engine token, and paste it into `runner/.env`.
+Sign up in the dashboard, then start the engine: it shows a code to approve under **Connections** → **Your own computer**.
 `OPENBOTS_DEMO=true` makes the engine answer with sample replies when you have no AI key. `.env.example` lists every
 variable, and [runner/README.md](runner/README.md) explains the engine's settings.
 

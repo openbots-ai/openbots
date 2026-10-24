@@ -4,7 +4,8 @@ import { SignIn as ClerkSignIn } from '@clerk/react'
 export function SignIn() {
     return (
         <div className="grid min-h-dvh place-items-center bg-[#f5f5f7] p-6">
-            <ClerkSignIn routing="hash" withSignUp />
+            {/* Back to this exact address after signing in, so a computer's pairing link (?pair=) still opens its approval */}
+            <ClerkSignIn routing="hash" withSignUp fallbackRedirectUrl={window.location.href.split("#")[0]} signUpFallbackRedirectUrl={window.location.href.split("#")[0]} />
         </div>
     )
 }

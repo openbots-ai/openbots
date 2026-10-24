@@ -73,4 +73,10 @@ describe("guessing the computer's system", () => {
         expect(thisSystem('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5)).not.toBe('mac')
         expect(thisSystem('Mozilla/5.0 (Linux; Android 14; Pixel 8)', 5)).not.toBe('linux')
     })
+
+    it('points the pairing link at this site when it isn’t getopenbots.com', () => {
+        expect(setupSteps('mac', URL, ENGINE, false).start).not.toContain('OPENBOTS_SITE_URL')
+        expect(setupSteps('mac', URL, ENGINE, false, 'http://localhost:5173').start).toContain('OPENBOTS_SITE_URL=http://localhost:5173 \\')
+        expect(setupSteps('windows', URL, ENGINE, false, 'http://localhost:5173').start).toContain('$env:OPENBOTS_SITE_URL = "http://localhost:5173"')
+    })
 })

@@ -78,6 +78,11 @@ other members' texts never reach the agent, its history or the model.
 - **Releases** of the engine are built by GitHub Actions: npm with provenance, Docker signed with cosign plus a build
   attestation. The engine never updates itself. See [runner/README.md](runner/README.md) for how to verify.
 - **The dashboard** requires the workspace owner's sign-in (Clerk) for every function.
+- **Pairing a computer** never moves a token: the engine makes its own, sends Convex only the SHA-256 hash with a
+  short code, and the computer joins a workspace only when its signed-in owner approves that code. Codes expire after
+  10 minutes, and starting a pairing (which needs no sign-in) is rate limited. The risk to know: someone could send
+  you their own pairing link. Approving it gives their computer your saved keys, so the approval screen names the
+  computer and says to approve only one you just set up, showing that same code.
 - **Computer use** is off until the owner turns it on for a Windows or Mac computer in Connections. Only the owner,
   in their own one-to-one chat with the agent, can start a task. Claude must ask the owner ("Reply YES") before
   anything that can't be undone, each task stops after 200 steps or 30 minutes, and texting "stop" cancels it. Web
