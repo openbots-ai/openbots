@@ -1,0 +1,26 @@
+{
+  "name": "openbots-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Runs the OpenBots engine on a computer you keep on, for your agents' texts and computer use",
+  "author": "OpenBots",
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && electron .",
+    "dist": "node build.mjs && electron-builder --publish never",
+    "release": "node build.mjs && electron-builder --publish always"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/qrcode": "^1.5.6",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.17.0",
+    "electron-updater": "^6.8.10",
+    "esbuild": "^0.27.0",
+    "qrcode": "^1.5.4",
+    "typescript": "^7.0.2"
+  },
+  "desktopName": "openbots.desktop"
+}

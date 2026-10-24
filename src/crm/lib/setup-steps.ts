@@ -65,3 +65,24 @@ export function setupSteps(system: System, convexUrl: string, engineUrl: string,
         ].join('\n'),
     }
 }
+
+// The OpenBots app's installers, from the latest GitHub release of `repo` ("owner/name"). The names are fixed by
+// desktop/electron-builder.yml, so these links always point at the newest version.
+export function downloads(system: System, repo: string): { label: string; url: string }[] {
+    const file = (name: string) => `https://github.com/${repo}/releases/latest/download/${name}`
+    if (system === 'mac')
+        return [
+            { label: 'Download for Mac (Apple silicon)', url: file('OpenBots-mac-arm64.dmg') },
+            { label: 'Intel Mac', url: file('OpenBots-mac-x64.dmg') },
+        ]
+    if (system === 'windows')
+        return [
+            { label: 'Download for Windows', url: file('OpenBots-win-x64.exe') },
+            { label: 'Windows on Arm', url: file('OpenBots-win-arm64.exe') },
+        ]
+    return [
+        { label: 'Download for Linux (AppImage)', url: file('OpenBots-linux-x86_64.AppImage') },
+        { label: '.deb', url: file('OpenBots-linux-amd64.deb') },
+        { label: 'Arm', url: file('OpenBots-linux-arm64.AppImage') },
+    ]
+}

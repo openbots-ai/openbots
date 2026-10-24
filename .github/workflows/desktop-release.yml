@@ -1,0 +1,74 @@
+# Builds the OpenBots app (desktop/) for Mac, Windows and Linux when you push a tag like desktop-v0.1.0, and
+# publishes the installers as a GitHub release, where the app's auto-updater and the dashboard's Download buttons
+# find them.
+#
+# Repository variables:  OPENBOTS_CONVEX_URL (your production Convex URL, required), OPENBOTS_SITE_URL (default
+#                        https://getopenbots.com), RELEASES_REPO (a public repo for the installers if this one is private)
+# Repository secrets:    RELEASES_TOKEN (a token that can publish to RELEASES_REPO; not needed for this repo)
+#                        Mac signing: CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#                        Windows signing (Azure Trusted Signing): AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+#                        with variables AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE, AZURE_PUBLISHER
+# Without signing secrets the installers still build, unsigned (macOS and Windows warn when they're opened).
+name: Release app
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: --mac
+          - os: windows-latest
+            target: --win
+          - os: ubuntu-latest
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Tag matches desktop/package.json
+        shell: bash
+        run: test "desktop-v$(node -p "require('./desktop/package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci --ignore-scripts
+      - name: Build the engine the app runs
+        run: node runner/build.mjs
+      - run: npm ci
+        working-directory: desktop
+      - run: npx tsc -p .
+        working-directory: desktop
+      - name: Build and publish the installers
+        working-directory: desktop
+        shell: bash
+        env:
+          OPENBOTS_CONVEX_URL: ${{ vars.OPENBOTS_CONVEX_URL }}
+          OPENBOTS_SITE_URL: ${{ vars.OPENBOTS_SITE_URL }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || github.token }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          args=(${{ matrix.target }} --publish always -c.publish.repo="${{ vars.RELEASES_REPO || github.event.repository.name }}")
+          if [ -z "$CSC_LINK" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; args+=(-c.mac.notarize=false); fi
+          if [ -n "$AZURE_CLIENT_ID" ]; then
+            args+=(-c.win.azureSignOptions.endpoint="${{ vars.AZURE_SIGNING_ENDPOINT }}"
+                   -c.win.azureSignOptions.codeSigningAccountName="${{ vars.AZURE_SIGNING_ACCOUNT }}"
+                   -c.win.azureSignOptions.certificateProfileName="${{ vars.AZURE_SIGNING_PROFILE }}"
+                   -c.win.azureSignOptions.publisherName="${{ vars.AZURE_PUBLISHER }}")
+          fi
+          node build.mjs
+          npx electron-builder "${args[@]}"

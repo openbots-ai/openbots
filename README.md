@@ -40,6 +40,7 @@ and the Models page mention them, but nothing runs them yet.
 | **Dashboard** | `src/` (React, Vite, Tailwind). The dashboard is `src/crm`; the landing site is `src/pages` and `src/components/landing` | Any static host (Vercel config included) | Nothing of its own |
 | **Backend** | `convex/` | A [Convex](https://convex.dev) deployment | Accounts, workspaces, agents, model choices, knowledge, numbers, engine token hashes, keys saved in Connections (encrypted), daily counts |
 | **Engine** | `runner/` (Node.js) | A computer you control, or an Orgo computer | Contacts, conversations and messages in an encrypted local SQLite file; keys set as environment variables |
+| **App** | `desktop/` (Electron) | A computer you keep on | Nothing of its own: it runs the engine, keeps the computer awake and updates itself |
 
 A text reaches the engine (from Messages, or posted to its web server by Twilio, Sendblue, BlueBubbles or a relay). The
 engine first checks who sent it: agents answer only the owner (once their phone is verified) and the people on the
@@ -109,10 +110,11 @@ static site (the repo includes a `vercel.json`).
    into `/engine/openbots-engine.mjs`, which the dashboard's start commands and Orgo computers download from your own
    site.
 
-7. **Start an engine.** In the dashboard, open **Connections**, name a computer and add it. Connections shows, once,
-   the commands to start the engine on Windows, Mac or Linux with that computer's token filled in. Or click **Create on
-   Orgo** after saving an Orgo API key. To run an engine from this checkout instead, put `OPENBOTS_CONVEX_URL` and
-   `OPENBOTS_TOKEN` in `runner/.env` and run `npm run runner`. Every setting, the Mac permissions, the Docker image and
+7. **Start an engine.** In the dashboard, open **Connections** → **Your own computer** for the commands to start the
+   engine on Windows, Mac or Linux (or the OpenBots app's installers, once you release them: see
+   [desktop/README.md](desktop/README.md)). The engine shows a code; approve it in Connections and the computer is
+   connected, with no token to copy. Or click **Create on Orgo** after saving an Orgo API key. To run an engine from
+   this checkout instead, put `OPENBOTS_CONVEX_URL` in `runner/.env` and run `npm run runner`. Every setting, the Mac permissions, the Docker image and
    how to verify a release are in [runner/README.md](runner/README.md).
 
 `.env.example` lists every variable, for the site, the deployment and the engine. If you're upgrading a deployment

@@ -1,0 +1,54 @@
+# Installers for Mac, Windows and Linux. Releases go to GitHub, where the app's auto-updater looks for them.
+# Signing: set CSC_LINK / CSC_KEY_PASSWORD (Apple Developer ID certificate) and APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+# APPLE_TEAM_ID for notarizing; see desktop/README.md. Without them the builds work but aren't signed.
+appId: com.getopenbots.desktop
+productName: OpenBots
+copyright: OpenBots
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - '!dist/engine/**'
+  - package.json
+extraResources:
+  - from: dist/engine
+    to: engine
+# Stable names, so the website can link to .../releases/latest/download/OpenBots-mac-arm64.dmg
+artifactName: OpenBots-${os}-${arch}.${ext}
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.png
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    # The auto-updater installs from the zip
+    - target: zip
+      arch: [arm64, x64]
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+nsis:
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+linux:
+  icon: build/icon.png
+  category: Utility
+  syncDesktopName: true
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+publish:
+  provider: github
+  owner: shidhartha-sen
+  repo: opendots
+  releaseType: release
