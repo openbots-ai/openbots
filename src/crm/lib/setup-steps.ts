@@ -20,46 +20,22 @@ export function thisSystem(ua: string = navigator.userAgent, touchPoints: number
     return 'windows'
 }
 
-const CLOUDFLARED_RELEASES = 'https://github.com/cloudflare/cloudflared/releases/latest'
-
-// `tunnel`: the engine gets a public address from Cloudflare's quick tunnel (OPENBOTS_TUNNEL=true). Only Twilio and
-// Sendblue need one, when the engine has no public URL of its own; Messages on a Mac and BlueBubbles don't.
 // The token is never in these commands, so shell history doesn't keep it: the engine asks for it on first start, with
-// the input hidden, and saves it where only you can read it.
-export function setupSteps(system: System, convexUrl: string, engineUrl: string, tunnel: boolean) {
+// the input hidden, and saves it where only you can read it. Nothing else to install: when Twilio or Sendblue need to
+// reach the engine, it fetches Cloudflare's tunnel itself (runner/src/cloudflared.ts).
+export function setupSteps(system: System, convexUrl: string, engineUrl: string) {
     if (system === 'windows')
         return {
             shell: 'PowerShell',
-            // winget puts cloudflared on the PATH for new windows; reloading it lets this one find it too
-            tunnel: [
-                'winget install --id Cloudflare.cloudflared -e',
-                "$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')",
-            ].join('\n'),
             start: [
                 'mkdir -Force $HOME\\openbots | Out-Null; cd $HOME\\openbots',
                 `curl.exe -fL -o openbots-engine.mjs ${engineUrl}`,
                 `$env:OPENBOTS_CONVEX_URL = "${convexUrl}"`,
-                ...(tunnel ? ['$env:OPENBOTS_TUNNEL = "true"'] : []),
                 'node openbots-engine.mjs',
             ].join('\n'),
         }
     return {
         shell: 'Terminal',
-        tunnel:
-            system === 'mac'
-                ? `if command -v brew >/dev/null; then brew install cloudflared; else echo "Homebrew isn't installed. Get it from https://brew.sh and run this again, or download cloudflared from ${CLOUDFLARED_RELEASES}"; fi`
-                : [
-                      // Cloudflare builds cloudflared for these Linux architectures
-                      'case "$(uname -m)" in x86_64|amd64) A=amd64;; aarch64|arm64) A=arm64;; arm*) A=arm;; i?86) A=386;; *) A=;; esac',
-                      `if [ -n "$A" ]; then curl -fL -o ~/openbots-cloudflared ${CLOUDFLARED_RELEASES}/download/cloudflared-linux-$A && chmod +x ~/openbots-cloudflared; else echo "There's no cloudflared download for $(uname -m). See ${CLOUDFLARED_RELEASES}"; fi`,
-                  ].join('\n'),
-        start: [
-            'mkdir -p ~/openbots && cd ~/openbots',
-            `curl -fL -o openbots-engine.mjs ${engineUrl}`,
-            `OPENBOTS_CONVEX_URL=${convexUrl} \\`,
-            ...(tunnel && system === 'linux' ? ['OPENBOTS_CLOUDFLARED=~/openbots-cloudflared \\'] : []),
-            ...(tunnel ? ['OPENBOTS_TUNNEL=true \\'] : []),
-            'node openbots-engine.mjs',
-        ].join('\n'),
+        start: ['mkdir -p ~/openbots && cd ~/openbots', `curl -fL -o openbots-engine.mjs ${engineUrl}`, `OPENBOTS_CONVEX_URL=${convexUrl} \\`, 'node openbots-engine.mjs'].join('\n'),
     }
 }

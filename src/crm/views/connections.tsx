@@ -217,7 +217,7 @@ export function ConnectionsView() {
             </Toolbar>
             <Scroll>
                 <div className="mx-auto w-full max-w-5xl space-y-8 p-4 pb-16">
-                    <Engines runners={runners} orgoKey={saved?.find((s) => s.service === 'orgo')} webhooks={!!saved?.some((s) => s.service === 'twilio' || s.service === 'sendblue') || !!runners?.some((r) => r.services?.some((s) => s.service === 'twilio' || s.service === 'sendblue'))} />
+                    <Engines runners={runners} orgoKey={saved?.find((s) => s.service === 'orgo')} />
                     {runners && runners.length > 0 && !hasAi && (
                         <Card className="flex flex-row items-start gap-3 rounded-lg border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
                             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -374,9 +374,8 @@ function PublicUrl({ runner }: { runner: Runner }) {
     )
 }
 
-// The engines you run, with tokens made here in the browser (Convex only ever gets a hash). `webhooks`: the workspace
-// texts through Twilio or Sendblue, so a new engine starts with the tunnel.
-function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?: Saved; webhooks: boolean }) {
+// The engines you run, with tokens made here in the browser (Convex only ever gets a hash)
+function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) {
     const create = useMutation(api.runners.create)
     const revoke = useMutation(api.runners.revoke)
     const resetToken = useMutation(api.runners.resetToken)
@@ -507,7 +506,7 @@ function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?:
                         </Btn>
                     </form>
                 )}
-                {token && <Setup token={token.value} reset={token.reset} webhooks={webhooks} onDone={() => setToken(null)} />}
+                {token && <Setup token={token.value} reset={token.reset} onDone={() => setToken(null)} />}
             </Card>
         </section>
     )
@@ -516,12 +515,10 @@ function Engines({ runners, orgoKey, webhooks }: { runners?: Runner[]; orgoKey?:
 // Shown once after adding an engine (or resetting its token): the token and how to start it on that computer. The
 // engine is one file this site serves (built from the same code as the dashboard). The token isn't in the commands, so
 // shell history never keeps it: the engine asks for it on first start, hidden, and saves it where only you can read it.
-function Setup({ token, reset, webhooks, onDone }: { token: string; reset?: string; webhooks: boolean; onDone: () => void }) {
+function Setup({ token, reset, onDone }: { token: string; reset?: string; onDone: () => void }) {
     const [system, setSystem] = useState<System>(() => thisSystem())
-    // Only Twilio and Sendblue need the engine reachable from the internet; Messages on a Mac and BlueBubbles don't
-    const [tunnel, setTunnel] = useState(webhooks)
     const engineUrl = `${window.location.origin}/engine/openbots-engine.mjs`
-    const steps = setupSteps(system, CONVEX_URL, engineUrl, tunnel)
+    const steps = setupSteps(system, CONVEX_URL, engineUrl)
     // A dev server serves the engine only once it's built (see vite.config.ts); say so instead of a download that fails
     const missing = useEngineMissing(engineUrl)
     if (reset)
@@ -559,21 +556,13 @@ function Setup({ token, reset, webhooks, onDone }: { token: string; reset?: stri
                     </button>
                 ))}
             </div>
-            <label className="flex items-start gap-2 text-[12px] text-neutral-700">
-                <Switch aria-label="Texts through Twilio or Sendblue" checked={tunnel} onCheckedChange={setTunnel} />
-                <span>
-                    This computer texts through Twilio or Sendblue. They need to reach it from the internet, so the engine starts a free Cloudflare tunnel. Leave it off for
-                    Messages on a Mac or BlueBubbles, or if you set a Public URL of your own.
-                </span>
-            </label>
             {missing && (
                 <p className="rounded-md bg-amber-50 p-2.5 text-[12px] text-amber-900">
                     This site isn’t serving the engine yet, so the download below won’t work. On a dev server, run <code className="font-mono">npm run runner:build</code> once
                     (or restart <code className="font-mono">npm run dev</code>); a production build includes it.
                 </p>
             )}
-            {tunnel && <CopyBlock label={`1. Install the tunnel (${steps.shell})`} text={steps.tunnel} />}
-            <CopyBlock label={`${tunnel ? '2' : '1'}. Download and start the engine (${steps.shell})`} text={steps.start} />
+            <CopyBlock label={`Download and start the engine (${steps.shell})`} text={steps.start} />
             <p className="text-[12px] text-neutral-500">
                 Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
                 {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Your keys come from the cards

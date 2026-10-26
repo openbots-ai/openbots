@@ -47,7 +47,7 @@ $env:OPENBOTS_CONVEX_URL = "https://<your-deployment>.convex.cloud"
 node openbots-engine.mjs
 ```
 
-If you text through Twilio or Sendblue, add `OPENBOTS_TUNNEL=true` (see below). Where no one is at a terminal to
+Twilio and Sendblue need nothing extra: the engine gets its own public address (see below). Where no one is at a terminal to
 paste the token (Docker, a service), set `OPENBOTS_TOKEN` in its environment or an env file instead, or start it once
 by hand so the token is saved. **Reset token** in Connections gives the same engine a new token and stops the old one;
 on its next start the engine says the saved token no longer works and asks for the new one.
@@ -60,11 +60,11 @@ runs it (Terminal, iTerm, or your launchd job's binary) **Full Disk Access** in 
 so it can read `~/Library/Messages`, and allow it to control **Messages** when macOS asks. It answers one-to-one
 chats and starts from the newest message, so old history isn't answered.
 
-Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL. `OPENBOTS_TUNNEL=true` gets one
-from Cloudflare; install `cloudflared` first (`winget install --id Cloudflare.cloudflared` on Windows, then open a new
-window; `brew install cloudflared` on a Mac with [Homebrew](https://brew.sh); on Linux, the `cloudflared-linux-<arch>`
-download for your machine from [its releases](https://github.com/cloudflare/cloudflared/releases/latest), with
-`OPENBOTS_CLOUDFLARED` pointing at it). Your own tunnel or Tailscale Funnel to port 8787 works too. Messages on a Mac
+Twilio and Sendblue post incoming texts to the engine, so it needs a public HTTPS URL. With no Public URL set, the
+engine starts Cloudflare's free quick tunnel for one: the first time, it downloads a pinned `cloudflared` release into
+`~/.openbots/bin`, checked against its published SHA-256, and it re-points Twilio and Sendblue whenever the address
+changes. Nothing to install or sign up for. Your own tunnel or Tailscale Funnel to port 8787 works too: set it as the
+Public URL and no tunnel starts. Messages on a Mac
 needs no URL at all. BlueBubbles needs only an address your Mac can reach the engine at, so a private one works: on the
 same Mac, `http://127.0.0.1:8787`; from another machine on your network, its private address, with the engine started
 with `OPENBOTS_HOST=0.0.0.0`. Set it as the Public URL in Connections (or `OPENBOTS_PUBLIC_URL`). Every webhook path carries a random secret, and Twilio's requests are checked against its
@@ -86,8 +86,8 @@ Use **Re-check** in Connections after you get access to a new model.
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | SMS through your Twilio account. Buy or reuse numbers from the dashboard's Numbers page; the engine does it. |
 | `SENDBLUE_API_KEY_ID`, `SENDBLUE_API_SECRET` | iMessage through your Sendblue line. |
 | `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD` | iMessage through BlueBubbles Server on your Mac, with group chats. |
-| `OPENBOTS_TUNNEL` | `true` to get a public HTTPS address from Cloudflare's quick tunnel (no open ports, no account), for Twilio or Sendblue. The engine uses it as its public URL when none is set and re-points Sendblue and Twilio when it changes. Orgo computers use this. |
-| `OPENBOTS_CLOUDFLARED` | Path to the `cloudflared` binary for the tunnel (default: `cloudflared` on the PATH). |
+| `OPENBOTS_TUNNEL` | `false` to never start Cloudflare's quick tunnel. Otherwise it starts when Twilio or Sendblue need a public address and none is set (no open ports, no account), and the engine re-points Sendblue and Twilio when it changes. |
+| `OPENBOTS_CLOUDFLARED` | Path to your own `cloudflared` for the tunnel (default: a pinned release the engine downloads and verifies; `cloudflared` on the PATH on systems without one). |
 | `OPENBOTS_PUBLIC_URL` | Where Twilio, Sendblue or BlueBubbles reach the engine's web server. Needed for any of them; public HTTPS for Twilio and Sendblue, any address your Mac can reach for BlueBubbles. Can also be set per engine in Connections. |
 | `OPENBOTS_ROTATE_WEBHOOKS` | `true` for one start to make new webhook secrets (each of Twilio, Sendblue and BlueBubbles has its own). The engine points your Twilio numbers and registers Sendblue and BlueBubbles at the new addresses and logs them; remove the old addresses from Sendblue and BlueBubbles, then unset it. |
 | `OPENBOTS_HOST`, `OPENBOTS_PORT` | Where the engine's web server listens. Default `127.0.0.1:8787` (`0.0.0.0` in Docker). |

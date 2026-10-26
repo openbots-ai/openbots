@@ -6,6 +6,7 @@ import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { nodeTooOld, nodeVersionError } from './nodeVersion'
 import { askForToken, findToken, hiddenPrompt, tokenFile } from './token'
+import { ensureCloudflared } from './cloudflared'
 import { startTunnel } from './tunnel'
 import { computerAllowed, driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
 import { Vault } from './crypto'
@@ -149,7 +150,7 @@ async function main() {
                 await t.stop().catch(() => {})
             }
         }
-        if (server.hasRoutes || base.tunnel) await server.start()
+        if (server.hasRoutes || tunnelStarted) await server.start()
         await repointTwilio()
         if (announceHooks) {
             for (const t of Object.values(services.transports)) {
@@ -249,6 +250,8 @@ async function main() {
     let resumed = false
     let lastDoc: DashboardDoc | undefined
     let stopTunnel = () => {}
+    let tunnelStarted = false
+    let tunnelFor: (next: Settings) => void = () => {}
     const ready = new Promise<void>((resolve) => {
         const handle = (doc: DashboardDoc) => {
                 lastDoc = doc
@@ -257,6 +260,7 @@ async function main() {
                         const opened = fromDashboard(doc)
                         keyProblems = opened.problems.filter((p): p is { service: EngineService; error: string } => p.service !== 'orgo')
                         const next = withDashboard(base, opened.values)
+                        tunnelFor(next)
                         const wanted = channelSettings(next)
                         if (wanted !== applied) {
                             await apply(next)
@@ -276,14 +280,28 @@ async function main() {
                         resolve()
                     })
         }
-        // A new tunnel address is the engine's public address unless one is set; apply it like any other change
-        if (base.tunnel) {
-            stopTunnel = startTunnel(base.tunnel.bin, base.port, (url) => {
-                console.log(`Public address: ${url}`)
-                status = { ...status, tunnelUrl: url }
-                base = { ...base, publicUrl: envPublicUrl ?? url }
-                if (lastDoc) handle(lastDoc)
-            }, (line) => console.error(line))
+        // Twilio and Sendblue post incoming texts to the engine, so with either and no public URL, the tunnel starts
+        // and its address becomes the public URL. A new address is applied like any other change.
+        tunnelFor = (next) => {
+            if (tunnelStarted || !base.tunnel || next.publicUrl || !(next.twilio || next.sendblue)) return
+            tunnelStarted = true
+            const tunnel = base.tunnel
+            console.log('Twilio and Sendblue need to reach this computer: starting a Cloudflare tunnel…')
+            void (async () => {
+                try {
+                    const bin = tunnel.bin ?? (await ensureCloudflared(base.dataDir))
+                    await server.start()
+                    stopTunnel = startTunnel(bin, base.port, (url) => {
+                        console.log(`Public address: ${url}`)
+                        status = { ...status, tunnelUrl: url }
+                        base = { ...base, publicUrl: envPublicUrl ?? url }
+                        if (lastDoc) handle(lastDoc)
+                    }, (line) => console.error(line))
+                } catch (e) {
+                    tunnelStarted = false
+                    console.error(`Couldn't start the Cloudflare tunnel: ${message(e)}. It's tried again with the next change; or set a Public URL in Connections.`)
+                }
+            })()
         }
         link.onDashboard(
             handle,

@@ -25,8 +25,9 @@ export type Settings = {
     bluebubbles?: Credentials['bluebubbles']
     resend?: Credentials['resend']
     brains: Brains
-    // Run Cloudflare's quick tunnel for a public address (OPENBOTS_TUNNEL=true), with this cloudflared binary
-    tunnel?: { bin: string }
+    // Cloudflare's quick tunnel gives the engine a public address when Twilio or Sendblue need one and no public URL is
+    // set. On unless OPENBOTS_TUNNEL=false; `bin` is OPENBOTS_CLOUDFLARED, else a pinned copy is downloaded (cloudflared.ts)
+    tunnel?: { bin?: string }
     // Make new webhook secrets for Twilio, Sendblue and BlueBubbles on this start (OPENBOTS_ROTATE_WEBHOOKS=true)
     rotateHooks?: boolean
 }
@@ -78,7 +79,7 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
         bluebubbles,
         resend,
         brains: { keys, local: localUrl ? { url: localUrl, key: get('OPENBOTS_LOCAL_KEY') } : undefined, demo: get('OPENBOTS_DEMO') === 'true' },
-        tunnel: get('OPENBOTS_TUNNEL') === 'true' ? { bin: get('OPENBOTS_CLOUDFLARED') || 'cloudflared' } : undefined,
+        tunnel: get('OPENBOTS_TUNNEL') === 'false' ? undefined : { bin: get('OPENBOTS_CLOUDFLARED') },
         rotateHooks: get('OPENBOTS_ROTATE_WEBHOOKS') === 'true',
     }
 }
