@@ -657,7 +657,7 @@ describe('agent', () => {
             { name: 'to a stranger', computerUse: true, from: '+1 212 555 0187' },
             { name: 'when computer use is off', computerUse: false },
             { name: 'without an Anthropic key', computerUse: true, brains: { keys: { openai: 'k' }, demo: false } },
-            { name: 'when this engine has no computer (Linux)', computerUse: true, noComputer: true },
+            { name: 'when this engine has no computer', computerUse: true, noComputer: true },
         ]
         for (const c of cases) {
             it(c.name, async () => {

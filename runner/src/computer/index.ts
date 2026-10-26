@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Store } from '../store'
 import type { Driver } from './driver'
 import { runTask, type Create } from './loop'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { LinuxDriver } from './linux'
 import { MacDriver } from './mac'
 import { ComputerTasks, type Persist } from './tasks'
 import { WindowsDriver } from './windows'
@@ -28,12 +31,14 @@ export type ComputerDeps = {
     anthropic?: Client
 }
 
-// The driver for this machine's screen, mouse and keyboard: Windows and Mac only
-export const driverFor = (os: string): Driver | undefined => (os === 'windows' ? new WindowsDriver() : os === 'mac' ? new MacDriver() : undefined)
+// The driver for this machine's screen, mouse and keyboard. Linux keeps the desktop's remote control permission in the
+// data folder, so it's asked for once.
+export const driverFor = (os: string, dataDir: string = join(homedir(), '.openbots')): Driver | undefined =>
+    os === 'windows' ? new WindowsDriver() : os === 'mac' ? new MacDriver() : os === 'linux' ? new LinuxDriver(join(dataDir, 'linux-remote-control')) : undefined
 
-// Computer use for the machine the engine runs on: Windows and Mac only (Linux computers answer texts only)
+// Computer use for the machine the engine runs on: Windows, Mac and Linux
 export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | undefined {
-    if (os !== 'windows' && os !== 'mac') return undefined
+    if (os !== 'windows' && os !== 'mac' && os !== 'linux') return undefined
     let driver = deps.driver
     const client = deps.anthropic ?? realClient
     const create: Create =

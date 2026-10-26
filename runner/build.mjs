@@ -28,6 +28,9 @@ await build({
     platform: 'node',
     format: 'esm',
     target: 'node22',
+    // dbus-next's optional extras, loaded only in setups the Linux driver doesn't use (a bus address read from X11,
+    // abstract sockets)
+    external: ['x11', 'usocket'],
     // Bundled CommonJS dependencies still call require(); give them one
     banner: { js: "#!/usr/bin/env node\nimport { createRequire as __openbotsRequire } from 'node:module'; const require = __openbotsRequire(import.meta.url);" },
     define: { __VERSION__: JSON.stringify(pkg.version) },

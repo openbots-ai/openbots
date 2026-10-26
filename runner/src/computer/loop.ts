@@ -11,7 +11,7 @@ export type TaskEnd = { outcome: 'done' | 'stopped' | 'failed'; summary: string;
 export type LoopDeps = {
     create: Create
     model: string
-    os: 'windows' | 'mac'
+    os: 'windows' | 'mac' | 'linux'
     driver: Driver
     // Texts you the question and resolves with your answer; rejects with Stopped if you say stop or don't answer
     ask: (question: string) => Promise<string>
@@ -62,7 +62,7 @@ const OWN_TOOLS = [
     },
 ]
 
-const system = (os: 'windows' | 'mac') => `You are doing a task on the owner's own ${os === 'mac' ? 'Mac' : 'Windows PC'} for them. They asked by text message and can't see the screen.
+const system = (os: 'windows' | 'mac' | 'linux') => `You are doing a task on the owner's own ${os === 'mac' ? 'Mac' : os === 'linux' ? 'Linux computer' : 'Windows PC'} for them. They asked by text message and can't see the screen.
 - Start with a screenshot, and end each batch of actions with one.
 - Before anything that can't be undone (sending a message or email, paying, booking, buying, deleting, posting, accepting terms or cookies), call ask_owner with one short question and wait for the answer.
 - Typing and pressing Enter need the owner's approval: the engine texts them the exact text and waits, so you don't need ask_owner for that. Do all the typing for one field, and its Enter, in one batch so they're asked once. If they decline, the action isn't done.

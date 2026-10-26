@@ -10,10 +10,11 @@ describe('computer kinds', () => {
         expect(kindOf({ setup: { step: 1 } })).toBe('orgo')
     })
 
-    it('allows computer use on your own Windows or Mac only', () => {
+    it('allows computer use on your own Windows, Mac or Linux computer only', () => {
         expect(canComputerUse({ os: 'windows' })).toBe(true)
         expect(canComputerUse({ os: 'mac' })).toBe(true)
-        expect(canComputerUse({ os: 'linux' })).toBe(false)
+        expect(canComputerUse({ os: 'linux' })).toBe(true)
+        expect(canComputerUse({ os: 'other' })).toBe(false)
         expect(canComputerUse({})).toBe(false)
         expect(canComputerUse({ ...vm, os: 'linux' })).toBe(false)
         expect(canComputerUse({ ...vm, os: 'windows' })).toBe(false)

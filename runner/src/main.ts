@@ -91,8 +91,8 @@ async function main() {
 
     // What's stopping computer use on this Mac (a permission), from the last heartbeat
     let computerProblem: string | null = null
-    // Computer use on this machine's own screen, mouse and keyboard (Windows or Mac); undefined elsewhere
-    const driver = driverFor(os)
+    // Computer use on this machine's own screen, mouse and keyboard (Windows, Mac or Linux); undefined elsewhere
+    const driver = driverFor(os, base.dataDir)
     const computer = makeComputer(os, {
         // `settings` is replaced when keys change in Connections, so this reads the current key
         anthropicKey: () => settings.brains.keys.anthropic,
@@ -217,11 +217,28 @@ async function main() {
     }
     // A Mac needs Screen Recording and Accessibility for computer use: checked at start and each heartbeat, and reported
     // until it has them. Only whether they're allowed is checked; nothing on the screen is read or logged.
+    // Linux asks the desktop for remote control as soon as computer use is on, while someone is likely at the
+    // computer; that waits for an answer, so the heartbeat doesn't.
+    let asking = false
+    let askedOnce = false
     const checkComputer = async () => {
-        if (os !== 'mac' || !driver || link.config()?.computerUse !== true) return void (computerProblem = null)
-        const problem = await driver.ready().catch((e) => `Couldn't check this Mac's permissions: ${message(e)}`)
-        if (problem && problem !== computerProblem) console.error(`Computer use: ${problem}`)
-        computerProblem = problem
+        if ((os !== 'mac' && os !== 'linux') || !driver || link.config()?.computerUse !== true) return void (computerProblem = null)
+        const report = (problem: string | null) => {
+            if (problem && problem !== computerProblem) console.error(`Computer use: ${problem}`)
+            computerProblem = problem
+        }
+        if (os === 'mac') return report(await driver.ready().catch((e) => `Couldn't check this Mac's permissions: ${message(e)}`))
+        if (asking) return
+        asking = true
+        if (!askedOnce) console.log('Computer use: if your desktop asks to share the screen and input devices, choose Allow (it asks only once)')
+        askedOnce = true
+        void driver
+            .ready()
+            .catch((e) => message(e))
+            .then((problem) => {
+                asking = false
+                report(problem)
+            })
     }
     const beat = async () => {
         await checkComputer()

@@ -47,7 +47,7 @@ export const SLOTS: Slot[] = [
     {
         id: 'computer',
         label: 'Computer use',
-        blurb: 'Does tasks on your Windows or Mac computer: looks at the screen, clicks and types.',
+        blurb: 'Does tasks on your Windows, Mac or Linux computer: looks at the screen, clicks and types.',
         options: [
             { id: 'claude-sonnet-5.5-computer-use', label: 'Claude Sonnet 5.5', provider: 'anthropic', api: 'claude-sonnet-5-5' },
             { id: 'claude-opus-5.5-computer-use', label: 'Claude Opus 5.5', provider: 'anthropic', api: 'claude-opus-5-5' },

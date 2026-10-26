@@ -72,7 +72,7 @@ export function systemPrompt(args: {
     canSearch?: boolean
     // Owner chats get tools to set reminders and watches (see runner/src/tools.ts)
     canSchedule?: boolean
-    // Owner chats get use_computer when this engine runs on their Windows or Mac computer (see runner/src/computer/tasks.ts)
+    // Owner chats get use_computer when this engine runs on their Windows, Mac or Linux computer (see runner/src/computer/tasks.ts)
     canUseComputer?: boolean
     // The computer task already running, shortened, so the agent says it's in progress instead of starting another
     computerBusy?: string
