@@ -12,7 +12,9 @@ export type TokenSource = 'env' | 'file' | 'typed'
 
 export type Ask = (question: string) => Promise<string>
 
-const valid = (token: string) => token.startsWith(TOKEN_PREFIX) && token.length > TOKEN_PREFIX.length + 20
+// Exactly a token (the prefix and 43 base64url characters, see newToken), found even with other text pasted around it
+const TOKEN_RE = new RegExp(`(?<![\\w-])${TOKEN_PREFIX}[\\w-]{43}(?![\\w-])`)
+export const tokenIn = (pasted: string) => pasted.match(TOKEN_RE)?.[0]
 
 export function saveToken(dataDir: string, token: string) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -22,14 +24,11 @@ export function saveToken(dataDir: string, token: string) {
     chmodSync(path, 0o600)
 }
 
-// Asks until a token that looks right is pasted, then saves it
-export async function askForToken(dataDir: string, ask: Ask, question = `Paste this computer's token from Connections (it starts with ${TOKEN_PREFIX}; it won't show as you paste): `) {
+// Asks until a token is pasted. It's saved (saveToken) only once it connects, so a wrong one never sticks.
+export async function askForToken(ask: Ask, question = `Paste this computer's token from Connections (it starts with ${TOKEN_PREFIX}; it won't show as you paste): `) {
     for (;;) {
-        const token = (await ask(question)).trim()
-        if (valid(token)) {
-            saveToken(dataDir, token)
-            return token
-        }
+        const token = tokenIn(await ask(question))
+        if (token) return token
         question = `That doesn't look like a token. It starts with ${TOKEN_PREFIX} and is shown once in Connections: `
     }
 }
@@ -41,7 +40,7 @@ export async function findToken({ envToken, dataDir, ask }: { envToken?: string;
     const saved = existsSync(path) ? readFileSync(path, 'utf8').trim() : ''
     if (saved) return { token: saved, source: 'file' }
     if (!ask) throw new Error(`No token yet. Start the engine in a terminal so it can ask for one, or set OPENBOTS_TOKEN (see runner/README.md)`)
-    return { token: await askForToken(dataDir, ask), source: 'typed' }
+    return { token: await askForToken(ask), source: 'typed' }
 }
 
 // Reads a line from the terminal without echoing it. Undefined when there's no terminal to ask at.

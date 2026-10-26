@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Id } from '../../convex/_generated/dataModel'
 import { keyModels, resolveModels } from '../../convex/lib/models'
@@ -5,7 +6,7 @@ import type { SealedService } from '../../convex/lib/sealed'
 import { dayKey } from '../../convex/lib/usage'
 import { fromDashboard, loadSettings, withDashboard, type DashboardDoc, type Settings } from './config'
 import { nodeTooOld, nodeVersionError } from './nodeVersion'
-import { askForToken, findToken, hiddenPrompt, tokenFile } from './token'
+import { askForToken, findToken, hiddenPrompt, saveToken, tokenFile } from './token'
 import { ensureCloudflared } from './cloudflared'
 import { startTunnel } from './tunnel'
 import { computerAllowed, driverFor, makeComputer, taskMemory, tellAboutRestart } from './computer'
@@ -33,24 +34,30 @@ const osName = () => (process.platform === 'win32' ? 'windows' : process.platfor
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-// Connects with the token from OPENBOTS_TOKEN, the saved file or the terminal. A saved token that was reset or
-// revoked in Connections is asked for again, when someone is at the terminal.
+// Connects with the token from OPENBOTS_TOKEN, the saved file or the terminal. At a terminal, a token that doesn't
+// connect is asked for again, and one you paste is saved only once it connects: a wrong paste never sticks, and
+// running the same command again just asks again. `--new-token` asks even when a saved token works.
 async function connect(convexUrl: string, envToken: string | undefined, dataDir: string) {
+    if (process.argv.includes('--new-token')) rmSync(tokenFile(dataDir), { force: true })
     const ask = hiddenPrompt()
     let { token, source } = await findToken({ envToken, dataDir, ask })
     for (;;) {
         const link = new ConvexLink(convexUrl, token)
         try {
             await link.connect((m) => console.error(m))
-            if (source === 'typed') console.log(`Token saved in ${tokenFile(dataDir)}, so you won't be asked again.`)
+            if (source === 'typed') {
+                saveToken(dataDir, token)
+                console.log(`Token saved in ${tokenFile(dataDir)}, so you won't be asked again.`)
+            }
             return link
         } catch (e) {
             await link.close().catch(() => {})
+            if (source === 'env') throw e
             const refused = /invalid or was revoked/.test(message(e))
-            if (!refused || source === 'env') throw e
-            if (!ask) throw new Error(`${message(e)} Delete ${tokenFile(dataDir)} and start the engine in a terminal to paste the new one.`, { cause: e })
-            console.error(message(e))
-            token = await askForToken(dataDir, ask, `Paste the new token (it won't show as you paste): `)
+            if (!ask) throw new Error(`${message(e)}${refused ? ' Start the engine in a terminal with --new-token to paste the new one.' : ''}`, { cause: e })
+            // Production hides most reasons as "Server Error", which says nothing useful here
+            console.error(refused || !/Server Error/.test(message(e)) ? message(e) : "That token didn't connect.")
+            token = await askForToken(ask, `Paste this computer's token from Connections again (it won't show as you paste): `)
             source = 'typed'
         }
     }
