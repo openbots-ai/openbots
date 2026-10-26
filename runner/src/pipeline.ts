@@ -173,9 +173,10 @@ export class Pipeline {
         const messageId = store.addMessage(conversation.id, 'contact', body, at, { senderId: contact.id })
         store.updateConversation(conversation.id, { lastAt: at, number: number.handle, channel: number.channel })
         // Your powers (computer use, reminders and watches, answering a task) need a sender iMessage vouches for.
-        // SMS caller ID can be faked, so a text from your number over SMS gets your chat but none of them; the
-        // flag is kept until your next text, so the queued reply (even after a restart) knows.
-        const verified = fromOwner && !smsSender(text)
+        // SMS caller ID can be faked, so a text from your number over SMS gets your chat but none of them, unless you
+        // turned on Computer use over SMS in Settings; the flag is kept until your next text, so the queued reply
+        // (even after a restart) knows.
+        const verified = fromOwner && (!smsSender(text) || ws.smsPowers === true)
         if (fromOwner && !verified) store.setMeta(unverifiedKey(conversation.id), '1')
         else if (fromOwner) store.deleteMeta(unverifiedKey(conversation.id))
 
@@ -184,7 +185,7 @@ export class Pipeline {
         if (newContact && !fromOwner && ws.notifyNewContact !== false) await this.newContactAlert(store.getConversation(conversation.id)!, `${contact.name} texted ${agent.name} for the first time.`)
 
         // Who and which agent, never what they wrote
-        this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? (verified ? ' (you)' : ' (your number, over SMS: no computer use, reminders or task answers)') : ''}`)
+        this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? (verified ? ' (you)' : ' (your number, over SMS: no computer use, reminders or task answers unless Computer use over SMS is on in Settings)') : ''}`)
         // While a computer task waits for your answer (or you say stop), your text is for the task, not a new reply
         if (verified && !text.thread && this.deps.computer?.handle(conversation.id, body)) return { markRead: true }
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)

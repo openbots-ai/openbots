@@ -40,6 +40,7 @@ type Form = {
     name: string
     ownerName: string
     ownerEmail: string
+    smsPowers: boolean
     timezone: string
     defaultAgentId: string
     quietEnabled: boolean
@@ -61,6 +62,7 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     name: w.name,
     ownerName: w.ownerName,
     ownerEmail: w.ownerEmail ?? '',
+    smsPowers: w.smsPowers ?? false,
     timezone: w.timezone ?? browserTimezone(),
     defaultAgentId: w.defaultAgentId ?? '',
     quietEnabled: w.quietEnabled ?? false,
@@ -167,6 +169,12 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> & { ownerVeri
                 </Row>
                 <Row label="Your phone" description="Your own number (or Apple ID email), not one of your agents’. Once you’ve verified it with the code your engine texts, your agents answer you from it and text you handoffs, alerts and check-ins there." htmlFor="s-handle">
                     <OwnerPhone />
+                </Row>
+                <Row
+                    label="Computer use over SMS"
+                    description="Lets texts from your phone over SMS (Twilio) use computer use, reminders and watches, not just iMessage. SMS can be faked: anyone who fakes your number could control your engine’s computer. Only turn this on if that computer has nothing important on it."
+                    inline>
+                    <Toggle label="Computer use over SMS" checked={form.smsPowers} onChange={(v) => set('smsPowers', v)} />
                 </Row>
                 <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where your engine also emails you, if it has Resend set up.'} error={!emailOk} htmlFor="s-email">
                     <Input id="s-email" type="email" aria-invalid={!emailOk} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />

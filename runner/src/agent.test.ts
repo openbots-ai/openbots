@@ -534,6 +534,27 @@ describe('agent', () => {
         expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/came over SMS/)
     })
 
+    it('gives them back over SMS once you turn on Computer use over SMS in Settings', async () => {
+        const answered: string[] = []
+        const computer = { busy: () => false, current: () => null, start: () => 'Started', handle: (_id: number, text: string) => (answered.push(text), false) }
+        const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
+        const cfg = config({ computerUse: true, workspace: { smsPowers: true } })
+        cfg.numbers.push({ _id: 'n3' as Id<'numbers'>, _creationTime: 0, workspaceId: WS, handle: '+1 (415) 555-0199', key: '14155550199', kind: 'phone', channel: 'twilio', agentId: AGENT })
+        const { pipeline, transport } = setup(cfg, complete, { computer })
+        const twilio = new FakeTransport('twilio')
+        pipeline.update({ transports: { relay: transport, twilio } })
+
+        await pipeline.receive({ channel: 'twilio', to: '+14155550199', from: OWNER, body: 'YES' })
+        await vi.runAllTimersAsync()
+        expect(answered).toEqual(['YES'])
+        expect(twilio.sent.at(-1)?.body).toBe('had tools')
+        expect(complete.mock.calls.at(-1)?.[2].system).not.toMatch(/came over SMS/)
+        // Still only for your own number
+        await pipeline.receive({ channel: 'twilio', to: '+14155550199', from: '+1 212 555 0187', body: 'YES' })
+        await vi.runAllTimersAsync()
+        expect(answered).toEqual(['YES'])
+    })
+
     it('never takes a number from another country for yours because the digits match', async () => {
         const complete = model(async (_b, _o, p) => (p.tools?.length ? 'had tools' : 'no tools'))
         const { text, transport } = setup(config({ workspace: { ownerHandle: '+1 479 123 4567' } }), complete)

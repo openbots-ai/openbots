@@ -37,6 +37,9 @@ export const workspaceSettings = {
     // ownerVerifiedKey); it's set through workspace.sendOwnerCode, never through workspace.update.
     ownerHandle: v.optional(v.string()),
     ownerEmail: v.optional(v.string()),
+    // Your powers (computer use, reminders and watches, answering a task) from your phone over SMS too. Off unless
+    // turned on: SMS caller ID can be faked, so anyone faking your number would get them.
+    smsPowers: v.optional(v.boolean()),
     timezone: v.optional(v.string()),
     defaultAgentId: v.optional(v.id('agents')),
     quietEnabled: v.optional(v.boolean()),
