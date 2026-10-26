@@ -565,8 +565,8 @@ function Setup({ token, reset, onDone }: { token: string; reset?: string; onDone
             <CopyBlock label={`Download and start the engine (${steps.shell})`} text={steps.start} />
             <p className="text-[12px] text-neutral-500">
                 Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
-                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Your keys come from the cards
-                below.
+                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Pasted the wrong one? Add{' '}
+                <code className="font-mono">--new-token</code> to the end of the last line to paste it again. Your keys come from the cards below.
             </p>
             <CopyBlock label="This computer’s token (paste it when the engine asks)" text={token} />
             <Btn variant="primary" onClick={onDone}>

@@ -1,6 +1,6 @@
 import { ConvexClient } from 'convex/browser'
 import { api } from '../../convex/_generated/api'
-import type { Infer } from 'convex/values'
+import { ConvexError, type Infer } from 'convex/values'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { KeyModel } from '../../convex/lib/models'
 import type { service } from '../../convex/schema'
@@ -22,7 +22,9 @@ export type Status = {
 export type Task = { _id: Id<'tasks'>; request: Doc<'tasks'>['request'] }
 export type TaskResult = NonNullable<Doc<'tasks'>['result']>
 
-const reason = (error: Error) => error.message.match(/Uncaught Error: (.*?)(?:\n|$)/)?.[1] ?? error.message
+// A ConvexError carries its reason as data; production hides other errors' messages
+const reason = (error: Error) =>
+    error instanceof ConvexError && typeof error.data === 'string' ? error.data : (error.message.match(/Uncaught Error: (.*?)(?:\n|$)/)?.[1] ?? error.message)
 
 // Takes each new request once: claims it, and runs it only if this engine won the claim. A lost or failed claim is
 // skipped, so with several engines each request runs on just one of them.

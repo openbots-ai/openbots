@@ -1,4 +1,4 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 import { env, mutation, query, type QueryCtx } from './_generated/server'
 import { BACKEND_ONLY, checkFields, decryptSecret, secretContext } from './lib/sealed'
 import { canComputerUse } from './lib/computers'
@@ -21,7 +21,9 @@ async function runnerFor(ctx: QueryCtx, token: string) {
         .query('runners')
         .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
         .unique()
-    if (!runner) throw new Error('This engine token is invalid or was revoked. Make a new one in Connections.')
+    // A ConvexError, so production passes the reason on (it hides plain errors as "Server Error") and the engine
+    // knows to ask for a new token
+    if (!runner) throw new ConvexError('This engine token is invalid or was revoked. Make a new one in Connections.')
     return runner
 }
 

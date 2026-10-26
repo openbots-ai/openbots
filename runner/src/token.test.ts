@@ -1,10 +1,11 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nodeTooOld, nodeVersionError } from './nodeVersion'
-import { findToken, saveToken, tokenFile } from './token'
+import { newToken } from '../../convex/lib/tokens'
+import { findToken, saveToken, tokenFile, tokenIn } from './token'
 
 const TOKEN = 'obr_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG'
 const dirs: string[] = []
@@ -16,6 +17,15 @@ const dir = () => {
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
 
 describe('the engine token', () => {
+    it('is picked out of whatever was pasted, and nothing else counts as one', () => {
+        const fresh = newToken()
+        expect(tokenIn(fresh)).toBe(fresh)
+        expect(tokenIn(`This computer’s token (paste it when the engine asks)\n${TOKEN}\nI’ve copied it`)).toBe(TOKEN)
+        expect(tokenIn(`${TOKEN}x`)).toBeUndefined()
+        expect(tokenIn(TOKEN.slice(0, -1))).toBeUndefined()
+        expect(tokenIn('mkdir -p ~/openbots && cd ~/openbots')).toBeUndefined()
+    })
+
     it('prefers OPENBOTS_TOKEN, then the saved file', async () => {
         const d = dir()
         saveToken(d, TOKEN)
@@ -23,11 +33,17 @@ describe('the engine token', () => {
         expect(await findToken({ dataDir: d })).toEqual({ token: TOKEN, source: 'file' })
     })
 
-    it('asks once, hidden, until a real token is pasted, and saves it where only you can read it', async () => {
+    it('asks, hidden, until a real token is pasted, and saves nothing until it connects', async () => {
         const d = dir()
         const ask = vi.fn().mockResolvedValueOnce('oops').mockResolvedValueOnce(`  ${TOKEN}  `)
         expect(await findToken({ dataDir: d, ask })).toEqual({ token: TOKEN, source: 'typed' })
         expect(ask).toHaveBeenCalledTimes(2)
+        expect(existsSync(tokenFile(d))).toBe(false)
+    })
+
+    it('saves a token where only you can read it', () => {
+        const d = dir()
+        saveToken(d, TOKEN)
         expect(readFileSync(tokenFile(d), 'utf8').trim()).toBe(TOKEN)
         if (process.platform !== 'win32') expect(statSync(tokenFile(d)).mode & 0o777).toBe(0o600)
     })
