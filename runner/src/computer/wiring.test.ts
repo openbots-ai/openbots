@@ -40,8 +40,8 @@ const twoSteps = (): Create => {
 const base: ComputerDeps = { anthropicKey: () => 'a', model: () => ({ api: 'claude-sonnet-5-5', id: 'claude-sonnet-5.5-computer-use' }), budget: async () => null, record: () => {}, log: () => {} }
 
 describe('choosing how to drive this computer', () => {
-    it('drives Windows and Mac, and nothing else', () => {
-        expect(makeComputer('linux', base)).toBeUndefined()
+    it('drives Windows, Mac and Linux, and nothing else', () => {
+        expect(makeComputer('linux', base)).toBeDefined()
         expect(makeComputer('other', base)).toBeUndefined()
         expect(makeComputer('windows', base)).toBeDefined()
         expect(makeComputer('mac', base)).toBeDefined()

@@ -146,7 +146,7 @@ Brain. Reminders and watches are kept in the engine's sealed database: back it u
 
 ## Computer use
 
-On a Windows or Mac computer, your agent can do tasks on this computer's screen: text it from your own phone "open
+On a Windows, Mac or Linux computer, your agent can do tasks on this computer's screen: text it from your own phone "open
 Notepad and type hello" or "find a table at Nopa for Friday 7pm and book it". Claude (Sonnet 5.5 or Opus 5.5, set on
 the Models page or the agent's page) looks at screenshots and clicks and types. Turn it on for this computer in
 Connections, and save an Anthropic key there. The agent's Brain must be an OpenAI or Anthropic model too, since it's
@@ -157,6 +157,10 @@ the Brain that hands the task over.
   service that starts it) in System Settings → Privacy & Security. After allowing them, quit and reopen that app (for
   Terminal, Cmd+Q and open it again), then start the engine; restarting only the engine isn't enough for Screen
   Recording. Until then Connections shows what's missing.
+- **Linux** works on a desktop with KDE Plasma or GNOME, on Wayland or X11, through the desktop's own remote control
+  permission. Start the engine from your desktop session (not over SSH or as a system service). Once computer use is on
+  for it, the desktop asks to share the screen and input devices: pick the screen and choose **Allow**. It's remembered
+  (`~/.openbots/linux-remote-control`), so it isn't asked again; delete that file to be asked again. One screen.
 - It texts "Reply YES to …" before anything that can't be undone (sending, paying, booking, deleting, posting) and
   waits for your answer; it texts you the result when it's done or stuck. Text **stop** in that chat to cancel.
 - Before it types anything, presses Enter (or Cmd/Ctrl+Enter) or pastes, the engine itself texts you the exact text

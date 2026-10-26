@@ -31,11 +31,11 @@ describe('turning computer use on for a computer', () => {
         expect((await base.query(api.runner.config, { token }))?.computerUse).toBe(false)
     })
 
-    it('refuses Linux, computers that haven’t reported yet, and other people', async () => {
+    it('refuses computers that haven’t reported yet, and other people, but not Linux', async () => {
         const { base, owner, id, setOs } = await setup()
-        await expect(owner.mutation(api.runners.setComputerUse, { id, on: true })).rejects.toThrow(/Windows or Mac/)
+        await expect(owner.mutation(api.runners.setComputerUse, { id, on: true })).rejects.toThrow(/Windows, Mac or Linux/)
         await setOs('linux')
-        await expect(owner.mutation(api.runners.setComputerUse, { id, on: true })).rejects.toThrow(/Windows or Mac/)
+        await owner.mutation(api.runners.setComputerUse, { id, on: true })
         await owner.mutation(api.runners.setComputerUse, { id, on: false })
         await expect(base.mutation(api.runners.setComputerUse, { id, on: true })).rejects.toThrow(/Sign in/)
     })

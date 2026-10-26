@@ -4,7 +4,7 @@ OpenBots lets you build AI agents that answer your texts. You set each agent up 
 instructions, knowledge, models and the numbers it answers), and an **engine** you run on your own computer does the
 texting: it receives iMessages or SMS, writes replies with the AI provider and model you chose, and sends them back.
 Agents can search the web, set reminders and watches when you text them, send you scheduled check-ins, hand a chat
-over to you when they can't help, and, on a Windows or Mac computer, carry out tasks on its screen with Claude computer
+over to you when they can't help, and, on a Windows, Mac or Linux computer, carry out tasks on its screen with Claude computer
 use. Conversations and contacts stay on the engine's machine, encrypted; the backend sees settings and daily counts,
 never message text. Everyone brings their own AI keys and texting accounts.
 
@@ -25,7 +25,7 @@ never message text. Everyone brings their own AI keys and texting accounts.
   dashboard), or your own relay.
 - Web search in replies (OpenAI, Anthropic and Gemini models), reminders and watches set by text, scheduled check-ins,
   quiet hours, a reply delay, a usage budget, and handoff alerts by text (and by email with Resend).
-- Computer use on Windows and Mac, with a "Reply YES" check before anything that can't be undone.
+- Computer use on Windows, Mac and Linux, with a "Reply YES" check before anything that can't be undone.
 - Engine computers of your own, or created on your [Orgo](https://www.orgo.ai) account from the dashboard.
 
 **Roadmap (not built)**
@@ -136,7 +136,7 @@ or set as environment variables on the engine, where they never leave that machi
   when the engine texts through iMessage on a Mac (Messages, BlueBubbles or a relay).
 - **Allowed people** (Settings): the other people their agents should answer, by name and phone or Apple ID email.
 - Optional: a **Resend** key to also email handoff alerts, and an **Anthropic** key with Computer use turned on for a
-  Windows or Mac computer.
+  Windows, Mac or Linux computer.
 
 ## Development
 

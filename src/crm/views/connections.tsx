@@ -441,8 +441,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                               : 'Never connected. Start it with the token you copied.'}
                                     </p>
                                     {r.tunnelUrl && <p className="truncate font-mono text-[11px] text-neutral-500">Public address {r.tunnelUrl}</p>}
-                                    {!onOrgo && r.os === 'linux' && <p className="text-[12px] text-amber-700">Texting only: computer use works on Windows and Mac.</p>}
-                                    {!onOrgo && (r.os === 'windows' || r.os === 'mac') && (
+                                    {!onOrgo && (r.os === 'windows' || r.os === 'mac' || r.os === 'linux') && (
                                         <div className="mt-2 flex items-start gap-3 rounded-md border border-neutral-200 p-2.5">
                                             <Switch aria-label="Computer use" checked={!!r.computerUse} onCheckedChange={(on) => void run(setComputerUse({ id: r._id, on }))} />
                                             <div className="min-w-0 text-[12px]">
@@ -450,6 +449,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                                                 <p className="text-neutral-500">
                                                     Agents can see this computer’s screen and use its mouse and keyboard while doing a task you text them. They ask before
                                                     anything that can’t be undone. Pages they visit can try to mislead them, so keep an eye on what they do.
+                                                    {r.os === 'linux' && ' When you turn it on, choose Allow on this computer when your desktop asks to share the screen and input devices.'}
                                                 </p>
                                                 {r.computerUse && computerError && <p className="mt-1 text-amber-700">{computerError}</p>}
                                             </div>
@@ -499,7 +499,7 @@ function Engines({ runners, orgoKey }: { runners?: Runner[]; orgoKey?: Saved }) 
                             e.preventDefault()
                             void add()
                         }}>
-                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Computer use works on Windows and Mac; Linux computers (like Fedora) answer texts only. Name it to get its token:</span>
+                        <span className="min-w-0 flex-1 text-[12px] text-neutral-500">A laptop, a server or any VM you run. Computer use works on Windows, Mac and Linux desktops. Name it to get its token:</span>
                         <Input aria-label="Computer name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My VM" className="h-8 w-44" />
                         <Btn type="submit" variant="primary" disabled={!name.trim()}>
                             Add computer
@@ -565,7 +565,7 @@ function Setup({ token, reset, onDone }: { token: string; reset?: string; onDone
             <CopyBlock label={`Download and start the engine (${steps.shell})`} text={steps.start} />
             <p className="text-[12px] text-neutral-500">
                 Keep that window open: the engine runs while it’s open. Start it from your normal desktop, not as a service, so computer use can see the screen
-                {system === 'linux' ? ' (Linux computers answer texts only)' : ''}. Next time, run the same commands; it remembers the token. Pasted the wrong one? Add{' '}
+                {system === 'linux' ? ' (on Linux, the first time you turn computer use on, your desktop asks you to allow remote control)' : ''}. Next time, run the same commands; it remembers the token. Pasted the wrong one? Add{' '}
                 <code className="font-mono">--new-token</code> to the end of the last line to paste it again. Your keys come from the cards below.
             </p>
             <CopyBlock label="This computer’s token (paste it when the engine asks)" text={token} />
