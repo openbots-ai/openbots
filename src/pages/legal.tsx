@@ -4,7 +4,7 @@ import { CONTACT_EMAIL, PRIVACY_EMAIL } from '@/lib/site'
 
 type Section = { id: string; title: string; body: ReactNode }
 
-const LAST_UPDATED = 'October 6, 2026'
+const LAST_UPDATED = 'October 26, 2026'
 
 const P = ({ children }: { children: ReactNode }) => <p className="type-body text-muted-foreground mt-4">{children}</p>
 
@@ -72,27 +72,39 @@ const privacySections: Section[] = [
         title: 'What we collect',
         body: (
             <>
-                <P>We collect only what we need to run OpenBots and improve it:</P>
+                <P>We keep only what your agents need to run, in our database:</P>
                 <List
                     items={[
                         <>
-                            <strong className="text-foreground font-medium">Contact details</strong> you give us, such as the phone number you leave for early access or the name and
-                            email you send through our contact form.
+                            <strong className="text-foreground font-medium">Your account</strong>: your name and email from signing in, and the settings you choose, such as your
+                            timezone.
                         </>,
                         <>
-                            <strong className="text-foreground font-medium">Messages</strong> you exchange with your agents in iMessage, and the instructions, files and approvals
-                            inside them.
+                            <strong className="text-foreground font-medium">What you set up</strong>: your agents and their instructions, the notes you give them, their phone
+                            numbers, your own phone number and the people you allow to text them.
                         </>,
                         <>
-                            <strong className="text-foreground font-medium">Connected account data</strong> from the tools you choose to connect, such as your inbox, CRM or calendar,
-                            limited to what an agent needs for the work you hand it.
+                            <strong className="text-foreground font-medium">Counts, not contents</strong>: how many messages each agent sent and received each day, which AI models it
+                            used, and the numbers of the last few strangers it ignored, so you can see who tried to reach it.
                         </>,
                         <>
-                            <strong className="text-foreground font-medium">Usage and device data</strong>, such as pages visited on our site, browser type and approximate location
-                            from your IP address.
+                            <strong className="text-foreground font-medium">Your engines</strong>: each computer’s name, operating system, version and whether it’s online.
+                        </>,
+                        <>
+                            <strong className="text-foreground font-medium">The API keys you save</strong>, encrypted as described in{' '}
+                            <a
+                                href="#security"
+                                className="text-foreground underline decoration-neutral-300 underline-offset-4 hover:decoration-current">
+                                Your keys and security
+                            </a>
+                            .
                         </>,
                     ]}
                 />
+                <P>
+                    The texts your agents send and receive, and the history of those conversations, are not stored by us. They stay on the computer that runs your engine. We do
+                    not use advertising or analytics trackers; our hosting providers keep basic technical logs, such as IP addresses, to run and protect the service.
+                </P>
             </>
         ),
     },
@@ -102,24 +114,26 @@ const privacySections: Section[] = [
         body: (
             <List
                 items={[
-                    'To run your agents and complete the tasks you give them.',
-                    'To text you about early access, your account and the work your agents are doing.',
+                    'To run your agents and show you what they did.',
                     'To keep OpenBots secure, prevent abuse and fix problems.',
-                    'To understand how the product is used so we can improve it.',
+                    'To email you about your account or important changes.',
                 ]}
             />
         ),
     },
     {
         id: 'agents-and-connected-tools',
-        title: 'Agents and connected tools',
+        title: 'Your agents',
         body: (
             <>
                 <P>
-                    Each agent only gets access to the tools you grant it, and you can remove that access at any time. Agents ask for your approval before sending anything important,
-                    such as emails, payments or messages to your customers.
+                    Your agents answer only you and the people you allow; texts from anyone else are ignored. Each agent uses only the numbers, notes and AI models you give it, and
+                    you can pause or delete any agent at any time.
                 </P>
-                <P>Every action an agent takes is recorded in an activity log you can review. We do not use the contents of your connected accounts to advertise to you.</P>
+                <P>
+                    Your agents run on your engine, with your own accounts: texts go through your Twilio or Sendblue account, and messages go to the AI provider whose key you
+                    chose. Those providers handle your data under their own terms, including whether they may train on it, so check their settings.
+                </P>
             </>
         ),
     },
@@ -131,8 +145,7 @@ const privacySections: Section[] = [
                 <P>We do not sell your personal information. We share it only with:</P>
                 <List
                     items={[
-                        'Service providers that host, secure and operate OpenBots for us, under contracts that limit how they can use it.',
-                        'AI model providers that process prompts and content to power your agents, without the right to train on your data.',
+                        'Service providers that run OpenBots for us: Convex (our database), Clerk (sign-in), Vercel (this website) and Cloudflare (the tunnel that lets texting services reach your engine).',
                         'Authorities when the law requires it, or when needed to protect the rights and safety of our users or others.',
                         'A buyer or successor if OpenBots is involved in a merger or acquisition, with notice to you.',
                     ]}
@@ -145,19 +158,42 @@ const privacySections: Section[] = [
         title: 'How long we keep it',
         body: (
             <P>
-                We keep your information for as long as your account is active or as needed to provide the service. When you delete your account, we delete or anonymize your data within
-                30 days, except where we must keep it to meet legal obligations.
+                We keep your information for as long as your account is active. When you ask us to delete your account, we delete your data within 30 days, except where we must
+                keep it to meet legal obligations. What’s on your engine’s computer is yours to keep or delete.
             </P>
         ),
     },
     {
         id: 'security',
-        title: 'Security',
+        title: 'Your keys and security',
         body: (
-            <P>
-                We encrypt data in transit and at rest, keep credentials for connected tools in isolated, access-controlled storage and limit employee access to what is needed to support
-                you. No system is perfectly secure, so please tell us right away if you believe your account has been compromised.
-            </P>
+            <>
+                <P>
+                    API keys you save in the dashboard, such as your AI provider, Twilio or Sendblue keys, are encrypted with AES-256 before they are stored, using a key kept
+                    separately from our database. The dashboard never shows a saved key again. We decrypt a key only to send it to the engines you have connected to your account,
+                    which keep it in memory and never write it to disk.
+                </P>
+                <P>
+                    This is not end-to-end encryption: as the operator of OpenBots, we are technically able to decrypt the keys you save. We access them only to run your agents, and
+                    we limit who on our side can do that. If you would rather we never hold a key, set it as an environment variable on your engine instead, and it stays on that
+                    computer.
+                </P>
+                <P>
+                    Your message history stays on the computer that runs your engine, encrypted with a key that never leaves it. Messages go to the AI provider whose key you
+                    chose, so your agents can answer them.
+                </P>
+                <List
+                    items={[
+                        'Treat your engine’s token like a password: it unlocks the keys you saved. If you think it has leaked, revoke it in Connections and it stops working right away.',
+                        'Set spending limits with your AI and texting providers, so a leaked key can only cost so much.',
+                        'Run your engine on a computer you trust, ideally one used for nothing else.',
+                    ]}
+                />
+                <P>
+                    We encrypt data in transit and at rest. No system is perfectly secure, so please tell us right away at <Mail to={PRIVACY_EMAIL} /> if you believe your account or
+                    a key has been compromised.
+                </P>
+            </>
         ),
     },
     {
@@ -168,8 +204,8 @@ const privacySections: Section[] = [
                 <List
                     items={[
                         'Ask for a copy of your data, or ask us to correct or delete it.',
-                        'Disconnect any tool or pause any agent at any time.',
-                        'Stop receiving texts from us by replying STOP.',
+                        'Remove a saved key, revoke an engine or pause any agent at any time in the dashboard.',
+                        'Keep a key off our servers entirely by setting it on your engine instead.',
                     ]}
                 />
                 <P>
@@ -186,7 +222,7 @@ const privacySections: Section[] = [
     {
         id: 'changes',
         title: 'Changes to this policy',
-        body: <P>If we make material changes, we will update the date above and let you know by text or email before they take effect.</P>,
+        body: <P>If we make material changes, we will update the date above and let you know by email before they take effect.</P>,
     },
     {
         id: 'contact',
@@ -329,7 +365,7 @@ const termsSections: Section[] = [
 export const PrivacyPage = () => (
     <LegalPage
         title="Privacy Policy"
-        intro="OpenBots puts AI agents in your iMessage. They only work well if you can trust them with your information, so this page explains plainly what we collect, why, and the control you have over it."
+        intro="OpenBots lets you build AI assistants you can text. They only work well if you can trust them with your information, so this page explains plainly what we collect, why, and the control you have over it."
         sections={privacySections}
     />
 )
