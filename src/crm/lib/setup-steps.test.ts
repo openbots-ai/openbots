@@ -5,57 +5,30 @@ const URL = 'https://example-123.convex.cloud'
 const ENGINE = 'https://www.getopenbots.com/engine/openbots-engine.mjs'
 
 describe('starting the engine', () => {
-    it('gives Windows PowerShell commands, reloading PATH so the new cloudflared is found', () => {
-        const s = setupSteps('windows', URL, ENGINE, true)
-        expect(s.tunnel.split('\n')[0]).toBe('winget install --id Cloudflare.cloudflared -e')
-        expect(s.tunnel).toContain("$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')")
-        expect(s.start.split('\n')).toEqual([
+    it('gives Windows PowerShell commands', () => {
+        expect(setupSteps('windows', URL, ENGINE).start.split('\n')).toEqual([
             'mkdir -Force $HOME\\openbots | Out-Null; cd $HOME\\openbots',
             `curl.exe -fL -o openbots-engine.mjs ${ENGINE}`,
             `$env:OPENBOTS_CONVEX_URL = "${URL}"`,
-            '$env:OPENBOTS_TUNNEL = "true"',
             'node openbots-engine.mjs',
         ])
     })
 
-    it('gives Mac and Linux shell commands, with Linux pointing at its downloaded tunnel', () => {
-        const mac = setupSteps('mac', URL, ENGINE, true)
-        expect(mac.tunnel).toContain('command -v brew')
-        expect(mac.tunnel).toContain('https://brew.sh')
-        expect(mac.start).toContain(`OPENBOTS_CONVEX_URL=${URL} \\\nOPENBOTS_TUNNEL=true \\\nnode openbots-engine.mjs`)
-        expect(mac.start).not.toContain('OPENBOTS_CLOUDFLARED')
-        const linux = setupSteps('linux', URL, ENGINE, true)
-        expect(linux.start).toContain('OPENBOTS_CLOUDFLARED=~/openbots-cloudflared \\')
-        expect(linux.tunnel).toContain('chmod +x ~/openbots-cloudflared')
+    it('gives Mac and Linux shell commands', () => {
+        for (const system of ['mac', 'linux'] as const)
+            expect(setupSteps(system, URL, ENGINE).start).toBe(`mkdir -p ~/openbots && cd ~/openbots\ncurl -fL -o openbots-engine.mjs ${ENGINE}\nOPENBOTS_CONVEX_URL=${URL} \\\nnode openbots-engine.mjs`)
     })
 
-    it('downloads cloudflared for the Linux machine’s own architecture', () => {
-        const { tunnel } = setupSteps('linux', URL, ENGINE, true)
-        expect(tunnel).toContain('aarch64|arm64) A=arm64')
-        expect(tunnel).toContain('arm*) A=arm')
-        expect(tunnel).toContain('cloudflared-linux-$A')
-        expect(tunnel).not.toContain('cloudflared-linux-amd64')
-    })
-
-    it('leaves the tunnel out when no texting needs a public address', () => {
-        for (const system of ['windows', 'mac', 'linux'] as const) {
-            const s = setupSteps(system, URL, ENGINE, false)
-            expect(s.start).not.toMatch(/OPENBOTS_TUNNEL|OPENBOTS_CLOUDFLARED/)
-        }
+    it('needs nothing else installed: the engine fetches the tunnel itself', () => {
+        for (const system of ['windows', 'mac', 'linux'] as const) expect(setupSteps(system, URL, ENGINE).start).not.toMatch(/cloudflared|OPENBOTS_TUNNEL|winget|brew/)
     })
 
     it('never puts the token on the command line, where shell history would keep it', () => {
-        for (const system of ['windows', 'mac', 'linux'] as const) {
-            const s = setupSteps(system, URL, ENGINE, true)
-            expect(`${s.tunnel}\n${s.start}`).not.toMatch(/OPENBOTS_TOKEN|obr_/)
-        }
+        for (const system of ['windows', 'mac', 'linux'] as const) expect(setupSteps(system, URL, ENGINE).start).not.toMatch(/OPENBOTS_TOKEN|obr_/)
     })
 
     it('never mentions the npm package or Docker image that were never published', () => {
-        for (const system of ['windows', 'mac', 'linux'] as const) {
-            const s = setupSteps(system, URL, ENGINE, true)
-            expect(`${s.tunnel}\n${s.start}`).not.toMatch(/npx openbots-runner|ghcr\.io/)
-        }
+        for (const system of ['windows', 'mac', 'linux'] as const) expect(setupSteps(system, URL, ENGINE).start).not.toMatch(/npx openbots-runner|ghcr\.io/)
     })
 })
 

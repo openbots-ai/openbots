@@ -44,7 +44,13 @@ export function buildServices(settings: Settings, deps: { server: Server; store:
         if (settings.publicUrl) return true
         problems.push({
             service,
-            error: service === 'bluebubbles' ? 'Set this engine’s Public URL in Connections to an address your Mac can reach (a private one works)' : 'Set this engine’s public URL in Connections, so your account can reach it',
+            error:
+                service === 'bluebubbles'
+                    ? 'Set this engine’s Public URL in Connections to an address your Mac can reach (a private one works)'
+                    : // The engine starts a Cloudflare tunnel for these unless it was turned off (OPENBOTS_TUNNEL=false)
+                      settings.tunnel
+                      ? 'Getting a public address from Cloudflare so your account can reach this engine…'
+                      : 'Set this engine’s public URL in Connections, so your account can reach it',
         })
         return false
     }

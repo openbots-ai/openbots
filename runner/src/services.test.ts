@@ -27,11 +27,14 @@ describe('texting services', () => {
         expect(built.problems).toEqual([])
     })
 
-    it('reports a webhook channel without a public URL instead of starting it', () => {
+    it('waits for the tunnel when a webhook channel has no public URL yet, instead of starting it', () => {
         const settings = withDashboard(loadSettings(ENV), { secrets: { twilio: { accountSid: 'AC1', authToken: 't' } } })
         const built = buildServices(settings, deps())
         expect(built.transports.twilio).toBeUndefined()
-        expect(built.problems).toEqual([{ service: 'twilio', error: expect.stringMatching(/public URL/) }])
+        expect(built.problems).toEqual([{ service: 'twilio', error: expect.stringMatching(/Cloudflare/) }])
+        // With the tunnel turned off, it asks for a public URL
+        const off = buildServices(withDashboard(loadSettings({ ...ENV, OPENBOTS_TUNNEL: 'false' }), { secrets: { twilio: { accountSid: 'AC1', authToken: 't' } } }), deps())
+        expect(off.problems).toEqual([{ service: 'twilio', error: expect.stringMatching(/public URL/) }])
     })
 
     it('starts it once the public URL is set', () => {

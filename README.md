@@ -128,8 +128,8 @@ or set as environment variables on the engine, where they never leave that machi
 - **At least one AI provider**: an OpenAI, Anthropic, Google Gemini or xAI key, or a local model server.
 - **At least one way to text**: Messages on the engine's Mac, BlueBubbles Server on their Mac, a Sendblue line, a
   Twilio account (US texting needs A2P 10DLC registration), or their own relay. Twilio, Sendblue and BlueBubbles post
-  incoming texts to the engine, so it needs a public HTTPS address; `OPENBOTS_TUNNEL=true` gets one from Cloudflare's
-  quick tunnel.
+  incoming texts to the engine, so it needs a public HTTPS address; the engine gets one from Cloudflare's quick tunnel by
+  itself.
 - **Their phone number** (Settings → General), verified with a 6-digit code their engine texts to it (so texting must
   be set up first). Until it's verified, agents answer nobody. It's where handoff alerts and check-ins go, and the
   number they text their own agents from for reminders, watches and computer use tasks. An Apple ID email works too
