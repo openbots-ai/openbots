@@ -15,7 +15,7 @@ never message text. Everyone brings their own AI keys and texting accounts.
 
 **Built**
 
-- Dashboard (`/dashboard`): email and password sign-in, a private workspace per account, and pages for Agents,
+- Dashboard (`/dashboard`): sign-in with Clerk (email code or Google), a private workspace per account, and pages for Agents,
   Models, Knowledge, Numbers, Connections, Analytics and Settings.
 - Model slots that run today: **Brain** (writes replies), **Backup** (takes over when the Brain's provider fails) and
   **Computer use**.
