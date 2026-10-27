@@ -22,7 +22,6 @@ const AV = (n, ext = 'webp') => `assets/avatars/${n}.${ext}`;
 
 const stage = document.getElementById('stage');
 const scenesEl = document.getElementById('scenes');
-const subsEl = document.getElementById('subs');
 const tl = gsap.timeline({ paused: true });
 const $ = (root, sel) => root.querySelector(sel);
 const $$ = (root, sel) => [...root.querySelectorAll(sel)];
@@ -52,7 +51,7 @@ function boot(timing) {
 
   /* ============ A  hook ============ */
   els.A = scene('A', 'light', `
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:70px">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
       <div class="display" id="a1" style="display:flex;gap:.26em">${words('Your AI agent', 'g-gray')}</div>
       <div class="display" id="a2" style="display:flex;gap:.26em">${words("shouldn't live on")}</div>
       <div class="display" id="a3" style="position:relative;display:flex;gap:.26em">
@@ -88,7 +87,7 @@ function boot(timing) {
     </div>`;
   const logo = (size, id) => `<div class="logo" style="position:relative;width:420px;height:420px;transform:scale(${size / 420});transform-origin:50% 50%">${eye(-12, 3, id + 'a')}${eye(12, -3, id + 'b')}</div>`;
   els.B1 = scene('B1', 'light', `
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding-bottom:70px">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding-bottom:0">
       ${logo(400, 'x')}
       <div id="wm" style="font-size:132px;font-weight:600;letter-spacing:-0.04em;margin-top:-20px;color:#0a0a0a">OpenBots</div>
     </div>`);
@@ -102,7 +101,7 @@ function boot(timing) {
 
   /* ============ B2  an agent you own ============ */
   els.B2 = scene('B2', 'light', `
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:60px">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
       <div class="title" id="b1" style="display:flex;gap:.24em">${words('an agent you', '')}<span class="w g-ink">own,</span></div>
       <div class="title" id="b2" style="display:flex;gap:.24em">${words('that lives in your', 'g-gray')}<span class="w g-ink">texts.</span></div>
     </div>
@@ -354,12 +353,11 @@ function boot(timing) {
 
   /* ============ I  close ============ */
   els.I = scene('I', 'light', `
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:50px">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
       <div id="ilogo" style="margin-top:-60px;margin-bottom:-30px">${logo(260, 'z')}</div>
       <div class="display" id="i1" style="font-size:168px;letter-spacing:-0.04em;display:flex;gap:.24em"><span class="w">Own</span><span class="w">your</span><span class="w g-ink">agent.</span></div>
       <div id="ipills" style="display:flex;gap:22px;margin-top:44px">
-        <div class="pill ip" style="background:#f5f5f5;box-shadow:0 0 0 1px rgb(0 0 0 / .08);font-size:32px;padding:16px 34px">open source · MIT</div>
-        <div class="pill ip" style="background:#23204e;color:#fff;font-size:32px;padding:16px 34px;font-weight:600">github.com/shidhartha-sen/opendots</div>
+        <div class="pill ip" style="background:#23204e;color:#fff;font-size:34px;padding:18px 40px;font-weight:600">Open source</div>
       </div>
     </div>`);
   {
@@ -374,6 +372,7 @@ function boot(timing) {
   order.forEach((id, k) => {
     const e = els[id]; const t = T[id]; const end = k < order.length - 1 ? T[order[k + 1]] + WIPE : TOTAL;
     const cam = $(e, '.cam');
+    if (['C', 'D', 'E', 'F', 'G', 'H'].includes(id)) cam.style.top = '40px';
     if (k === 0) tl.set(e, { visibility: 'visible' }, 0);
     else {
       tl.set(e, { visibility: 'visible' }, t);
@@ -384,21 +383,6 @@ function boot(timing) {
       e.style.clipPath = 'inset(0 100% 0 0)';
     }
     tl.fromTo(cam, { scale: 1 }, { scale: 1.035, duration: end - t, ease: 'none', immediateRender: false }, t);
-  });
-
-  /* ---------- subtitles ---------- */
-  timing.lines.forEach((ln) => {
-    const w = ln.words; const chunks = []; let cur = [];
-    w.forEach((x, i) => { cur.push(x); const end = /[.?!]$/.test(x.w) || (/,$/.test(x.w) && cur.length >= 4) || cur.length >= 7; if (end || i === w.length - 1) { chunks.push(cur); cur = []; } });
-    chunks.forEach((ch, ci) => {
-      const c = html(`<div class="cap">${ch.map((x) => `<span class="cw">${x.w}</span>`).join(' ')}</div>`);
-      subsEl.appendChild(c);
-      const a = ln.start + ch[0].s - 0.05;
-      const b = (chunks[ci + 1] ? ln.start + chunks[ci + 1][0].s - 0.05 : ln.start + ln.dur + 0.35);
-      tl.fromTo(c, { autoAlpha: 0, y: 18, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.16, ease: 'power2.out' }, a);
-      tl.to(c, { autoAlpha: 0, duration: 0.12 }, b - 0.12);
-      $$(c, '.cw').forEach((sp, i) => tl.to(sp, { color: '#ffffff', duration: 0.1 }, ln.start + ch[i].s));
-    });
   });
 
   window.__total = TOTAL;
