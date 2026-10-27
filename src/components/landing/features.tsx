@@ -248,7 +248,7 @@ export default function Features() {
     return (
         <section
             id="features"
-            className="px-6 py-28 md:py-40">
+            className="scroll-mt-24 px-6 py-28 md:py-40">
             <SectionHeading
                 title="you pick its superpowers."
                 description="pick its brain, how it browses, what it remembers and how it sounds. every part is your build. (demos below are illustrative.)"

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { ReactLenis } from 'lenis/react'
 import 'lenis/dist/lenis.css'
 import { MotionConfig } from 'motion/react'
@@ -7,6 +7,7 @@ import HeroSection from '@/components/landing/hero-section'
 import Trust from '@/components/landing/trust'
 import WhyOpenBots from '@/components/landing/why-openbots'
 import TextIt from '@/components/landing/text-it'
+import Features from '@/components/landing/features'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
@@ -17,21 +18,28 @@ import { isCrmPath } from '@/crm/lib/route'
 // Loaded only on /dashboard so the landing bundle never ships Convex or the dashboard
 const CrmApp = lazy(() => import('@/crm/crm-app'))
 const PricingPage = lazy(() => import('@/pages/pricing').then((module) => ({ default: module.PricingPage })))
-const FeaturesPage = lazy(() => import('@/pages/features').then((module) => ({ default: module.FeaturesPage })))
 
-const Landing = () => (
-    <>
-        <Header />
-        <HeroSection />
-        <main className="mx-auto max-w-6xl overflow-hidden">
-            <TextIt />
-            <WhyOpenBots />
-            <Trust />
-            <CallToAction />
-        </main>
-        <Footer />
-    </>
-)
+const Landing = () => {
+    // The page renders after the browser looked for #section, so a link from another page scrolls here once it's drawn
+    useEffect(() => {
+        if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView()
+    }, [])
+
+    return (
+        <>
+            <Header />
+            <HeroSection />
+            <main className="mx-auto max-w-6xl overflow-hidden">
+                <TextIt />
+                <Features />
+                <WhyOpenBots />
+                <Trust />
+                <CallToAction />
+            </main>
+            <Footer />
+        </>
+    )
+}
 
 const comingSoon: Record<string, string> = {
     '/changelog': 'Changelog',
@@ -47,9 +55,14 @@ function Page() {
     if (path === '/privacy') return <PrivacyPage />
     if (path === '/terms') return <TermsPage />
     if (path === '/contact') return <ContactPage />
-    if (path === '/features') return <Suspense fallback={null}><FeaturesPage /></Suspense>
     if (path === '/pricing') return <Suspense fallback={null}><PricingPage /></Suspense>
     if (comingSoon[path]) return <ComingSoon title={comingSoon[path]} />
+
+    // Features is a section of the landing page now: old links go to it
+    if (path === '/features') {
+        window.location.replace('/#features')
+        return null
+    }
 
     // About (and any unknown path) is the landing page itself
     if (path !== '/') window.history.replaceState(null, '', '/')
