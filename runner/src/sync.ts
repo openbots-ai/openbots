@@ -112,6 +112,10 @@ export class ConvexLink implements Link {
         await this.client.mutation(api.runner.record, { token: this.token, agentId, ...data })
     }
 
+    async yesAll() {
+        await this.client.mutation(api.runner.yesAll, { token: this.token })
+    }
+
     async ignored(senders: string[]) {
         await this.client.mutation(api.runner.ignored, { token: this.token, senders })
     }

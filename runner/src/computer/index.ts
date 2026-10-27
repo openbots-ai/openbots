@@ -25,6 +25,9 @@ export type ComputerDeps = {
     log: (line: string) => void
     // Why the agent may not go on with its task right now, or null (see computerAllowed)
     allowed?: (agentId: string) => string | null
+    // You said YES ALL (saved in Settings), and saving it when you do
+    yesAll?: () => boolean
+    saveYesAll?: () => void
     persist?: Persist
     driver?: Driver
     create?: Create
@@ -67,6 +70,8 @@ export function makeComputer(os: string, deps: ComputerDeps): ComputerTasks | un
                     ask: hooks.ask,
                     approve: hooks.approve,
                     stopped: hooks.stopped,
+                    yesAll: deps.yesAll,
+                    saveYesAll: deps.saveYesAll,
                     overBudget: deps.budget,
                     record: () => deps.record(ctx.agentId, model.id),
                     now: Date.now,

@@ -93,6 +93,10 @@ async function main() {
     let computerProblem: string | null = null
     // Computer use on this machine's own screen, mouse and keyboard (Windows, Mac or Linux); undefined elsewhere
     const driver = driverFor(os, base.dataDir)
+    // You texted YES ALL: computer use stops asking you, until you turn asking back on in Settings
+    const saveYesAll = () => {
+        if (link.config()?.workspace.yesAll !== true) void link.yesAll().catch((e) => console.error(`Couldn't save your YES ALL: ${message(e)}`))
+    }
     const computer = makeComputer(os, {
         // `settings` is replaced when keys change in Connections, so this reads the current key
         anthropicKey: () => settings.brains.keys.anthropic,
@@ -109,10 +113,12 @@ async function main() {
         log: (line) => console.log(line),
         // Turning Computer use off or pausing the agent in the dashboard stops a running task at its next step
         allowed: (agentId) => computerAllowed(link.config(), agentId),
+        yesAll: () => link.config()?.workspace.yesAll === true,
+        saveYesAll: () => saveYesAll(),
         persist: taskMemory(store),
         driver,
     })
-    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models, computer, computerProblem: () => computerProblem })
+    const pipeline = new Pipeline({ store, link, transports: {}, brains: settings.brains, models: () => status.models, computer, computerProblem: () => computerProblem, yesAll: () => saveYesAll() })
 
     // Runs reminders, watches and check-ins when they're due
     const scheduler = new Scheduler({

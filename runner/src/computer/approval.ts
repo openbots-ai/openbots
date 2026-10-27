@@ -7,7 +7,7 @@ import { parseCombo } from './driver'
 // The longest list of actions an approval text may show. Longer text is declined unasked rather than shown cut, so the
 // owner never approves text they couldn't read.
 export const APPROVAL_SHOW_LIMIT = 600
-export const APPROVAL_SUFFIX = 'Reply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.'
+export const APPROVAL_SUFFIX = 'Reply YES to allow it, YES ALL to stop asking me, or NO.'
 
 // Characters the owner couldn't see in a text (control, format, bidi and zero-width characters, odd spaces) are spelled
 // out, as are backslashes, so the text shown is exactly the text typed

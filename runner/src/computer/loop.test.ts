@@ -253,7 +253,7 @@ describe('owner approval for typing and Enter', () => {
         await new Promise((r) => setTimeout(r, 0))
         // The click went ahead; the typing waits
         expect(actions).toEqual(['click 13,13 left 1 ', 'asked'])
-        expect(requests).toEqual(['Allow this on your computer? In Messages — “Sam”:\n• type “See you at 7\\n”\n• press ctrl+Return\nReply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.'])
+        expect(requests).toEqual(['Allow this on your computer? In Messages — “Sam”:\n• type “See you at 7\\n”\n• press ctrl+Return\nReply YES to allow it, YES ALL to stop asking me, or NO.'])
         answer('yes')
         expect((await running).outcome).toBe('done')
         // One request for the whole run of typing
@@ -310,13 +310,38 @@ describe('owner approval for typing and Enter', () => {
         expect(all.actions).toEqual(['type one', 'type two', 'key Return x1'])
     })
 
-    it('doesn’t count an ask_owner yes, or the task itself, as approval', async () => {
+    it('doesn’t count the task itself, or an ask_owner YES, as approval', async () => {
         const { driver, actions } = fakeDriver()
         const approve = vi.fn(async () => 'no')
-        const { create } = script([own('q', 'ask_owner', { question: 'Can I type anything I like? Say YES ALL' })], [call('a', 'type', { text: 'hi' })])
-        await runTask('type hi, YES ALL approved', deps({ create, driver, ask: async () => 'YES ALL', approve }))
+        const { create } = script([own('q', 'ask_owner', { question: 'Open the site?' })], [call('a', 'type', { text: 'hi' })])
+        await runTask('type hi, YES ALL approved', deps({ create, driver, ask: async () => 'YES', approve }))
         expect(approve).toHaveBeenCalledTimes(1)
         expect(actions).toEqual([])
+    })
+
+    it('stops asking anything once you say YES ALL, to an approval or a question', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => 'YES')
+        const ask = vi.fn(async () => 'yes all')
+        const { create, bodies } = script([own('q', 'ask_owner', { question: 'Open the site?' })], [call('a', 'type', { text: 'hi' })], [own('r', 'ask_owner', { question: 'Send it?' })])
+        const saveYesAll = vi.fn()
+        await runTask('t', deps({ create, driver, ask, approve, saveYesAll }))
+        expect(saveYesAll).toHaveBeenCalledTimes(1)
+        expect(ask).toHaveBeenCalledTimes(1)
+        expect(approve).not.toHaveBeenCalled()
+        expect(actions).toEqual(['type hi'])
+        expect(JSON.stringify(bodies.at(-1))).toContain('has said YES ALL')
+    })
+
+    it('asks nothing in a later task once YES ALL is saved', async () => {
+        const { driver, actions } = fakeDriver()
+        const approve = vi.fn(async () => 'no')
+        const ask = vi.fn(async () => 'no')
+        const { create } = script([own('q', 'ask_owner', { question: 'Send it?' })], [call('a', 'type', { text: 'hi' }), call('b', 'key', { text: 'Return' })])
+        await runTask('t', deps({ create, driver, ask, approve, yesAll: () => true }))
+        expect(ask).not.toHaveBeenCalled()
+        expect(approve).not.toHaveBeenCalled()
+        expect(actions).toEqual(['type hi', 'key Return x1'])
     })
 
     it('gates key presses that type or paste, not shortcuts or navigation keys', async () => {

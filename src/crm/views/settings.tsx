@@ -41,6 +41,7 @@ type Form = {
     ownerName: string
     ownerEmail: string
     smsPowers: boolean
+    yesAll: boolean
     timezone: string
     defaultAgentId: string
     quietEnabled: boolean
@@ -63,6 +64,7 @@ const toForm = (w: Doc<'workspace'>): Form => ({
     ownerName: w.ownerName,
     ownerEmail: w.ownerEmail ?? '',
     smsPowers: w.smsPowers ?? false,
+    yesAll: w.yesAll ?? false,
     timezone: w.timezone ?? browserTimezone(),
     defaultAgentId: w.defaultAgentId ?? '',
     quietEnabled: w.quietEnabled ?? false,
@@ -175,6 +177,12 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> & { ownerVeri
                     description="Lets texts from your phone over SMS (Twilio) use computer use, reminders and watches, not just iMessage. SMS can be faked: anyone who fakes your number could control your engine’s computer. Only turn this on if that computer has nothing important on it."
                     inline>
                     <Toggle label="Computer use over SMS" checked={form.smsPowers} onChange={(v) => set('smsPowers', v)} />
+                </Row>
+                <Row
+                    label="Ask before computer actions"
+                    description="Your agent texts you before it types, sends, pays or deletes anything on your computer. Replying YES ALL to one of those texts turns this off. Off, a web page or email on the screen could trick it into doing something you didn’t ask for."
+                    inline>
+                    <Toggle label="Ask before computer actions" checked={!form.yesAll} onChange={(v) => set('yesAll', !v)} />
                 </Row>
                 <Row label="Email" description={!emailOk ? 'Enter a valid email address.' : 'Where your engine also emails you, if it has Resend set up.'} error={!emailOk} htmlFor="s-email">
                     <Input id="s-email" type="email" aria-invalid={!emailOk} value={form.ownerEmail} onChange={(e) => set('ownerEmail', e.target.value)} placeholder="you@example.com" />

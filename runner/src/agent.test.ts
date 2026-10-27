@@ -99,13 +99,13 @@ afterEach(() => {
 type Complete = typeof complete
 const model = (impl: Complete) => vi.fn<Complete>(impl)
 
-function setup(cfg = config(), complete = model(async () => 'sure, booked for friday'), keys: { brains?: Brains; models?: KeyModel[]; computer?: Deps['computer'] } = {}) {
+function setup(cfg = config(), complete = model(async () => 'sure, booked for friday'), keys: { brains?: Brains; models?: KeyModel[]; computer?: Deps['computer']; yesAll?: () => void } = {}) {
     const vault = Vault.open(dir)
     const store = new Store(join(dir, 'openbots.db'), vault)
     const link = new FakeLink(cfg)
     const transport = new FakeTransport()
     const bubbles = new FakeTransport('bluebubbles')
-    const pipeline = new Pipeline({ store, link, transports: { relay: transport, bluebubbles: bubbles }, brains: keys.brains ?? brains, models: () => keys.models ?? KEYS, computer: keys.computer, complete, log: () => {} })
+    const pipeline = new Pipeline({ store, link, transports: { relay: transport, bluebubbles: bubbles }, brains: keys.brains ?? brains, models: () => keys.models ?? KEYS, computer: keys.computer, yesAll: keys.yesAll, complete, log: () => {} })
     const text = (body: string, from = '+1 212 555 0187') => pipeline.receive({ channel: 'relay', to: '4155550101', from, body, name: 'Dana' })
     return { store, link, transport, bubbles, pipeline, complete, text, vault }
 }
@@ -553,6 +553,17 @@ describe('agent', () => {
         await pipeline.receive({ channel: 'twilio', to: '+14155550199', from: '+1 212 555 0187', body: 'YES' })
         await vi.runAllTimersAsync()
         expect(answered).toEqual(['YES'])
+    })
+
+    it('saves YES ALL texted from your own phone, not anyone else’s', async () => {
+        const yesAll = vi.fn()
+        const { text } = setup(config({ computerUse: true }), undefined, { yesAll })
+        await text('YES ALL')
+        await vi.runAllTimersAsync()
+        expect(yesAll).not.toHaveBeenCalled()
+        await text('yes all', OWNER)
+        await vi.runAllTimersAsync()
+        expect(yesAll).toHaveBeenCalledTimes(1)
     })
 
     it('never takes a number from another country for yours because the digits match', async () => {

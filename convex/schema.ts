@@ -40,6 +40,9 @@ export const workspaceSettings = {
     // Your powers (computer use, reminders and watches, answering a task) from your phone over SMS too. Off unless
     // turned on: SMS caller ID can be faked, so anyone faking your number would get them.
     smsPowers: v.optional(v.boolean()),
+    // You replied YES ALL to a computer task: no more approval texts or "should I go ahead?" questions, in any task,
+    // until you turn asking back on in Settings
+    yesAll: v.optional(v.boolean()),
     timezone: v.optional(v.string()),
     defaultAgentId: v.optional(v.id('agents')),
     quietEnabled: v.optional(v.boolean()),

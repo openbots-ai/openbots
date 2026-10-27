@@ -167,6 +167,16 @@ export const record = mutation({
     },
 })
 
+// You replied YES ALL to one of the engine's computer questions: it stops asking, until you turn asking back on in Settings
+export const yesAll = mutation({
+    args: { token: v.string() },
+    handler: async (ctx, { token }) => {
+        const { workspaceId } = await runnerFor(ctx, token)
+        await ctx.db.patch('workspace', workspaceId, { yesAll: true })
+        return null
+    },
+})
+
 // The numbers of people whose texts the engine just ignored (not on Allowed people), so the dashboard can offer to
 // allow them. Numbers only, never what they wrote; only the newest IGNORED_KEPT are kept.
 export const ignored = mutation({

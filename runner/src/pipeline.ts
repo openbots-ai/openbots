@@ -6,6 +6,7 @@ import { IGNORED_KEPT, verifiedOwner } from '../../convex/lib/owner'
 import { msUntilQuietEnds } from '../../convex/lib/quiet'
 import { dayKey, DEFAULT_CONTACT_REPLIES_PER_HOUR, NEW_CONTACT_ALERTS_PER_HOUR } from '../../convex/lib/usage'
 import { complete as completeWith, ReplyError, SEARCHES, TOOL_PROVIDERS, type Brains, type Prompt } from './brain'
+import { verdict } from './computer/approval'
 import { short, type ComputerTasks } from './computer/tasks'
 import type { Fired } from './scheduler'
 import type { Conversation, Job, Store } from './store'
@@ -50,6 +51,8 @@ export type Deps = {
     computer?: Pick<ComputerTasks, 'busy' | 'current' | 'start' | 'handle'>
     // What's stopping computer use right now (a Mac missing a permission), or null
     computerProblem?: () => string | null
+    // You texted YES ALL: saves it, so computer use stops asking you (see computer/loop.ts)
+    yesAll?: () => void
     complete?: typeof completeWith
     now?: () => number
     log?: (line: string) => void
@@ -188,6 +191,8 @@ export class Pipeline {
         this.log(`Text from …${fromKey.slice(-4)} to ${agent.name}${fromOwner ? (verified ? ' (you)' : ' (your number, over SMS: no computer use, reminders or task answers unless Computer use over SMS is on in Settings)') : ''}`)
         // While a computer task waits for your answer (or you say stop), your text is for the task, not a new reply
         if (verified && !text.thread && this.deps.computer?.handle(conversation.id, body)) return { markRead: true }
+        // YES ALL to the agent's own "should I go ahead?" counts too
+        if (verified && !text.thread && verdict(body) === 'all') this.deps.yesAll?.()
         if (!text.thread || named(agent.name, body)) await this.queue(store.getConversation(conversation.id)!, messageId, agent)
         return { markRead: true }
     }
