@@ -41,14 +41,14 @@ sfx = np.zeros(N)
 def whoosh(t, d=0.7, g=0.35):
     n = rng.standard_normal(int(d * SR)); u = tt(d) / d
     lowb = bp(n, 250, 900) * np.sin(np.pi * np.clip(u * 1.4, 0, 1)) ** 2
-    highb = bp(n, 1800, 7000) * np.sin(np.pi * np.clip((u - 0.15) * 1.3, 0, 1)) ** 2
-    put(sfx, t, (lowb * 0.9 + highb * 0.8), g)
+    highb = bp(n, 1500, 4500) * np.sin(np.pi * np.clip((u - 0.15) * 1.3, 0, 1)) ** 2
+    put(sfx, t, (lowb * 0.9 + highb * 0.35), g * 0.8)
 def pop(t, f=620, g=0.16):
     d = 0.11; x = np.sin(2 * np.pi * (f + 260 * (1 - np.exp(-tt(d) * 60))) * tt(d)) * np.exp(-tt(d) * 38); put(sfx, t, x, g)
-def tick(t, f=1900, g=0.09):
+def tick(t, f=1250, g=0.07):
     d = 0.05; put(sfx, t, np.sin(2 * np.pi * f * tt(d)) * np.exp(-tt(d) * 90), g)
 def ding(t, g=0.16):
-    d = 0.9; x = (np.sin(2 * np.pi * 1318 * tt(d)) + 0.5 * np.sin(2 * np.pi * 1976 * tt(d)) + 0.2 * np.sin(2 * np.pi * 2637 * tt(d))) * np.exp(-tt(d) * 5); put(sfx, t, x, g)
+    d = 0.9; x = (np.sin(2 * np.pi * 880 * tt(d)) + 0.35 * np.sin(2 * np.pi * 1320 * tt(d))) * np.exp(-tt(d) * 6); put(sfx, t, x, g * 0.6)
 def thunk(t, g=0.4):
     d = 0.35; x = np.sin(2 * np.pi * (90 - 35 * (1 - np.exp(-tt(d) * 20))) * tt(d)) * np.exp(-tt(d) * 14) + lp(rng.standard_normal(int(d * SR)), 600) * np.exp(-tt(d) * 40) * 0.6; put(sfx, t, x, g)
 def impact(t, g=0.5):
@@ -57,7 +57,7 @@ def riser(t0, t1, g=0.28):
     d = t1 - t0; n = rng.standard_normal(int(d * SR)); u = tt(d) / d
     put(sfx, t0, bp(n, 500, 9000) * u ** 2.2, g)
 def typing(t0, t1, step=0.075):
-    for t in np.arange(t0, t1, step): tick(t + rng.uniform(0, 0.02), f=rng.uniform(1500, 2400), g=0.05)
+    for t in np.arange(t0, t1, step): tick(t + rng.uniform(0, 0.02), f=rng.uniform(1000, 1500), g=0.04)
 
 for k in ['B1', 'B2', 'C', 'D', 'E', 'F', 'G', 'H', 'I']: whoosh(T[k] + 0.05)
 riser(T['B1'] - 1.0, T['B1'] + 0.35); impact(T['B1'] + 0.38)
