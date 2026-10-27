@@ -5,27 +5,27 @@ import { AlwaysOnVisual, HostingVisual, LearningVisual, MemoryVisual } from '@/c
 
 const reasons: { title: string; body: string; detail: string; visual: ReactNode }[] = [
     {
-        title: 'memory that never resets',
-        body: 'every agent keeps a long-term memory of you, your people and your rules. month six knows everything month one learned.',
-        detail: 'persistent by default',
+        title: 'Memory that never resets',
+        body: 'Every agent keeps a long-term memory of you, your people and your rules. Month six knows everything month one learned.',
+        detail: 'Persistent by default',
         visual: <MemoryVisual />,
     },
     {
-        title: 'agents that improve themselves',
-        body: 'correct it once and it sticks. every reply, fix and approval becomes a lesson, so your team gets sharper every week.',
-        detail: 'self-improving',
+        title: 'Agents that improve themselves',
+        body: 'Correct it once and it sticks. Every reply, fix and approval becomes a lesson, so your team gets sharper every week.',
+        detail: 'Self-improving',
         visual: <LearningVisual />,
     },
     {
-        title: 'always on, never starting over',
-        body: 'agents run around the clock on infrastructure built to stay up. schedules, follow-ups and half-finished work carry on without you.',
-        detail: 'built to run 24/7',
+        title: 'Always on, never starting over',
+        body: 'Agents run around the clock on infrastructure built to stay up. Schedules, follow-ups and half-finished work carry on without you.',
+        detail: 'Built to run 24/7',
         visual: <AlwaysOnVisual />,
     },
     {
-        title: 'our cloud or yours',
-        body: 'start in seconds on openbots cloud, where we handle updates, scaling and backups. need it in-house? self-host the same platform.',
-        detail: 'your choice',
+        title: 'Our cloud or yours',
+        body: 'Start in seconds on OpenBots Cloud, where we handle updates, scaling and backups. Need it in-house? Self-host the same platform.',
+        detail: 'Your choice',
         visual: <HostingVisual />,
     },
 ]
@@ -37,8 +37,8 @@ export default function WhyOpenBots() {
             id="why-openbots"
             className="scroll-mt-24 px-6 py-44 md:py-52 lg:py-60">
             <SectionHeading
-                title="infrastructure for agents that get better every day"
-                description="most assistants forget you when the chat ends. openbots gives every agent a home: memory that lasts, a loop that learns from you, and a runtime that never switches off."
+                title="Infrastructure for agents that get better every day"
+                description="Most assistants forget you when the chat ends. OpenBots gives every agent a home: memory that lasts, a loop that learns from you, and a runtime that never switches off."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">

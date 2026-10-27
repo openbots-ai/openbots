@@ -236,12 +236,12 @@ const SlotPicker = ({ slot }: { slot: SlotId }) => {
 
 // Each card shows one thing you customize, changing on its own
 const features = [
-    { label: 'computer use', title: 'choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
-    { label: 'brain', title: 'pick the brain behind every reply.', mock: <BrainMock /> },
-    { label: 'voice', title: 'give it a voice. literally.', mock: <VoiceMock /> },
-    { label: 'personality', title: 'tune its personality, down to the vibe.', mock: <PersonalityMock /> },
-    { label: 'personal memory', title: 'you decide what it remembers.', mock: <MemoryMock /> },
-    { label: 'decisions', title: 'quick calls, each with a confidence score.', mock: <DecisionsMock /> },
+    { label: 'Computer use', title: 'Choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
+    { label: 'Brain', title: 'Pick the brain behind every reply.', mock: <BrainMock /> },
+    { label: 'Voice', title: 'Give it a voice. Literally.', mock: <VoiceMock /> },
+    { label: 'Personality', title: 'Tune its personality, down to the vibe.', mock: <PersonalityMock /> },
+    { label: 'Personal memory', title: 'You decide what it remembers.', mock: <MemoryMock /> },
+    { label: 'Decisions', title: 'Quick calls, each with a confidence score.', mock: <DecisionsMock /> },
 ]
 
 export default function Features() {
@@ -250,8 +250,8 @@ export default function Features() {
             id="features"
             className="scroll-mt-24 px-6 py-28 md:py-40">
             <SectionHeading
-                title="you pick its superpowers."
-                description="pick its brain, how it browses, what it remembers and how it sounds. every part is your build. (demos below are illustrative.)"
+                title="You pick its superpowers."
+                description="Pick its brain, how it browses, what it remembers and how it sounds. Every part is your build. (Demos below are illustrative.)"
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
