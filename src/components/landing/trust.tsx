@@ -5,39 +5,39 @@ import { Stagger, StaggerItem } from '@/components/landing/motion'
 const controls = [
     {
         icon: Brain,
-        title: 'memory you can actually edit',
-        body: 'see what your assistant remembers, fix anything that is off, or delete it for good.',
-        detail: 'view · edit · forget',
+        title: 'Memory you can actually edit',
+        body: 'See what your assistant remembers, fix anything that is off, or delete it for good.',
+        detail: 'View · edit · forget',
     },
     {
         icon: KeyRound,
-        title: 'access, app by app',
-        body: 'calendar can be read-only while email needs approval. every app gets its own rules.',
-        detail: 'read · write · always ask',
+        title: 'Access, app by app',
+        body: 'Calendar can be read-only while email needs approval. Every app gets its own rules.',
+        detail: 'Read · write · always ask',
     },
     {
         icon: ShieldCheck,
-        title: 'you approve the real stuff',
-        body: 'sending, buying, posting, and anything sensitive waits for your yes.',
-        detail: 'nothing sneaky ships',
+        title: 'You approve the real stuff',
+        body: 'Sending, buying, posting, and anything sensitive waits for your yes.',
+        detail: 'Nothing sneaky ships',
     },
     {
         icon: History,
-        title: 'the whole story, logged',
-        body: 'see what it opened, changed, sent, and why. every action has a trail.',
-        detail: 'searchable activity',
+        title: 'The whole story, logged',
+        body: 'See what it opened, changed, sent, and why. Every action has a trail.',
+        detail: 'Searchable activity',
     },
     {
         icon: PauseCircle,
-        title: 'one tap means stop',
-        body: 'pause one assistant or the whole squad instantly without deleting your setup.',
-        detail: 'pause anytime',
+        title: 'One tap means stop',
+        body: 'Pause one assistant or the whole squad instantly without deleting your setup.',
+        detail: 'Pause anytime',
     },
     {
         icon: Database,
-        title: 'your data stays yours',
-        body: 'choose what stays, export a copy, and delete your data when you want.',
-        detail: 'keep · export · delete',
+        title: 'Your data stays yours',
+        body: 'Choose what stays, export a copy, and delete your data when you want.',
+        detail: 'Keep · export · delete',
     },
 ]
 
@@ -47,8 +47,8 @@ export default function Trust() {
             id="trust"
             className="px-6 py-44 md:py-52 lg:py-60 xl:py-72 ">
             <SectionHeading
-                title="helpful, not weird about it"
-                description="it can know you really well without owning your life. you decide what it remembers, touches, and does."
+                title="Helpful, not weird about it"
+                description="It can know you really well without owning your life. You decide what it remembers, touches, and does."
             />
 
             <Stagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

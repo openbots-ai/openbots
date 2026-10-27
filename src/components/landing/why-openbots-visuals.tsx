@@ -371,8 +371,8 @@ export function AlwaysOnVisual() {
 /* 4. Hosting: a settings choice flips between our cloud and your servers; the agent underneath doesn't change */
 
 const HOSTS = [
-    { id: 'cloud', Icon: Cloud, title: 'OpenBots Cloud', body: 'we run it for you', host: 'mochi.openbots.app' },
-    { id: 'self', Icon: Server, title: 'Self-hosted', body: 'same platform, your servers', host: 'bots.acme.internal' },
+    { id: 'cloud', Icon: Cloud, title: 'OpenBots Cloud', body: 'We run it for you', host: 'mochi.openbots.app' },
+    { id: 'self', Icon: Server, title: 'Self-hosted', body: 'Same platform, your servers', host: 'bots.acme.internal' },
 ] as const
 const HOSTING_DELAYS = [3400, 2800] as const
 

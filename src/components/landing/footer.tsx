@@ -33,7 +33,7 @@ export default function Footer() {
             <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
                 <div className="col-span-2">
                     <Logo />
-                    <p className="type-body-sm text-muted-foreground mt-3 max-w-xs">your own personal AI assistant. made your way.</p>
+                    <p className="type-body-sm text-muted-foreground mt-3 max-w-xs">Your own personal AI assistant, made your way.</p>
                 </div>
                 {footerLinks.map((group) => (
                     <div

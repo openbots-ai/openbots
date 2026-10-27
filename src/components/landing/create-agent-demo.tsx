@@ -71,9 +71,9 @@ const AGENT = useCases.find((u) => u.agent === 'Mochi')!
 // In the hero these read as "how it works": numbered steps with a one-line explainer (hidden on phones)
 // `short` replaces the title on phones, where three steps share one row
 const FLOWS: { id: FlowId; title: string; short: string; detail: string; hue: number }[] = [
-    { id: 'build', title: 'Create an agent', short: 'Create', detail: 'give it a name, a job and a personality', hue: 205 },
-    { id: 'models', title: 'Pick its models', short: 'Models', detail: 'a different model for every part', hue: 262 },
-    { id: 'analytics', title: 'See what it did', short: 'Results', detail: 'every task and cost, per model', hue: 160 },
+    { id: 'build', title: 'Create an agent', short: 'Create', detail: 'Give it a name, a job and a personality', hue: 205 },
+    { id: 'models', title: 'Pick its models', short: 'Models', detail: 'A different model for every part', hue: 262 },
+    { id: 'analytics', title: 'See what it did', short: 'Results', detail: 'Every task and cost, per model', hue: 160 },
 ]
 
 // Stretches every beat so each step has time to land
