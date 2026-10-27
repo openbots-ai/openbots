@@ -1,0 +1,497 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OpenBots Launch Video</title>
+<style>
+@font-face { font-family: Figtree; src: url(assets/figtree.woff2) format('woff2'); font-weight: 300 900; }
+:root {
+    /* Brand: the landing page's indigo gradient and the logo's four shades */
+    --ink: #0b0926;
+    --deep: #110e3a;
+    --base: #23204e;
+    --mid: #3b37a3;
+    --hi: #7d79d8;
+    --glow: #b9b6ff;
+    --paper: #f6f5ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+.scene { position: absolute; inset: 0; display: none; }
+
+/* Aurora backdrop: blurred brand blobs drifting over the ink */
+.aurora { position: absolute; inset: -20%; filter: blur(90px); }
+.blob { position: absolute; border-radius: 50%; }
+.grain { position: absolute; inset: 0; pointer-events: none; opacity: .14; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+.center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.h-xl { font-size: 180px; font-weight: 600; letter-spacing: -0.05em; line-height: 1; }
+.h-lg { font-size: 120px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.02; }
+.h-md { font-size: 72px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.05; }
+.sub { font-size: 34px; font-weight: 400; color: rgb(255 255 255 / .7); letter-spacing: -0.01em; }
+.grad-text { background: linear-gradient(100deg, #fff 0%, #dcdaff 50%, var(--glow) 100%); padding-right: .06em; margin-right: -.06em; -webkit-background-clip: text; background-clip: text; color: transparent; }
+.word { display: inline-block; will-change: transform, opacity, filter; }
+
+/* Product window */
+.window { position: absolute; border-radius: 22px; background: #fff; color: #111; overflow: hidden;
+    box-shadow: 0 60px 120px -20px rgb(5 3 30 / .7), 0 0 0 1px rgb(255 255 255 / .15); }
+.chrome { height: 48px; background: #f3f3f6; display: flex; align-items: center; gap: 9px; padding: 0 18px; border-bottom: 1px solid #e6e6ec; }
+.dot { width: 13px; height: 13px; border-radius: 50%; background: #d9d9e0; }
+.url { margin-left: 18px; height: 28px; flex: 1; max-width: 520px; border-radius: 8px; background: #fff; border: 1px solid #e3e3ea; font-size: 15px; color: #777; display: flex; align-items: center; padding: 0 12px; }
+
+/* Phone */
+.phone { position: absolute; width: 430px; height: 880px; border-radius: 68px; background: #0d0d10; padding: 14px;
+    box-shadow: 0 60px 120px -20px rgb(5 3 30 / .75), inset 0 0 0 2px #2c2c33; }
+.screen { width: 100%; height: 100%; border-radius: 56px; background: #fff; overflow: hidden; position: relative; color: #111; }
+.island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: #0d0d10; z-index: 3; }
+.bubble { max-width: 300px; padding: 12px 17px; border-radius: 22px; font-size: 19px; line-height: 1.32; margin: 6px 16px; }
+.me { background: #2f80ff; color: #fff; margin-left: auto; border-bottom-right-radius: 6px; }
+.them { background: #e9e9ef; color: #111; border-bottom-left-radius: 6px; }
+
+.pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; font-size: 26px; font-weight: 500;
+    background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .18); backdrop-filter: blur(10px); }
+.btn { padding: 22px 46px; border-radius: 16px; font-size: 30px; font-weight: 600; color: #fff;
+    background: radial-gradient(130% 130% at 0% 45%, #4a45c4 0%, #3b37a3 40%, #2a2768 75%, #1c1953 100%);
+    box-shadow: 0 20px 50px -10px rgb(59 55 163 / .8), inset 0 0 0 1px rgb(255 255 255 / .2); }
+.card { position: absolute; border-radius: 26px; background: rgb(255 255 255 / .07); border: 1px solid rgb(255 255 255 / .16); backdrop-filter: blur(16px); }
+.slot { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: 16px; border: 1px solid #ececf2; background: #fafafd; margin-bottom: 14px; }
+.slot-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; }
+.slot-icon img { width: 28px; height: 28px; }
+.tag { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a8aa0; }
+</style>
+</head>
+<body>
+<div id="stage">
+    <!-- Shared logo gradients live outside the scenes: defs inside a display:none scene stop rendering -->
+    <svg width="0" height="0" style="position:absolute"><defs>
+        <radialGradient id="lb" cx="0.3" cy="0.22" r="0.95"><stop offset="0" stop-color="#9d99ff"/><stop offset=".3" stop-color="#5b56d6"/><stop offset=".7" stop-color="#3b37a3"/><stop offset="1" stop-color="#1c1953"/></radialGradient>
+        <radialGradient id="lg"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    </defs></svg>
+    <!-- Shared animated backdrop, recolored per scene -->
+    <div class="aurora" id="aurora">
+        <div class="blob" id="b1"></div><div class="blob" id="b2"></div><div class="blob" id="b3"></div><div class="blob" id="b4"></div>
+    </div>
+
+    <!-- 1. Bloom + "Introducing" -->
+    <div class="scene" id="s-intro"><div class="center"><div class="sub" id="intro-t" style="font-size:44px;color:#fff">Introducing</div></div></div>
+
+    <!-- 2. Logo + "OpenBots 2.0" -->
+    <div class="scene" id="s-logo">
+        <div class="center">
+            <div id="logo-row" style="display:flex;align-items:center;gap:44px">
+                <svg id="logo-mark" viewBox="-30 -30 60 60" width="220" height="220">
+                    <g transform="translate(-12 3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
+                    <g transform="translate(12 -3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
+                </svg>
+                <div class="h-xl" id="logo-word">OpenBots</div>
+                <div class="h-xl grad-text" id="logo-ver">2.0</div>
+            </div>
+            <div class="sub" id="logo-sub" style="margin-top:40px;font-size:40px">is here</div>
+        </div>
+    </div>
+
+    <!-- 3. Kinetic word swaps -->
+    <div class="scene" id="s-kinetic"><div class="center"><div class="h-xl" id="kin-word"></div></div></div>
+
+    <!-- 4. Feature: build piece by piece -->
+    <div class="scene" id="s-build">
+        <div style="position:absolute;left:150px;top:0;bottom:0;width:640px;display:flex;flex-direction:column;justify-content:center">
+            <div class="pill" id="build-pill" style="align-self:flex-start;margin-bottom:34px">Agent builder</div>
+            <div class="h-md" id="build-h">Build your AI<br><span class="grad-text">piece by piece.</span></div>
+            <div class="sub" id="build-sub" style="margin-top:28px">Pick the model behind every part, its personality, rules and what it knows.</div>
+        </div>
+        <div class="window" id="build-win" style="left:880px;top:150px;width:920px;height:780px">
+            <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">openbots.ai/dashboard/agents/mochi</div></div>
+            <div style="padding:34px 40px">
+                <div style="display:flex;align-items:center;gap:18px;margin-bottom:30px">
+                    <div style="width:64px;height:64px;border-radius:18px;background:radial-gradient(120% 90% at 20% 0%,#b9b6ff,transparent 60%),#3b37a3"></div>
+                    <div><div style="font-size:30px;font-weight:600;letter-spacing:-.02em">Mochi</div><div style="font-size:18px;color:#888">Your personal assistant</div></div>
+                    <div id="build-live" style="margin-left:auto;padding:8px 16px;border-radius:999px;background:#ecebff;color:#3b37a3;font-weight:600;font-size:16px">● Live</div>
+                </div>
+                <div class="tag" style="margin-bottom:14px">Model slots</div>
+                <div class="slot" id="slot1"><div class="slot-icon" style="background:#fbeee8"><img src="assets/claude.svg"></div><div><div style="font-size:21px;font-weight:600">Brain</div><div style="font-size:16px;color:#888">Writes every reply</div></div><div class="slot-val" style="margin-left:auto;font-size:19px;font-weight:600;color:#3b37a3">Claude</div></div>
+                <div class="slot" id="slot2"><div class="slot-icon" style="background:#eef0f3"><img src="assets/openai.svg"></div><div><div style="font-size:21px;font-weight:600">Backup</div><div style="font-size:16px;color:#888">Takes over if the Brain fails</div></div><div class="slot-val" style="margin-left:auto;font-size:19px;font-weight:600;color:#3b37a3">GPT</div></div>
+                <div class="slot" id="slot3"><div class="slot-icon" style="background:#eaf1ff"><img src="assets/gemini.svg"></div><div><div style="font-size:21px;font-weight:600">Computer use</div><div style="font-size:16px;color:#888">Works on your screen</div></div><div class="slot-val" style="margin-left:auto;font-size:19px;font-weight:600;color:#3b37a3">Claude</div></div>
+                <div class="tag" style="margin:26px 0 14px">Personality</div>
+                <div id="build-prompt" style="font-size:20px;line-height:1.5;color:#333;padding:18px 22px;border-radius:16px;border:1px solid #ececf2;min-height:96px"></div>
+            </div>
+        </div>
+        <svg id="build-cursor" width="36" height="36" viewBox="0 0 24 24" style="position:absolute;filter:drop-shadow(0 4px 6px rgb(0 0 0/.3))"><path d="M4 2l16 9-7 2-3 7z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>
+    </div>
+
+    <!-- 5. Feature: just text it -->
+    <div class="scene" id="s-text">
+        <div class="phone" id="phone" style="left:745px;top:100px">
+            <div class="screen">
+                <div class="island"></div>
+                <div style="padding:70px 0 14px;text-align:center;border-bottom:1px solid #eee;background:#fafafa">
+                    <div style="width:58px;height:58px;margin:0 auto 6px;border-radius:50%;background:radial-gradient(120% 90% at 20% 0%,#b9b6ff,transparent 60%),#3b37a3"></div>
+                    <div style="font-size:15px;font-weight:600">Mochi ›</div>
+                </div>
+                <div id="chat" style="padding-top:14px"></div>
+            </div>
+        </div>
+        <div class="h-lg" id="text-l" style="position:absolute;right:1290px;top:430px;text-align:right">Just</div>
+        <div class="h-lg grad-text" id="text-r" style="position:absolute;left:1290px;top:430px">text it.</div>
+        <div class="sub" id="text-sub" style="position:absolute;left:0;right:0;bottom:60px;text-align:center">iMessage or SMS. No new app.</div>
+    </div>
+
+    <!-- 6. Feature: computer use -->
+    <div class="scene" id="s-computer">
+        <div class="center" style="justify-content:flex-start;padding-top:96px">
+            <div class="pill" id="cu-pill">Computer use</div>
+            <div class="h-md" id="cu-h" style="margin-top:26px;text-align:center">It does the work <span class="grad-text">on your computer.</span></div>
+        </div>
+        <div class="window" id="cu-win" style="left:310px;top:360px;width:1300px;height:640px;background:#eef0f6">
+            <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">Files — Desktop</div></div>
+            <div id="cu-grid" style="padding:34px 40px;display:grid;grid-template-columns:repeat(8,1fr);gap:22px"></div>
+        </div>
+        <div id="cu-toast" class="card" style="left:1250px;top:690px;width:430px;padding:22px 26px;background:#fff;color:#111;border:none;box-shadow:0 30px 60px -10px rgb(5 3 30/.5)">
+            <div style="font-size:15px;color:#888;font-weight:600;margin-bottom:6px">MOCHI · NOW</div>
+            <div style="font-size:21px;line-height:1.35">Sorted 46 screenshots into folders by month. Nothing deleted ✓</div>
+        </div>
+        <svg id="cu-cursor" width="40" height="40" viewBox="0 0 24 24" style="position:absolute;filter:drop-shadow(0 4px 6px rgb(0 0 0/.3))"><path d="M4 2l16 9-7 2-3 7z" fill="#3b37a3" stroke="#fff" stroke-width="1.5"/></svg>
+    </div>
+
+    <!-- 7. Feature: any model -->
+    <div class="scene" id="s-models">
+        <div class="center">
+            <div class="h-lg" id="m-h" style="text-align:center">Bring <span class="grad-text">any model.</span></div>
+            <div id="m-row" style="display:flex;gap:48px;margin-top:80px"></div>
+            <div class="sub" id="m-sub" style="margin-top:60px">Your keys. Your providers. Even local ones.</div>
+        </div>
+    </div>
+
+    <!-- 8. Feature: private -->
+    <div class="scene" id="s-private">
+        <div class="center">
+            <svg id="lock" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="url(#lockg)" stroke-width="1.6" stroke-linecap="round">
+                <defs><linearGradient id="lockg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#7d79d8"/></linearGradient></defs>
+                <rect x="4" y="11" width="16" height="10" rx="2.5"/><path id="shackle" d="M8 11V7a4 4 0 0 1 8 0v4"/>
+            </svg>
+            <div class="h-lg" id="p-h" style="margin-top:50px;text-align:center">Private <span class="grad-text">by design.</span></div>
+            <div class="sub" id="p-sub" style="margin-top:28px">Your conversations stay on your machine, encrypted.</div>
+        </div>
+    </div>
+
+    <!-- 9. Rapid montage -->
+    <div class="scene" id="s-montage"><div class="center"><div class="h-xl" id="mon-word"></div></div></div>
+
+    <!-- 10. End card -->
+    <div class="scene" id="s-end">
+        <div class="center">
+            <div id="end-row" style="display:flex;align-items:center;gap:32px">
+                <svg viewBox="-30 -30 60 60" width="150" height="150">
+                    <g transform="translate(-12 3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
+                    <g transform="translate(12 -3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
+                </svg>
+                <div class="h-lg">OpenBots <span class="grad-text">2.0</span></div>
+            </div>
+            <div class="sub" id="end-sub" style="margin-top:34px;font-size:40px">Available now</div>
+            <div class="btn" id="end-btn" style="margin-top:60px">Start building →</div>
+            <div class="sub" id="end-url" style="margin-top:40px;font-size:28px">github.com/openbots-ai/openbots</div>
+        </div>
+    </div>
+
+    <div class="grain"></div>
+    <div id="flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none"></div>
+</div>
+
+<script>
+// Everything is a pure function of time, so a frame grabber can seek to any frame deterministically.
+const FPS = 30
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const prog = (t, a, b) => clamp((t - a) / (b - a))
+const lerp = (a, b, p) => a + (b - a) * p
+const outExpo = (p) => (p === 1 ? 1 : 1 - Math.pow(2, -10 * p))
+const outBack = (p) => { const c = 1.6; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2) }
+const inOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2)
+
+// Rise-and-unblur entrance used for nearly every text element
+function reveal(el, t, start, dur = 0.7, dist = 40) {
+    const p = outExpo(prog(t, start, start + dur))
+    el.style.opacity = p
+    el.style.transform = `translateY(${(1 - p) * dist}px)`
+    el.style.filter = `blur(${(1 - p) * 14}px)`
+}
+
+// Scene list: [id, start, end] in seconds. Hard cuts between them, like the original.
+const SCENES = [
+    ['s-intro', 0, 2.6],
+    ['s-logo', 2.6, 6.6],
+    ['s-kinetic', 6.6, 9.4],
+    ['s-build', 9.4, 15.4],
+    ['s-text', 15.4, 21.4],
+    ['s-computer', 21.4, 27.0],
+    ['s-models', 27.0, 31.0],
+    ['s-private', 31.0, 34.6],
+    ['s-montage', 34.6, 38.2],
+    ['s-end', 38.2, 44.0],
+]
+const DURATION = 44.0
+
+// Backdrop palettes per scene: four blob colors + base
+const PALETTES = {
+    'deep':   ['#3b37a3', '#7d79d8', '#1c1953', '#5b56d6', '#0b0926'],
+    'bright': ['#5b56d6', '#b9b6ff', '#3b37a3', '#7d79d8', '#151245'],
+    'dusk':   ['#2a2768', '#3b37a3', '#7d79d8', '#120f3a', '#0b0926'],
+}
+const SCENE_PAL = { 's-intro': 'deep', 's-logo': 'bright', 's-kinetic': 'deep', 's-build': 'dusk', 's-text': 'bright',
+    's-computer': 'dusk', 's-models': 'deep', 's-private': 'dusk', 's-montage': 'bright', 's-end': 'bright' }
+
+function backdrop(t, pal, intensity) {
+    const c = PALETTES[pal]
+    $('stage').style.background = c[4]
+    const blobs = ['b1', 'b2', 'b3', 'b4']
+    const orbit = [[0.3, 0.35, 0.21], [0.7, 0.4, 0.17], [0.45, 0.75, 0.13], [0.6, 0.2, 0.25]]
+    blobs.forEach((id, i) => {
+        const el = $(id)
+        const [x, y, sp] = orbit[i]
+        const s = (900 + 220 * Math.sin(t * sp * 2 + i)) * intensity
+        el.style.width = el.style.height = s + 'px'
+        el.style.left = `calc(${(x + 0.1 * Math.sin(t * sp + i * 2)) * 100}% - ${s / 2}px)`
+        el.style.top = `calc(${(y + 0.1 * Math.cos(t * sp * 1.3 + i)) * 100}% - ${s / 2}px)`
+        el.style.background = c[i]
+        el.style.opacity = 0.85
+    })
+}
+
+function blink(root, t) {
+    // Quick blink every ~2.2s
+    const ph = (t % 2.2) / 2.2
+    const s = ph > 0.92 ? Math.max(0.08, Math.abs(Math.cos((ph - 0.92) / 0.08 * Math.PI))) : 1
+    root.querySelectorAll('.eye').forEach((e) => e.setAttribute('transform', `scale(1 ${s})`))
+}
+
+const KINETIC = ['Your AI.', 'Your models.', 'Your rules.', 'Your phone.']
+const MONTAGE = ['Reminders', 'Web search', 'Check-ins', 'Handoffs', 'Quiet hours', 'Watches', 'Group chats', 'Analytics']
+const CHAT = [
+    ['me', 'remind me to call mom at 6', 0.6],
+    ['them', 'done ✓ I’ll text you at 6pm', 1.5],
+    ['me', 'also find me a sushi spot near work for friday', 2.4],
+    ['them', 'Sora on 5th, 4.7★, booked 7:30 for two 🍣', 3.5],
+]
+const PROMPT = 'Warm, quick, a little playful. Keep replies short and never send anything without asking first.'
+const MODELS = ['claude', 'openai', 'gemini', 'grok']
+
+// Built once: chat bubbles, desktop files, model logos
+CHAT.forEach(([who, txt], i) => { const b = document.createElement('div'); b.className = `bubble ${who}`; b.id = 'chat' + i; b.textContent = txt; $('chat').appendChild(b) })
+for (let i = 0; i < 24; i++) {
+    const f = document.createElement('div'); f.id = 'file' + i
+    f.style.cssText = 'height:96px;border-radius:12px;background:linear-gradient(160deg,#dfe3ee,#c8cddc);position:relative'
+    $('cu-grid').appendChild(f)
+}
+MODELS.forEach((m, i) => {
+    const d = document.createElement('div'); d.id = 'model' + i
+    d.style.cssText = 'width:190px;height:190px;border-radius:44px;background:#fff;display:grid;place-items:center;box-shadow:0 30px 60px -15px rgb(5 3 30/.6)'
+    d.innerHTML = `<img src="assets/${m}.svg" style="width:100px;height:100px">`
+    $('m-row').appendChild(d)
+})
+
+function render(t) {
+    const cur = SCENES.find(([, a, b]) => t >= a && t < b) || SCENES[SCENES.length - 1]
+    const [id, s0, s1] = cur
+    const lt = t - s0
+    SCENES.forEach(([sid]) => ($(sid).style.display = sid === id ? 'block' : 'none'))
+
+    // Backdrop intensity: the intro blooms from black
+    const intensity = id === 's-intro' ? lerp(0.05, 1, outExpo(prog(lt, 0, 2.2))) : 1
+    backdrop(t, SCENE_PAL[id], intensity)
+    $('aurora').style.opacity = id === 's-intro' ? outExpo(prog(lt, 0, 1.6)) : 1
+
+    // White flash on a few hard cuts, a staple of the style
+    const flashAt = [2.6, 6.6, 34.6, 38.2]
+    const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
+    $('flash').style.opacity = f * 0.55
+
+    // Slow push-in on every scene keeps it alive between beats
+    const zoom = 1 + 0.03 * prog(lt, 0, s1 - s0)
+    $(id).style.transform = `scale(${zoom})`
+
+    if (id === 's-intro') {
+        reveal($('intro-t'), t, 0.7, 0.9, 20)
+        const out = prog(lt, 2.1, 2.6)
+        if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
+    }
+
+    if (id === 's-logo') {
+        const p = outBack(prog(lt, 0, 0.7))
+        $('logo-mark').style.transform = `scale(${lerp(0.3, 1, p)})`
+        $('logo-mark').style.opacity = prog(lt, 0, 0.25)
+        reveal($('logo-word'), lt, 0.35, 0.7, 50)
+        // "2.0" slams in from large
+        const v = outExpo(prog(lt, 1.2, 1.6))
+        $('logo-ver').style.opacity = v
+        $('logo-ver').style.transform = `scale(${lerp(2.4, 1, v)})`
+        $('logo-ver').style.filter = `blur(${(1 - v) * 20}px)`
+        reveal($('logo-sub'), lt, 1.9, 0.7, 24)
+        blink($('s-logo'), lt + 1.0)
+    }
+
+    if (id === 's-kinetic') {
+        const step = 0.7
+        const i = Math.min(KINETIC.length - 1, Math.floor(lt / step))
+        const w = $('kin-word')
+        const last = i === KINETIC.length - 1
+        w.innerHTML = last ? `Your <span class="grad-text">phone.</span>` : KINETIC[i]
+        const lp = outExpo(prog(lt - i * step, 0, 0.3))
+        w.style.opacity = lp
+        w.style.transform = `translateY(${(1 - lp) * 60}px) scale(${last ? lerp(1, 1.06, prog(lt - i * step, 0, 0.7)) : 1})`
+        w.style.filter = `blur(${(1 - lp) * 16}px)`
+    }
+
+    if (id === 's-build') {
+        reveal($('build-pill'), lt, 0.1, 0.6)
+        reveal($('build-h'), lt, 0.25, 0.8, 50)
+        reveal($('build-sub'), lt, 0.5, 0.8)
+        const wp = outExpo(prog(lt, 0.2, 1.2))
+        $('build-win').style.transform = `translateY(${(1 - wp) * 500}px) rotate(${(1 - wp) * 4}deg)`
+        $('build-win').style.opacity = clamp(wp * 2)
+        ;['slot1', 'slot2', 'slot3'].forEach((s, i) => {
+            const sp = outBack(prog(lt, 1.4 + i * 0.45, 1.8 + i * 0.45))
+            const el = $(s)
+            el.style.opacity = clamp(sp)
+            el.style.transform = `translateX(${(1 - sp) * 80}px)`
+            el.style.borderColor = lt > 1.6 + i * 0.45 && lt < 2.3 + i * 0.45 ? '#7d79d8' : '#ececf2'
+        })
+        const n = Math.floor(clamp((lt - 3.0) / 2.0) * PROMPT.length)
+        $('build-prompt').innerHTML = PROMPT.slice(0, n) + (lt > 3 && lt % 0.8 < 0.45 ? '<span style="color:#3b37a3">|</span>' : '')
+        $('build-live').style.opacity = lt > 5.2 ? 1 : 0.25
+        // Cursor visits each slot
+        const pts = [[1700, 1000], [1600, 480], [1600, 570], [1600, 660], [1400, 820]]
+        const ci = Math.min(pts.length - 2, Math.floor(clamp((lt - 1.2) / 0.5, 0, pts.length - 1.001)))
+        const cp = inOut(clamp(((lt - 1.2) / 0.5) - ci))
+        const [x0, y0] = pts[ci], [x1, y1] = pts[ci + 1]
+        $('build-cursor').style.left = lerp(x0, x1, cp) + 'px'
+        $('build-cursor').style.top = lerp(y0, y1, cp) + 'px'
+        $('build-cursor').style.opacity = prog(lt, 1.0, 1.3)
+    }
+
+    if (id === 's-text') {
+        const pp = outExpo(prog(lt, 0, 1.0))
+        $('phone').style.transform = `translateY(${(1 - pp) * 700}px)`
+        // Headline splits around the phone
+        const hp = outExpo(prog(lt, 0.3, 1.1))
+        $('text-l').style.opacity = hp; $('text-r').style.opacity = hp
+        $('text-l').style.transform = `translateX(${(1 - hp) * 200}px)`
+        $('text-r').style.transform = `translateX(${-(1 - hp) * 200}px)`
+        $('text-l').style.filter = $('text-r').style.filter = `blur(${(1 - hp) * 14}px)`
+        CHAT.forEach(([, , at], i) => {
+            const bp = outBack(prog(lt, at + 0.4, at + 0.8))
+            const el = $('chat' + i)
+            el.style.opacity = clamp(bp)
+            el.style.transform = `scale(${lerp(0.6, 1, bp)})`
+            el.style.transformOrigin = CHAT[i][0] === 'me' ? 'right bottom' : 'left bottom'
+        })
+        reveal($('text-sub'), lt, 4.6, 0.7)
+    }
+
+    if (id === 's-computer') {
+        reveal($('cu-pill'), lt, 0.05, 0.6)
+        reveal($('cu-h'), lt, 0.2, 0.8, 50)
+        const wp = outExpo(prog(lt, 0.3, 1.3))
+        $('cu-win').style.transform = `translateY(${(1 - wp) * 400}px) scale(${lerp(0.9, 1, wp)})`
+        $('cu-win').style.opacity = clamp(wp * 2)
+        // Files fly into three month folders
+        for (let i = 0; i < 24; i++) {
+            const el = $('file' + i)
+            const folder = i % 3
+            const start = 1.6 + i * 0.07
+            const p = inOut(prog(lt, start, start + 0.5))
+            const col = i % 8, row = Math.floor(i / 8)
+            const tx = (folder * 2 - col) * 152 + 152, ty = -row * 118
+            el.style.transform = `translate(${tx * p}px, ${ty * p}px) scale(${lerp(1, 0.4, p)})`
+            el.style.opacity = 1 - p * 0.9
+            el.style.background = p >= 1 ? '#3b37a3' : 'linear-gradient(160deg,#dfe3ee,#c8cddc)'
+        }
+        // Three folders labelled by month appear in the first row's slots 1, 3, 5
+        ;[1, 3, 5].forEach((slot, k) => {
+            const el = $('file' + slot)
+            const p = prog(lt, 1.4, 1.8)
+            if (p > 0) {
+                el.style.opacity = 1; el.style.transform = `scale(${lerp(0.7, 1, outBack(p))})`
+                el.style.background = 'linear-gradient(160deg,#7d79d8,#3b37a3)'
+                el.innerHTML = `<div style="position:absolute;bottom:-32px;left:0;right:0;text-align:center;font-size:17px;color:#333;font-weight:600">${['Aug', 'Sep', 'Oct'][k]}</div>`
+            }
+        })
+        const tp = outBack(prog(lt, 4.0, 4.5))
+        $('cu-toast').style.opacity = clamp(tp)
+        $('cu-toast').style.transform = `translateY(${(1 - tp) * 60}px)`
+        const cx = lerp(900, 640, inOut(prog(lt, 1.2, 3.6))), cy = lerp(1000, 560, inOut(prog(lt, 1.2, 2.2)))
+        $('cu-cursor').style.left = cx + 'px'; $('cu-cursor').style.top = cy + 'px'
+        $('cu-cursor').style.opacity = prog(lt, 1.0, 1.3) * (1 - prog(lt, 4.2, 4.5))
+    }
+
+    if (id === 's-models') {
+        reveal($('m-h'), lt, 0.05, 0.8, 50)
+        MODELS.forEach((_, i) => {
+            const p = outBack(prog(lt, 0.6 + i * 0.18, 1.1 + i * 0.18))
+            const el = $('model' + i)
+            el.style.opacity = clamp(p)
+            el.style.transform = `translateY(${(1 - p) * 120 + Math.sin(t * 2 + i) * 8}px) rotate(${(1 - p) * -12}deg)`
+        })
+        reveal($('m-sub'), lt, 1.8, 0.7)
+    }
+
+    if (id === 's-private') {
+        const lp = outBack(prog(lt, 0, 0.6))
+        $('lock').style.transform = `scale(${lerp(0.4, 1, lp)})`
+        $('lock').style.opacity = clamp(lp)
+        // Shackle drops shut
+        $('shackle').setAttribute('transform', `translate(0 ${lerp(-3, 0, outBack(prog(lt, 0.7, 1.0)))})`)
+        reveal($('p-h'), lt, 0.9, 0.8, 50)
+        reveal($('p-sub'), lt, 1.3, 0.8)
+    }
+
+    if (id === 's-montage') {
+        const step = (s1 - s0) / MONTAGE.length
+        const i = Math.min(MONTAGE.length - 1, Math.floor(lt / step))
+        const w = $('mon-word')
+        w.textContent = MONTAGE[i]
+        const lp = outExpo(prog(lt - i * step, 0, 0.18))
+        w.style.opacity = lp
+        w.style.transform = `scale(${lerp(1.25, 1, lp)})`
+        w.style.filter = `blur(${(1 - lp) * 10}px)`
+        // Alternate the base every cut for the strobe-like rhythm
+        $('stage').style.background = i % 2 ? '#3b37a3' : '#0b0926'
+        $('aurora').style.opacity = i % 2 ? 0.5 : 1
+    }
+
+    if (id === 's-end') {
+        const p = outExpo(prog(lt, 0, 0.9))
+        $('end-row').style.opacity = p
+        $('end-row').style.transform = `scale(${lerp(0.85, 1, p)})`
+        $('end-row').style.filter = `blur(${(1 - p) * 16}px)`
+        reveal($('end-sub'), lt, 0.6, 0.7)
+        const bp = outBack(prog(lt, 1.1, 1.6))
+        $('end-btn').style.opacity = clamp(bp)
+        $('end-btn').style.transform = `scale(${lerp(0.7, 1, bp)})`
+        reveal($('end-url'), lt, 1.5, 0.7)
+        blink($('s-end'), lt)
+        // Fade to black at the very end
+        $('flash').style.background = '#000'
+        $('flash').style.opacity = prog(lt, 5.0, 5.8)
+    } else {
+        $('flash').style.background = '#fff'
+    }
+}
+
+window.DURATION = DURATION
+window.FPS = FPS
+window.seek = (frame) => render(frame / FPS)
+
+// Live preview when opened in a browser (the renderer passes ?render to disable this)
+if (!location.search.includes('render')) {
+    const t0 = performance.now()
+    const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop) }
+    loop()
+} else {
+    render(0)
+}
+</script>
+</body>
+</html>
