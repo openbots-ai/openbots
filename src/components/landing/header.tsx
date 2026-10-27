@@ -41,7 +41,7 @@ export const Header = () => {
                     nativeButton={false}
                     render={
                         <a href="/dashboard">
-                            Explore the builder <ArrowRight data-icon="inline-end" />
+                            Start building <ArrowRight data-icon="inline-end" />
                         </a>
                     }
                 />

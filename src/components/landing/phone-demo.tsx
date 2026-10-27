@@ -293,7 +293,6 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                         {contact.name}
                         <ChevronRight className="size-3 text-neutral-400" />
                     </span>
-                    <span className="mt-0.5 text-[10px] text-neutral-500">{contact.role}</span>
                 </div>
             </div>
 

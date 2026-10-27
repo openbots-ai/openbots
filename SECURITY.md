@@ -78,7 +78,7 @@ other members' texts never reach the agent, its history or the model.
 - **Releases** of the engine are built by GitHub Actions: npm with provenance, Docker signed with cosign plus a build
   attestation. The engine never updates itself. See [runner/README.md](runner/README.md) for how to verify.
 - **The dashboard** requires the workspace owner's sign-in (Clerk) for every function.
-- **Computer use** is off until the owner turns it on for a Windows or Mac computer in Connections. Only the owner,
+- **Computer use** is off until the owner turns it on for a Windows, Mac or Linux computer in Connections. Only the owner,
   in their own one-to-one chat with the agent, can start a task. Claude must ask the owner ("Reply YES") before
   anything that can't be undone, each task stops after 200 steps or 30 minutes, and texting "stop" cancels it. Web
   pages and documents on the screen can try to mislead Claude into doing something else; the system prompt treats
