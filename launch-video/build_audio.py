@@ -83,7 +83,7 @@ from music import make_music, make_trap
 STYLE = os.environ.get('MUSIC_STYLE', 'trapA')
 HARD = STYLE.startswith('trap')
 # stereo; the drop lands on the logo hit, the stinger on "Own"
-music = (make_trap if HARD else make_music)(TOTAL, T['B1'] + 0.38, wt('close', 3), STYLE)
+music = np.zeros((N, 2)) if STYLE == 'none' else (make_trap if HARD else make_music)(TOTAL, T['B1'] + 0.38, wt('close', 3), STYLE)
 # A finished track can replace the synthesized one: MUSIC_FILE=path MUSIC_START=seconds-into-the-track (to line its
 # drop up with the logo reveal at T['B1'] + 0.38, set MUSIC_START to (drop time in the track) - that moment).
 if os.environ.get('MUSIC_FILE'):
@@ -103,7 +103,7 @@ env = np.convolve(env, np.ones(k) / k, mode='same'); env = lp(env, 6); env = np.
 duck = 1 - (0.38 if HARD else 0.5) * env
 # set the music's level from the voice: about 11 dB under the speech when nobody is talking, ducked a few dB more under it
 active = np.abs(vo) > 0.05; vo_rms = np.sqrt((vo[active] ** 2).mean())
-m_rms = np.sqrt((music[int(T['B1'] * SR):] ** 2).mean())
+m_rms = max(1e-9, np.sqrt((music[int(T['B1'] * SR):] ** 2).mean()))
 music = music * ((0.42 if HARD else 0.28) * vo_rms / m_rms) * duck[:, None]
 # the logo-hit impact and the sfx stay un-ducked
 sfx *= 0.9 / np.abs(sfx).max() if np.abs(sfx).max() > 0.9 else 1
