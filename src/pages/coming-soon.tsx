@@ -20,7 +20,7 @@ export function ComingSoon({ title }: { title: string }) {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-4 max-w-md text-balance">
-                        We are putting the finishing touches on this page. Join early access and we will text you when it is live.
+                        We are putting the finishing touches on this page. In the meantime, the builder is open.
                     </p>
                 </StaggerItem>
                 <StaggerItem className="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -28,7 +28,7 @@ export function ComingSoon({ title }: { title: string }) {
                         size="lg"
                         className="type-body h-12 px-7"
                         nativeButton={false}
-                        render={<a href="/#early-access">Join early access</a>}
+                        render={<a href="/dashboard">Explore the builder</a>}
                     />
                     <Button
                         variant="ghost"

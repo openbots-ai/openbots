@@ -29,7 +29,7 @@ const footerLinks = [
 
 export default function Footer() {
     return (
-        <footer className="mx-auto max-w-6xl px-6 pb-10 pt-20">
+        <footer className="mx-auto max-w-6xl px-6 pb-10 pt-8">
             <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
                 <div className="col-span-2">
                     <Logo />
@@ -54,9 +54,6 @@ export default function Footer() {
 
             <div className="type-caption text-muted-foreground mt-14 flex flex-col justify-between gap-3 pt-6 sm:flex-row">
                 <span>© {new Date().getFullYear()} OpenBots. All rights reserved.</span>
-                <span className="flex items-center gap-2">
-                    <span className="size-2 rounded-full bg-violet-500" /> In development
-                </span>
             </div>
         </footer>
     )

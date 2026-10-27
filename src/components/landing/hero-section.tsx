@@ -8,7 +8,7 @@ const CreateAgentDemo = lazy(() => import('@/components/landing/create-agent-dem
 
 export default function HeroSection() {
     return (
-        <section className="bg-background relative">
+        <section className="bg-background relative pb-24 md:pb-32">
             <AgentCursors />
             <Stagger
                 onMount
@@ -23,7 +23,7 @@ export default function HeroSection() {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
-                        <span data-cursor-target="phrase" className="whitespace-nowrap">Build it piece by piece.</span> Pick the model behind every single part, set its personality, voice and rules, and decide what it remembers. Then just text it in iMessage.
+                        <span data-cursor-target="phrase" className="whitespace-nowrap">Build it piece by piece.</span> Pick the model behind every single part, set its personality and rules, and decide what it knows. Then just text it in iMessage.
                     </p>
                 </StaggerItem>
                 <StaggerItem>
@@ -45,7 +45,6 @@ export default function HeroSection() {
                 <Suspense fallback={<div className="min-h-[40rem]" />}>
                     <CreateAgentDemo />
                 </Suspense>
-                <p className="type-caption text-muted-foreground mt-6 text-center">Example agents · not live assistants yet</p>
             </div>
         </section>
     )

@@ -1,15 +1,13 @@
 import { useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Bookmark, Play } from 'lucide-react'
+import { Bookmark } from 'lucide-react'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 import { useLoopedSteps } from '@/components/landing/use-looped-steps'
-import { ProviderMark, VoiceAvatar } from '@/components/agent-config-bar'
+import { ProviderMark } from '@/components/agent-config-bar'
 import { SLOT_ICONS } from '@/components/slot-icons'
-import { Progress } from '@/components/ui/progress'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { voiceOf } from '@/lib/agent-options'
 import { cn } from '@/lib/utils'
 import { BRAIN_MODELS } from '@convex/lib/models'
 
@@ -72,54 +70,6 @@ export function BrainMock() {
     )
 }
 
-// Voice: the voice switches and the voice note's waveform reshapes and recolours with it
-const VOICE_PICKS = [
-    { id: 'susan', flag: '🇺🇸' },
-    { id: 'theo', flag: '🇬🇧' },
-    { id: 'mei', flag: '🇨🇦' },
-]
-// A distinct, deterministic waveform per voice
-const shapeFor = (n: number) => Array.from({ length: 26 }, (_, k) => 8 + Math.abs(Math.sin(k * (0.45 + n * 0.32) + n * 1.7)) * 34)
-const SHAPES = VOICE_PICKS.map((_, n) => shapeFor(n))
-
-export function VoiceMock() {
-    const [ref, i] = useCycle(VOICE_PICKS.length, 2200)
-    const voice = voiceOf(VOICE_PICKS[i].id)
-    return (
-        <div ref={ref} className="flex w-full max-w-sm flex-col gap-5">
-            <div className="flex flex-wrap justify-center gap-2">
-                {VOICE_PICKS.map((p, k) => (
-                    <span
-                        key={p.id}
-                        className={cn(
-                            'flex items-center gap-2 rounded-full bg-white py-1.5 pr-3 pl-1.5 text-[13px] font-medium shadow-sm transition-all duration-300',
-                            k === i ? 'scale-105 ring-2 ring-neutral-900' : 'opacity-55 ring-1 ring-black/8',
-                        )}>
-                        <VoiceAvatar voice={p.id} className="size-6 text-[11px]" />
-                        {voiceOf(p.id).name}
-                        <span className="text-[14px] leading-none">{p.flag}</span>
-                    </span>
-                ))}
-            </div>
-            <div className={cn(card, 'flex items-center gap-4 p-5')}>
-                <motion.span animate={{ backgroundColor: `hsl(${voice.hue} 58% 50%)` }} transition={{ duration: 0.5 }} className="grid size-12 shrink-0 place-items-center rounded-full text-white">
-                    <Play className="ml-0.5 size-5" fill="currentColor" />
-                </motion.span>
-                <span className="flex h-16 flex-1 items-center gap-[3px]">
-                    {SHAPES[i].map((h, k) => (
-                        <motion.span
-                            key={k}
-                            className="flex-1 rounded-full"
-                            animate={{ height: h, backgroundColor: `hsl(${voice.hue} 55% 58%)`, scaleY: [1, 0.55, 1] }}
-                            transition={{ height: { duration: 0.5, ease }, backgroundColor: { duration: 0.5 }, scaleY: { duration: 0.9, repeat: Infinity, delay: k * 0.04 } }}
-                        />
-                    ))}
-                </span>
-            </div>
-        </div>
-    )
-}
-
 // Personality: creativity and reply length change, and the reply bubble grows and gets playful
 const PERSONALITIES = [
     { creativity: 0.2, length: 'short', lines: [0.5], sparkle: false },
@@ -170,7 +120,7 @@ export function PersonalityMock() {
     )
 }
 
-// Memory: things it learns drop into memory one by one, then one gets forgotten
+// Notes: what you tell it drops into its notes one by one, then you delete one
 const MEMORIES = [
     { emoji: '🥬', text: 'vegetarian' },
     { emoji: '💸', text: '$600 trips' },
@@ -188,10 +138,10 @@ export function MemoryMock() {
             <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-[14px] font-semibold">
                     <Bookmark className="size-4" />
-                    Memory
+                    Notes
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-neutral-500">
-                    Remember
+                    Share with contacts
                     <Switch checked size="sm" className="pointer-events-none" />
                 </span>
             </div>
@@ -211,63 +161,6 @@ export function MemoryMock() {
                         </motion.span>
                     ))}
                 </AnimatePresence>
-            </div>
-        </div>
-    )
-}
-
-// Decisions (Jev): an incoming text is scanned and scored, then routed
-const SCORES = [
-    { label: 'Urgent', value: 94 },
-    { label: 'Needs your yes', value: 88 },
-]
-
-export function DecisionsMock() {
-    const ref = useRef<HTMLDivElement>(null)
-    // 0 message arrives, 1 Jev scans it, 2 the answers land
-    const step = useLoopedSteps(ref, [1000, 1500], 3000)
-    const DecisionsIcon = SLOT_ICONS.decisions
-    return (
-        <div ref={ref} className="flex w-full max-w-sm flex-col gap-3">
-            <div className={cn(card, 'relative flex items-center gap-3 overflow-hidden p-3.5')}>
-                <AgentAvatar name="Waffles" className="size-9 shrink-0" />
-                <span className="flex-1 space-y-1.5">
-                    <span className="block h-2.5 w-3/4 rounded-full bg-neutral-200" />
-                    <span className="block h-2.5 w-1/2 rounded-full bg-neutral-200" />
-                </span>
-                {step === 1 && (
-                    <motion.span
-                        className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-fuchsia-400/35 to-transparent"
-                        initial={{ x: -96 }}
-                        animate={{ x: 400 }}
-                        transition={{ duration: 0.75, repeat: Infinity, ease: 'linear' }}
-                    />
-                )}
-            </div>
-            <div className={cn(card, 'space-y-3.5 p-4')}>
-                <div className="flex items-center gap-2 text-[13px] font-semibold">
-                    <DecisionsIcon className="size-4 text-neutral-500" />
-                    <ProviderMark provider="typesafe" className="size-4" />
-                    Jev
-                </div>
-                {SCORES.map((s) => (
-                    <div key={s.label} className="grid grid-cols-[104px_minmax(0,1fr)_40px] items-center gap-3 text-[12px]">
-                        <span className="text-neutral-600">{s.label}</span>
-                        <Progress value={step >= 2 ? s.value : 0} className="[&_[data-slot=progress-indicator]]:duration-700" />
-                        <span className="text-right font-mono tabular-nums">{step >= 2 ? `${s.value}%` : '–'}</span>
-                    </div>
-                ))}
-                <div className="flex items-center gap-3 border-t border-neutral-100 pt-3 text-[12px]">
-                    <span className="w-[104px] text-neutral-600">Send to</span>
-                    <AnimatePresence>
-                        {step >= 2 && (
-                            <motion.span initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5 rounded-full bg-neutral-100 py-0.5 pr-2.5 pl-0.5 font-medium">
-                                <AgentAvatar name="Mochi" className="size-5" />
-                                Mochi
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                </div>
             </div>
         </div>
     )

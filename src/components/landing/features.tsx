@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { ArrowRight, Check, Lock, MousePointer2, type LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { SectionHeading } from '@/components/landing/section-heading'
+import { SECTION, SectionHeading } from '@/components/landing/section-heading'
 import { useLoopedSteps } from '@/components/landing/use-looped-steps'
-import { BrainMock, DecisionsMock, MemoryMock, PersonalityMock, VoiceMock } from '@/components/landing/feature-mocks'
+import { BrainMock, MemoryMock, PersonalityMock } from '@/components/landing/feature-mocks'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
 import { ProviderMark } from '@/components/agent-config-bar'
@@ -236,22 +236,20 @@ const SlotPicker = ({ slot }: { slot: SlotId }) => {
 
 // Each card shows one thing you customize, changing on its own
 const features = [
-    { label: 'Computer use', title: 'Choose how it uses a browser.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
+    { label: 'Computer use', title: 'Let it work your computer.', mock: <ComputerMock />, picker: <SlotPicker slot="computer" /> },
     { label: 'Brain', title: 'Pick the brain behind every reply.', mock: <BrainMock /> },
-    { label: 'Voice', title: 'Give it a voice. Literally.', mock: <VoiceMock /> },
     { label: 'Personality', title: 'Tune its personality, down to the vibe.', mock: <PersonalityMock /> },
-    { label: 'Personal memory', title: 'You decide what it remembers.', mock: <MemoryMock /> },
-    { label: 'Decisions', title: 'Quick calls, each with a confidence score.', mock: <DecisionsMock /> },
+    { label: 'Notes', title: 'You decide what it knows.', mock: <MemoryMock /> },
 ]
 
 export default function Features() {
     return (
         <section
             id="features"
-            className="scroll-mt-24 px-6 py-28 md:py-40">
+            className={`${SECTION} px-6`}>
             <SectionHeading
                 title="You pick its superpowers."
-                description="Pick its brain, how it browses, what it remembers and how it sounds. Every part is your build. (Demos below are illustrative.)"
+                description="Pick its brain, let it use your computer, tune its personality and give it notes. Every part is your build."
             />
 
             <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
@@ -270,7 +268,7 @@ export default function Features() {
                                 <p className="type-label text-muted-foreground">{label}</p>
                                 <h3 className="type-heading mt-2 text-balance">{title}</h3>
                                 <a
-                                    href="/#early-access"
+                                    href="/#get-started"
                                     className="type-body mt-6 inline-flex items-center gap-1.5 font-medium">
                                     Learn more
                                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
