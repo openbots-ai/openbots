@@ -44,7 +44,7 @@ export function PricingPage() {
             </Stagger>
 
             <section className="grid gap-5 pb-20 md:grid-cols-3 md:pb-28">
-                <article className="rounded-[2rem] bg-neutral-950 p-8 text-white md:col-span-2 md:p-10">
+                <article className="bg-primary text-primary-foreground rounded-[2rem] p-8 md:col-span-2 md:p-10">
                     <p className="type-label text-white/60">your base price</p>
                     <div className="mt-5 flex items-end gap-3">
                         <span className="text-7xl font-medium tracking-[-0.06em]">$0</span>

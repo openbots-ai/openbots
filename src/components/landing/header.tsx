@@ -6,10 +6,8 @@ import { sectionHref } from '@/lib/site'
 
 const menuItems = [
     { name: 'Product', href: sectionHref('product') },
-    { name: 'Features', href: '/features' },
-    { name: 'Use cases', href: sectionHref('use-cases') },
+    { name: 'Features', href: sectionHref('features') },
     { name: 'Why OpenBots', href: sectionHref('why-openbots') },
-    { name: 'Trust', href: sectionHref('trust') },
     { name: 'Pricing', href: '/pricing' },
 ]
 
