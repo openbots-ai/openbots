@@ -23,7 +23,6 @@ const AV = (n, ext = 'webp') => `assets/avatars/${n}.${ext}`;
 const stage = document.getElementById('stage');
 const scenesEl = document.getElementById('scenes');
 const subsEl = document.getElementById('subs');
-const bar = document.getElementById('wipebar');
 const tl = gsap.timeline({ paused: true });
 const $ = (root, sel) => root.querySelector(sel);
 const $$ = (root, sel) => [...root.querySelectorAll(sel)];
@@ -58,7 +57,7 @@ function boot(timing) {
       <div class="display" id="a2" style="display:flex;gap:.26em">${words("shouldn't live on")}</div>
       <div class="display" id="a3" style="position:relative;display:flex;gap:.26em">
         <span class="w" id="a3a">someone else's</span><span class="w" id="a3b">computer.</span>
-        <i id="strike" style="position:absolute;left:-1%;top:56%;height:12px;width:102%;border-radius:6px;background:var(--ink-grad);transform:scaleX(0);transform-origin:0 50%"></i>
+        <i id="strike" style="position:absolute;left:-1%;top:56%;height:12px;width:102%;border-radius:6px;background:var(--primary);transform:scaleX(0);transform-origin:0 50%"></i>
       </div>
       <div class="display" id="a4" style="margin-top:6px"><span class="w g-ink">make it yours.</span></div>
     </div>`);
@@ -88,10 +87,10 @@ function boot(timing) {
       </div>
     </div>`;
   const logo = (size, id) => `<div class="logo" style="position:relative;width:420px;height:420px;transform:scale(${size / 420});transform-origin:50% 50%">${eye(-12, 3, id + 'a')}${eye(12, -3, id + 'b')}</div>`;
-  els.B1 = scene('B1', 'dark', `
+  els.B1 = scene('B1', 'light', `
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding-bottom:70px">
       ${logo(400, 'x')}
-      <div id="wm" style="font-size:132px;font-weight:600;letter-spacing:-0.04em;margin-top:-20px">OpenBots</div>
+      <div id="wm" style="font-size:132px;font-weight:600;letter-spacing:-0.04em;margin-top:-20px;color:#0a0a0a">OpenBots</div>
     </div>`);
   {
     const s = els.B1; const eyes = $$(s, '.eyewrap'); const t0 = T.B1 + WIPE * 0.6;
@@ -125,7 +124,7 @@ function boot(timing) {
     <div class="phone" id="${id}" style="left:${left}px;top:${top}px;transform:scale(${scale})">
       <div class="body-shadow"></div>
       <div class="screen">
-        <div style="position:absolute;left:0;right:0;top:0;z-index:5;background:linear-gradient(#fff 60%,rgb(255 255 255 / 0));padding-bottom:12px">
+        <div style="position:absolute;left:0;right:0;top:0;z-index:5;background:#fff;padding-bottom:12px">
           ${statusBar}
           <div style="display:flex;flex-direction:column;align-items:center;padding-top:18px">
             <img src="${avatar}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;box-shadow:0 4px 10px rgb(0 0 0 / .15)">
@@ -172,7 +171,7 @@ function boot(timing) {
 
   /* ============ D  models ============ */
   const slot = (id, left, name, blurb, val, prov, on) => `
-    <div class="card slot" id="${id}" style="position:absolute;left:${left}px;top:170px;width:520px;height:300px;padding:36px 40px;${on ? 'background:#fff;box-shadow:0 0 0 2px rgb(35 32 78 / .18),0 30px 60px -20px rgb(35 32 78 / .25)' : ''}">
+    <div class="card slot" id="${id}" style="position:absolute;left:${left}px;top:170px;width:520px;height:300px;padding:36px 40px;${on ? 'background:#fff;box-shadow:0 0 0 2px #23204e' : ''}">
       <div style="display:flex;align-items:center;gap:14px;font-size:38px;letter-spacing:-0.02em"><div class="chip-icon" style="width:52px;height:52px;border-radius:15px">${prov}</div>${name}</div>
       <div style="font-size:22px;color:var(--muted);font-weight:400;margin-top:14px;line-height:1.35;height:62px">${blurb}</div>
       <div class="sel" style="margin-top:24px;height:64px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .08);display:flex;align-items:center;padding:0 22px;font-size:27px;gap:12px;position:relative;overflow:hidden">${val}</div>
@@ -194,47 +193,50 @@ function boot(timing) {
     models.forEach(([p, label], i) => {
       const t = i === 0 ? times[0] - 0.55 : times[i] - 0.05;
       if (i === 0) tl.set(v, { textContent: label }, t); else { tl.to(v, { y: -26, autoAlpha: 0, duration: 0.14, ease: 'power2.in' }, t - 0.1); tl.set(v, { textContent: label }, t + 0.04); tl.fromTo(v, { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.2, ease: 'power3.out', immediateRender: false }, t + 0.04); }
-      tl.to(provs[i], { backgroundImage: 'radial-gradient(130% 130% at 0% 45%, #2a2670, #110e3a)', color: '#fff', scale: 1.07, duration: 0.2, ease: 'back.out(2)' }, t);
-      if (i > 0) tl.to(provs[i - 1], { backgroundImage: 'none', backgroundColor: '#f5f5f5', color: '#525252', scale: 1, duration: 0.2 }, t);
+      tl.to(provs[i], { backgroundColor: '#23204e', color: '#fff', scale: 1.07, duration: 0.2, ease: 'back.out(2)' }, t);
+      if (i > 0) tl.to(provs[i - 1], { backgroundColor: '#f5f5f5', color: '#525252', scale: 1, duration: 0.2 }, t);
     });
   }
 
   /* ============ E  runs on your machine ============ */
-  const pillKey = (txt, id) => `<div class="pill key" id="${id}" style="position:absolute;background:rgb(255 255 255 / .12);box-shadow:0 0 0 1px rgb(255 255 255 / .2);font-size:30px;padding:14px 28px;gap:12px">${ICON.key.replace('<svg', '<svg width="30" height="30"')}${txt}</div>`;
-  els.E = scene('E', 'dark', `
-    <div id="laptop" style="position:absolute;left:380px;top:170px;width:880px">
-      <div style="height:540px;border-radius:30px;background:linear-gradient(160deg,#1c1953,#110e3a);box-shadow:0 0 0 2px #3b37a3,0 0 120px rgb(125 121 216 / .35);padding:34px 40px;position:relative">
-        <div style="display:flex;align-items:center;gap:14px;font-size:30px;color:#c7c5ff"><i style="width:14px;height:14px;border-radius:50%;background:#34d399;box-shadow:0 0 14px #34d399"></i>engine · running on your machine</div>
-        <div id="rows" style="margin-top:34px;display:flex;flex-direction:column;gap:16px"></div>
-        <div id="lockbadge" style="position:absolute;right:40px;bottom:36px;display:flex;align-items:center;gap:14px;font-size:28px;color:#fff"><span style="width:56px;height:56px;border-radius:16px;background:rgb(255 255 255 / .12);display:grid;place-items:center">${ICON.lock.replace('<svg', '<svg width="30" height="30"')}</span>encrypted on disk</div>
+  const pillKey = (txt, id) => `<div class="pill key" id="${id}" style="position:absolute;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .12);color:#23204e;font-size:30px;padding:14px 28px;gap:12px">${ICON.key.replace('<svg', '<svg width="30" height="30"')}${txt}</div>`;
+  els.E = scene('E', 'light', `
+    <div id="laptop" style="position:absolute;left:150px;top:110px;width:740px;height:434px;transform:scale(1.62);transform-origin:0 0">
+      <div class="device device-macbook-pro">
+        <div class="device-frame">
+          <div style="width:100%;height:100%;background:#fff;position:relative;overflow:hidden;border-radius:3px;padding:30px 34px 0">
+            <div style="display:flex;align-items:center;gap:9px;font-size:15px;color:#404040"><i style="width:9px;height:9px;border-radius:50%;background:#10b981"></i>engine · running on your machine</div>
+            <div id="rows" style="margin-top:18px;display:flex;flex-direction:column;gap:9px"></div>
+            <div id="lockbadge" style="position:absolute;right:34px;bottom:16px;display:flex;align-items:center;gap:9px;font-size:14px;color:#0a0a0a"><span style="width:32px;height:32px;border-radius:9px;background:#f5f5f5;box-shadow:0 0 0 1px rgb(0 0 0 / .08);display:grid;place-items:center">${ICON.lock.replace('<svg', '<svg width="17" height="17"')}</span>encrypted on disk</div>
+          </div>
+        </div>
+        <div class="device-stripe"></div><div class="device-header"></div><div class="device-sensors"></div><div class="device-btns"></div><div class="device-power"></div><div class="device-home"></div>
       </div>
-      <div style="height:26px;margin:0 -60px;border-radius:0 0 40px 40px;background:linear-gradient(#3a3687,#1c1953)"></div>
     </div>
-    <div id="cloud" style="position:absolute;left:1450px;top:230px;width:330px;text-align:center;color:rgb(255 255 255 / .55)">
-      <div style="width:200px;margin:0 auto;opacity:.8">${ICON.cloud}</div>
-      <div style="font-size:32px;margin-top:6px">backend</div>
+    <div id="cloud" style="position:absolute;left:1500px;top:230px;width:330px;text-align:center;color:#737373">
+      <div style="width:200px;margin:0 auto">${ICON.cloud}</div>
+      <div style="font-size:34px;margin-top:6px;color:#0a0a0a">backend</div>
       <div style="font-size:24px;font-weight:400;margin-top:8px;line-height:1.35">settings and daily counts only</div>
-      <div id="zero" style="margin-top:26px;display:inline-flex;align-items:center;gap:12px;font-size:30px;color:#fff;background:rgb(255 255 255 / .1);border-radius:99px;padding:10px 24px;box-shadow:0 0 0 1px rgb(255 255 255 / .18)"><b style="font-size:42px;font-weight:600">0</b> message text</div>
+      <div id="zero" style="margin-top:26px;display:inline-flex;align-items:center;gap:12px;font-size:30px;color:#0a0a0a;background:#f5f5f5;border-radius:99px;padding:10px 24px;box-shadow:0 0 0 1px rgb(0 0 0 / .08)"><b style="font-size:42px;font-weight:600">0</b> message text</div>
     </div>
-    <div id="flyer" class="bub imsg imsg-me me" style="position:absolute;z-index:3;left:1260px;top:420px;font-size:26px;padding:12px 22px;border-radius:26px;opacity:0">hey</div>
-    <div id="barrier" style="position:absolute;left:1370px;top:350px;width:10px;height:270px;border-radius:6px;background:#fff;opacity:0;box-shadow:0 0 40px rgb(255 255 255 / .6)"></div>
+    <div id="flyer" class="bub imsg imsg-me me" style="position:absolute;z-index:3;left:1250px;top:420px;font-size:26px;padding:12px 22px;border-radius:26px;opacity:0">hey</div>
+    <div id="barrier" style="position:absolute;left:1425px;top:350px;width:10px;height:270px;border-radius:6px;background:#0a0a0a;opacity:0"></div>
     ${pillKey('OpenAI key', 'k1')}${pillKey('Anthropic key', 'k2')}${pillKey('Twilio key', 'k3')}`);
   {
     const s = els.E; const rows = $(s, '#rows');
-    ['contacts', 'conversations', 'messages'].forEach((r) => rows.appendChild(html(`<div class="rw" style="height:62px;border-radius:14px;background:rgb(255 255 255 / .08);display:flex;align-items:center;padding:0 24px;font-size:28px;color:#e0e0ff;gap:14px">${r}<span style="margin-left:auto;letter-spacing:.2em;color:#8f8bff">••••••••••</span></div>`)));
+    ['contacts', 'conversations', 'messages'].forEach((r) => rows.appendChild(html(`<div class="rw" style="height:36px;border-radius:9px;background:#f5f5f5;display:flex;align-items:center;padding:0 14px;font-size:15px;color:#171717;gap:10px">${r}<span style="margin-left:auto;letter-spacing:.2em;color:#a3a3a3">••••••••••</span></div>`)));
     const rw = $$(s, '.rw'); const T0 = T.E + WIPE;
-    tl.fromTo($(s, '#laptop'), { y: 80, autoAlpha: 0, scale: 0.94 }, { y: 0, autoAlpha: 1, scale: 1, duration: 0.7, ease: 'power4.out' }, T0 - 0.15);
-    tl.fromTo(rw, { autoAlpha: 0, x: -30 }, { autoAlpha: 1, x: 0, duration: 0.35, stagger: 0.12, ease: 'power3.out' }, wt('local', 2));
+    tl.fromTo($(s, '#laptop'), { y: 80, autoAlpha: 0, scale: 1.5 }, { y: 0, autoAlpha: 1, scale: 1.62, duration: 0.7, ease: 'power4.out' }, T0 - 0.15);
+    tl.fromTo(rw, { autoAlpha: 0, x: -20 }, { autoAlpha: 1, x: 0, duration: 0.35, stagger: 0.12, ease: 'power3.out' }, wt('local', 2));
     fadeUp($(s, '#cloud'), wt('local', 8) - 0.1);
     // keys fly onto the laptop on "Your keys."
-    [['#k1', 410, 610], ['#k2', 700, 640], ['#k3', 1000, 610]].forEach(([q, x, y], i) => {
+    [['#k1', 330, 640], ['#k2', 650, 660], ['#k3', 990, 640]].forEach(([q, x, y], i) => {
       tl.fromTo($(s, q), { left: x, top: 1000, autoAlpha: 0, scale: 0.8 }, { left: x, top: y - 40, autoAlpha: 1, scale: 1, duration: 0.45, ease: 'back.out(1.7)' }, wt('local', 6) + i * 0.1 - 0.15);
       tl.to($(s, q), { top: y - 250, scale: 0.7, autoAlpha: 0, duration: 0.4, ease: 'power3.in' }, wt('local', 6) + 0.8 + i * 0.08);
     });
-    tl.fromTo($(s, '#lockbadge'), { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.4 }, wt('local', 8));
-    // message tries to leave, hits the wall
+    tl.fromTo($(s, '#lockbadge'), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.4 }, wt('local', 8));
+    // a message tries to leave and hits the wall
     const fl = $(s, '#flyer');
-    tl.set(fl, { autoAlpha: 1 }, wt('local', 10) - 0.1);
     tl.fromTo(fl, { x: 0, scale: 0.7, autoAlpha: 0 }, { x: 62, scale: 1, autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, wt('local', 10) - 0.1);
     tl.fromTo($(s, '#barrier'), { autoAlpha: 0, scaleY: 0.4 }, { autoAlpha: 1, scaleY: 1, duration: 0.25, ease: 'back.out(2)' }, wt('local', 10) + 0.35);
     tl.to(fl, { x: -30, autoAlpha: 0, scale: 0.8, duration: 0.35, ease: 'power2.in' }, wt('local', 10) + 0.45);
@@ -252,7 +254,7 @@ function boot(timing) {
       </div>
     </div>
     <div class="agent-chip chip-tofu" id="cur" style="left:900px;top:760px">${CURSOR('#d97706')}<img src="${AV('tofu', 'png')}"><div><b>Tofu</b><span id="curlbl">using the computer</span></div></div>
-    <div class="card on-card" id="appr" style="position:absolute;left:1210px;top:190px;width:610px;padding:34px;background:#fff;box-shadow:0 40px 90px -30px rgb(35 32 78 / .35),0 0 0 1px rgb(0 0 0 / .06)">
+    <div class="card on-card" id="appr" style="position:absolute;left:1210px;top:190px;width:610px;padding:34px;background:#fff;box-shadow:0 30px 60px -30px rgb(0 0 0 / .18),0 0 0 1px rgb(0 0 0 / .06)">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px"><img src="${AV('tofu', 'png')}" style="width:62px;height:62px;border-radius:50%"><div><div style="font-size:30px">Tofu</div><div style="font-size:20px;color:#737373;font-weight:400">iMessage · now</div></div></div>
       <div class="row them"><p class="bub imsg imsg-them imsg-tail them" style="font-size:25px;max-width:100%;padding:14px 22px;border-radius:28px;line-height:1.4">Computer use: type “Montreal”. Reply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.</p></div>
       <div class="row me" id="yes" style="margin-top:18px"><p class="bub imsg imsg-me imsg-tail me" style="font-size:30px;padding:10px 32px;border-radius:30px;max-width:100%">YES</p></div>
@@ -284,7 +286,7 @@ function boot(timing) {
   }
 
   /* ============ G  allowed people ============ */
-  const person = (name, sub, hue, badge, id) => `<div class="prow" id="${id}" style="display:flex;align-items:center;gap:22px;height:104px;padding:0 28px;border-radius:22px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06);margin-bottom:16px"><span style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;background:linear-gradient(160deg,hsl(${hue} 70% 68%),hsl(${hue} 55% 42%))">${name[0]}</span><div><div style="font-size:32px">${name}</div><div style="font-size:22px;color:#737373;font-weight:400">${sub}</div></div>${badge}</div>`;
+  const person = (name, sub, hue, badge, id) => `<div class="prow" id="${id}" style="display:flex;align-items:center;gap:22px;height:104px;padding:0 28px;border-radius:22px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06);margin-bottom:16px"><span style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;background:hsl(${hue} 50% 52%)">${name[0]}</span><div><div style="font-size:32px">${name}</div><div style="font-size:22px;color:#737373;font-weight:400">${sub}</div></div>${badge}</div>`;
   const okBadge = '<span class="pill" style="margin-left:auto;background:#ecfdf5;color:#047857;font-size:22px;padding:8px 18px">verified</span>';
   els.G = scene('G', 'light', `
     <div class="card" style="position:absolute;left:130px;top:150px;width:760px;height:600px;padding:40px">
@@ -334,7 +336,7 @@ function boot(timing) {
         </div>
       </div>
     </div>
-    <div id="live" class="pill" style="position:absolute;left:1150px;top:780px;background:#ecfdf5;color:#047857;font-size:36px;padding:18px 40px;box-shadow:0 20px 50px -10px rgb(5 150 105 / .35)"><i style="width:16px;height:16px;border-radius:50%;background:#10b981"></i>Live</div>`);
+    <div id="live" class="pill" style="position:absolute;left:1150px;top:780px;background:#ecfdf5;color:#047857;font-size:36px;padding:18px 40px"><i style="width:16px;height:16px;border-radius:50%;background:#10b981"></i>Live</div>`);
   {
     const s = els.H; const t0 = T.H + WIPE; const st = $$(s, '.step');
     tl.fromTo($(s, '#dash'), { y: 80, autoAlpha: 0, scale: 0.95 }, { y: 0, autoAlpha: 1, scale: 1, duration: 0.7, ease: 'power4.out' }, t0 - 0.2);
@@ -351,13 +353,13 @@ function boot(timing) {
   }
 
   /* ============ I  close ============ */
-  els.I = scene('I', 'dark', `
+  els.I = scene('I', 'light', `
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:50px">
       <div id="ilogo" style="margin-top:-60px;margin-bottom:-30px">${logo(260, 'z')}</div>
-      <div class="display" id="i1" style="font-size:168px;letter-spacing:-0.04em;display:flex;gap:.24em">${words('Own your', 'g-lav')}<span class="w g-lav">agent.</span></div>
+      <div class="display" id="i1" style="font-size:168px;letter-spacing:-0.04em;display:flex;gap:.24em"><span class="w">Own</span><span class="w">your</span><span class="w g-ink">agent.</span></div>
       <div id="ipills" style="display:flex;gap:22px;margin-top:44px">
-        <div class="pill ip" style="background:rgb(255 255 255 / .12);box-shadow:0 0 0 1px rgb(255 255 255 / .22);font-size:32px;padding:16px 34px">open source · MIT</div>
-        <div class="pill ip" style="background:#fff;color:#23204e;font-size:32px;padding:16px 34px;font-weight:600">github.com/shidhartha-sen/opendots</div>
+        <div class="pill ip" style="background:#f5f5f5;box-shadow:0 0 0 1px rgb(0 0 0 / .08);font-size:32px;padding:16px 34px">open source · MIT</div>
+        <div class="pill ip" style="background:#23204e;color:#fff;font-size:32px;padding:16px 34px;font-weight:600">github.com/shidhartha-sen/opendots</div>
       </div>
     </div>`);
   {
@@ -376,7 +378,7 @@ function boot(timing) {
     else {
       tl.set(e, { visibility: 'visible' }, t);
       const p = { v: 0 };
-      tl.fromTo(p, { v: 0 }, { v: 1, duration: WIPE, ease: 'power3.inOut', onUpdate() { const x = p.v * (1920 + 220); e.style.clipPath = `inset(0 ${Math.max(0, 1920 - x) / 19.2}% 0 0)`; bar.style.transform = `translateX(${x - 220}px)`; bar.style.visibility = p.v > 0 && p.v < 1 ? 'visible' : 'hidden'; } }, t);
+      tl.fromTo(p, { v: 0 }, { v: 1, duration: WIPE, ease: 'power3.inOut', onUpdate() { const x = p.v * (1920 + 220); e.style.clipPath = `inset(0 ${Math.max(0, 1920 - x) / 19.2}% 0 0)`; } }, t);
       e.style.zIndex = k;
       tl.set(els[order[k - 1]], { visibility: 'hidden' }, t + WIPE);
       e.style.clipPath = 'inset(0 100% 0 0)';
@@ -385,18 +387,17 @@ function boot(timing) {
   });
 
   /* ---------- subtitles ---------- */
-  const DARK = new Set(['meet', 'local', 'close']);
   timing.lines.forEach((ln) => {
     const w = ln.words; const chunks = []; let cur = [];
     w.forEach((x, i) => { cur.push(x); const end = /[.?!]$/.test(x.w) || (/,$/.test(x.w) && cur.length >= 4) || cur.length >= 7; if (end || i === w.length - 1) { chunks.push(cur); cur = []; } });
     chunks.forEach((ch, ci) => {
-      const c = html(`<div class="cap ${DARK.has(ln.id) ? 'dk' : ''}">${ch.map((x) => `<span class="cw">${x.w}</span>`).join(' ')}</div>`);
+      const c = html(`<div class="cap">${ch.map((x) => `<span class="cw">${x.w}</span>`).join(' ')}</div>`);
       subsEl.appendChild(c);
       const a = ln.start + ch[0].s - 0.05;
       const b = (chunks[ci + 1] ? ln.start + chunks[ci + 1][0].s - 0.05 : ln.start + ln.dur + 0.35);
       tl.fromTo(c, { autoAlpha: 0, y: 18, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.16, ease: 'power2.out' }, a);
       tl.to(c, { autoAlpha: 0, duration: 0.12 }, b - 0.12);
-      $$(c, '.cw').forEach((sp, i) => tl.to(sp, { color: DARK.has(ln.id) ? '#23204e' : '#ffffff', duration: 0.1 }, ln.start + ch[i].s));
+      $$(c, '.cw').forEach((sp, i) => tl.to(sp, { color: '#ffffff', duration: 0.1 }, ln.start + ch[i].s));
     });
   });
 
