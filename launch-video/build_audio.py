@@ -84,6 +84,18 @@ STYLE = os.environ.get('MUSIC_STYLE', 'trapA')
 HARD = STYLE.startswith('trap')
 # stereo; the drop lands on the logo hit, the stinger on "Own"
 music = (make_trap if HARD else make_music)(TOTAL, T['B1'] + 0.38, wt('close', 3), STYLE)
+# A finished track can replace the synthesized one: MUSIC_FILE=path MUSIC_START=seconds-into-the-track (to line its
+# drop up with the logo reveal at T['B1'] + 0.38, set MUSIC_START to (drop time in the track) - that moment).
+if os.environ.get('MUSIC_FILE'):
+    import subprocess, tempfile
+    tmp = tempfile.mktemp(suffix='.wav')
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.environ['MUSIC_FILE'], '-ar', str(SR), '-ac', '2', tmp], check=True)
+    ext, _ = sf.read(tmp); os.remove(tmp)
+    a = int(float(os.environ.get('MUSIC_START', '0')) * SR)
+    seg = ext[a:a + N]
+    music = np.zeros((N, 2)); music[:len(seg)] = seg
+    fade = np.ones(N); f0 = int((TOTAL - 1.3) * SR); fade[f0:] = np.linspace(1, 0, N - f0); music *= fade[:, None]
+    music /= max(1e-6, np.abs(music).max()); HARD = True
 
 # duck the music under the voice
 env = np.abs(vo); k = int(0.12 * SR)
