@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shidhartha-sen/opendots.git"
+    "url": "git+https://github.com/openbots-ai/openbots.git"
   },
   "type": "module",
   "engines": {

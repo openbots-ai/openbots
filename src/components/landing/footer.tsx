@@ -1,5 +1,6 @@
 import { Logo } from '@/components/landing/logo'
-import { sectionHref } from '@/lib/site'
+import { GitHubMark } from '@/components/landing/github-mark'
+import { CHANGELOG_URL, GITHUB_URL, sectionHref } from '@/lib/site'
 
 const footerLinks = [
     {
@@ -7,15 +8,15 @@ const footerLinks = [
         links: [
             { label: 'Features', href: sectionHref('features') },
             { label: 'Pricing', href: '/pricing' },
-            { label: 'Changelog', href: '/changelog' },
-            { label: 'Docs', href: '/docs' },
+            { label: 'Changelog', href: CHANGELOG_URL },
+            { label: 'Docs', href: `${GITHUB_URL}#readme` },
         ],
     },
     {
         name: 'Company',
         links: [
             { label: 'About', href: '/' },
-            { label: 'Contact', href: '/contact' },
+            { label: 'GitHub', href: GITHUB_URL },
         ],
     },
     {
@@ -53,7 +54,14 @@ export default function Footer() {
             </div>
 
             <div className="type-caption text-muted-foreground mt-14 flex flex-col justify-between gap-3 pt-6 sm:flex-row">
-                <span>© {new Date().getFullYear()} OpenBots. All rights reserved.</span>
+                <span>© {new Date().getFullYear()} OpenBots. Open source under the <a href={`${GITHUB_URL}/blob/main/LICENSE`} className="hover:text-foreground underline underline-offset-4">MIT license</a>.</span>
+                <a
+                    href={GITHUB_URL}
+                    aria-label="OpenBots on GitHub"
+                    className="hover:text-foreground flex items-center gap-2 duration-150">
+                    <GitHubMark className="size-4" />
+                    openbots-ai/openbots
+                </a>
             </div>
         </footer>
     )
