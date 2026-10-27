@@ -14,7 +14,7 @@ export const ANSWER_TIMEOUT_MS = 30 * 60_000
 export const TEXT_LIMIT = 300
 // The longest task the agent can hand over
 export const TASK_LIMIT = 2000
-const ASK_SUFFIX = 'Reply YES to go ahead, or tell me what to do instead.'
+const ASK_SUFFIX = 'Reply YES to go ahead, YES ALL to stop asking me, or tell me what to do instead.'
 
 export const short = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text)
 const describe = (e: unknown) => (e instanceof Error ? e.message : String(e))

@@ -26,6 +26,9 @@ describe('agent instructions', () => {
         expect(systemPrompt({ ...base, withOwner: true, canUseComputer: true })).toMatch(/do tasks on their computer/)
         expect(systemPrompt({ ...base, withOwner: true })).not.toMatch(/do tasks on their computer/)
         expect(systemPrompt({ ...base, canUseComputer: true })).not.toMatch(/do tasks on their computer/)
+        const yesAll = { ...base, workspace: { ownerName: 'Sam', timezone: 'UTC', yesAll: true } }
+        expect(systemPrompt({ ...yesAll, withOwner: true, canUseComputer: true })).toMatch(/stop asking/)
+        expect(systemPrompt({ ...base, withOwner: true, canUseComputer: true })).not.toMatch(/stop asking/)
     })
 
     it('says a computer task is already running, in your own chat only', () => {

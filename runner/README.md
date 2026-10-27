@@ -164,8 +164,9 @@ the Brain that hands the task over.
 - It texts "Reply YES to …" before anything that can't be undone (sending, paying, booking, deleting, posting) and
   waits for your answer; it texts you the result when it's done or stuck. Text **stop** in that chat to cancel.
 - Before it types anything, presses Enter (or Cmd/Ctrl+Enter) or pastes, the engine itself texts you the exact text
-  and the app and window it's going to, and does it only if you reply **YES** (or **YES ALL** to allow typing for the
-  rest of that task). Anything else, or no answer within 30 minutes, declines it; a second unanswered request ends the
+  and the app and window it's going to, and does it only if you reply **YES**. Reply **YES ALL** to any of its texts
+  and it stops asking, about typing or anything else, in this task and every later one. Turn **Ask before computer
+  actions** back on in Settings to be asked again. Anything else, or no answer within 30 minutes, declines it; a second unanswered request ends the
   task. Moving the mouse, clicking, scrolling and screenshots aren't asked about.
 - One task at a time, with at most 200 steps or 30 minutes per task. Turning Computer use off, or pausing the agent,
   stops a running task at its next step.

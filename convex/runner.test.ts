@@ -47,6 +47,16 @@ const fields = (a: { name: string; role: string; hue: number; prompt: string; gr
 })
 
 describe('workspaces', () => {
+    it('saves YES ALL from the engine, and the Settings switch turns asking back on', async () => {
+        const { base, owner, token } = await setup()
+        await expect(base.mutation(api.runner.yesAll, { token: newToken() })).rejects.toThrow(/invalid or was revoked/)
+        await base.mutation(api.runner.yesAll, { token })
+        expect((await base.query(api.runner.config, { token, allowedOnly: true }))?.workspace.yesAll).toBe(true)
+        const ws = (await owner.query(api.workspace.get))!
+        await owner.mutation(api.workspace.update, { name: ws.name, ownerName: ws.ownerName, yesAll: false })
+        expect((await base.query(api.runner.config, { token, allowedOnly: true }))?.workspace.yesAll).toBe(false)
+    })
+
     it("keeps each user's workspace to themselves", async () => {
         const { base, owner, agentId } = await setup()
         await expect(base.query(api.agents.list, {})).rejects.toThrow(/Sign in/)

@@ -56,7 +56,7 @@ describe('computer tasks', () => {
         })
         tasks.start('buy tickets', ctx)
         await settle()
-        expect(sent[0]).toBe('Pay $40 for the tickets? Reply YES to go ahead, or tell me what to do instead.')
+        expect(sent[0]).toBe('Pay $40 for the tickets? Reply YES to go ahead, YES ALL to stop asking me, or tell me what to do instead.')
         expect(tasks.handle(99, 'YES')).toBe(false)
         expect(tasks.handle(7, 'yes')).toBe(true)
         await settle()
@@ -116,7 +116,7 @@ describe('computer tasks', () => {
         tasks.start('t', ctx)
         await settle()
         expect(sent[0].length).toBeLessThanOrEqual(300)
-        expect(sent[0]).toMatch(/q… Reply YES to go ahead, or tell me what to do instead\.$/)
+        expect(sent[0]).toMatch(/q… Reply YES to go ahead, YES ALL to stop asking me, or tell me what to do instead\.$/)
         tasks.handle(7, 'no')
     })
 

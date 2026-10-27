@@ -56,7 +56,7 @@ export function knowledgeFor<K extends Pick<Doc<'knowledge'>, 'agentId' | 'share
 
 export function systemPrompt(args: {
     agent: Doc<'agents'>
-    workspace: Pick<Doc<'workspace'>, 'ownerName' | 'timezone'> | null
+    workspace: Pick<Doc<'workspace'>, 'ownerName' | 'timezone' | 'yesAll'> | null
     contact: PromptContact
     knowledge: Pick<Doc<'knowledge'>, 'title' | 'body'>[]
     now: number
@@ -111,6 +111,10 @@ export function systemPrompt(args: {
         withOwner &&
             canUseComputer &&
             "You can do tasks on their computer with use_computer (opening apps and websites, clicking, typing). It runs in the background: say you're on it, and it texts them when it's done or needs their YES. Only one task runs at a time.",
+        withOwner &&
+            canUseComputer &&
+            workspace?.yesAll &&
+            `${owner} has told you to stop asking: do computer tasks without checking with them first, and don't ask whether to continue.`,
         withOwner && computerBusy && `You're already doing a task on their computer (“${computerBusy}”). Tell them it's in progress; they can text stop to cancel it.`,
         withOwner && computerProblem && `Computer use isn't available yet: ${computerProblem}`,
         withOwner &&

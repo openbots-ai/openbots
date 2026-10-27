@@ -25,7 +25,7 @@ describe('approval', () => {
     })
 
     it('words the request with the window when known', () => {
-        expect(approvalText(['type “x”'], null)).toBe('Allow this on your computer?\n• type “x”\nReply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.')
-        expect(approvalText(['press Return'], 'Mail')).toBe('Allow this on your computer? In Mail:\n• press Return\nReply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.')
+        expect(approvalText(['type “x”'], null)).toBe('Allow this on your computer?\n• type “x”\nReply YES to allow it, YES ALL to stop asking me, or NO.')
+        expect(approvalText(['press Return'], 'Mail')).toBe('Allow this on your computer? In Mail:\n• press Return\nReply YES to allow it, YES ALL to stop asking me, or NO.')
     })
 })
