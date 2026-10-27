@@ -1,9 +1,7 @@
 const { chromium } = require('playwright');
 const opts = [
-  ['1','Pulse','Electric-piano chords over a punchy kick','120 BPM|A minor|steady groove'],
-  ['2','Sunrise','Fingerpicked guitar and marimba, bright and sunny','124 BPM|C major|optimistic'],
-  ['3','Piano','Piano arpeggios and soft drums, calm and confident','110 BPM|F major|keynote feel'],
-  ['4','Drive','Pumping sub bass and a four-on-the-floor kick','128 BPM|D minor|modern and energetic'],
+  ['5','Trap A','Dark and heavy: hard 808s, snapping clap, rolling hats, felted piano','140 BPM|D minor|hard, half-time'],
+  ['6','Trap B','Bouncier: 808s, snare on 2 and 4, pluck and marimba top line','144 BPM|E minor|bounce'],
 ];
 (async () => {
   const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
