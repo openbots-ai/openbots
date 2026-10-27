@@ -6,6 +6,7 @@ export const AgentAvatar = ({ name, className }: { name: string; className?: str
     <img
         src={`/avatars/${name.toLowerCase()}.${['tofu', 'lulu', 'rishi'].includes(name.toLowerCase()) ? 'png' : 'webp'}`}
         alt=""
+        decoding="async"
         draggable={false}
         className={cn('shrink-0 rounded-full object-cover', className)}
     />
