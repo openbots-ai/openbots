@@ -79,17 +79,20 @@ for i, f in enumerate([523, 659, 784, 1047]): ding(wt('close', 3) + i * 0.09, 0.
 for i in range(3): pop(wt('close', 3 + i), 600 + 60 * i, 0.08)
 
 # ---------- music ----------
-from music import make_music
-music = make_music(TOTAL, T['B1'] + 0.38, wt('close', 3))   # stereo; the drop lands on the logo hit, the stinger on "Own"
+from music import make_music, make_trap
+STYLE = os.environ.get('MUSIC_STYLE', 'trapA')
+HARD = STYLE.startswith('trap')
+# stereo; the drop lands on the logo hit, the stinger on "Own"
+music = (make_trap if HARD else make_music)(TOTAL, T['B1'] + 0.38, wt('close', 3), STYLE)
 
 # duck the music under the voice
 env = np.abs(vo); k = int(0.12 * SR)
 env = np.convolve(env, np.ones(k) / k, mode='same'); env = lp(env, 6); env = np.clip(env / (np.percentile(env, 97) + 1e-9), 0, 1)
-duck = 1 - 0.5 * env
+duck = 1 - (0.38 if HARD else 0.5) * env
 # set the music's level from the voice: about 11 dB under the speech when nobody is talking, ducked a few dB more under it
 active = np.abs(vo) > 0.05; vo_rms = np.sqrt((vo[active] ** 2).mean())
 m_rms = np.sqrt((music[int(T['B1'] * SR):] ** 2).mean())
-music = music * (0.28 * vo_rms / m_rms) * duck[:, None]
+music = music * ((0.42 if HARD else 0.28) * vo_rms / m_rms) * duck[:, None]
 # the logo-hit impact and the sfx stay un-ducked
 sfx *= 0.9 / np.abs(sfx).max() if np.abs(sfx).max() > 0.9 else 1
 print('peaks vo %.2f music %.2f sfx %.2f' % (np.abs(vo).max(), np.abs(music).max(), np.abs(sfx).max()))

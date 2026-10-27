@@ -189,3 +189,148 @@ def make_music(total, t_drop, t_hit, style='pulse', seed=11):
     fade = np.ones(N); f0 = int((total - 1.3) * SR); fade[f0:] = np.linspace(1, 0, N - f0)
     mix *= fade[:, None]
     return mix / max(1e-6, np.abs(mix).max())
+
+
+# ======================================================================================================================
+# Hip-hop / trap beats: dry, upfront and hard-hitting (808 sub bass, snapping clap, crisp rolling hats, dark keys).
+# ======================================================================================================================
+TRAP = {
+    # A: dark and heavy, half-time at 140 BPM, D minor
+    'trapA': dict(bpm=140, kick=(0, 7, 10), snare=(8,), hat_step=2, roll_bar=3, keys='piano', mel='piano', swing=0.0,
+                  prog=[dict(r=38, keys=[62, 65, 69], mel=[81, 77, 74, 77], to=45),   # Dm
+                        dict(r=34, keys=[58, 62, 65], mel=[77, 74, 70, 74], to=41),   # Bb
+                        dict(r=41, keys=[60, 65, 69], mel=[81, 77, 72, 77], to=48),   # F
+                        dict(r=36, keys=[60, 64, 67], mel=[79, 76, 72, 76], to=43)]), # C
+    # B: bouncier, snare on 2 and 4 at 144 BPM, E minor, pluck + marimba top line
+    'trapB': dict(bpm=144, kick=(0, 6, 10), snare=(4, 12), hat_step=1, roll_bar=3, keys='pluck', mel='marimba', swing=0.05,
+                  prog=[dict(r=40, keys=[64, 67, 71], mel=[83, 79, 76, 79], to=47),   # Em
+                        dict(r=36, keys=[60, 64, 67], mel=[79, 76, 72, 76], to=43),   # C
+                        dict(r=43, keys=[62, 67, 71], mel=[83, 79, 74, 79], to=50),   # G
+                        dict(r=38, keys=[62, 66, 69], mel=[81, 78, 74, 78], to=45)]), # D
+}
+
+
+def make_trap(total, t_drop, t_hit, style='trapA', seed=5):
+    S = TRAP[style]
+    BEAT = 60 / S['bpm']; BAR = BEAT * 4; S16 = BEAT / 4
+    rng = np.random.default_rng(seed)
+    N = int(total * SR)
+    tt = lambda d: np.arange(int(d * SR)) / SR
+    g0 = t_drop % BAR
+    bus = {k: np.zeros((N, 2)) for k in ('dry', 'rev')}
+
+    def put(name, t, x, gl=1.0, gr=None):
+        gr = gl if gr is None else gr
+        a = int(t * SR)
+        if a >= N or a + len(x) <= 0: return
+        if a < 0: x = x[-a:]; a = 0
+        x = x[: N - a]
+        bus[name][a:a + len(x), 0] += x * gl; bus[name][a:a + len(x), 1] += x * gr
+
+    def kick(t, g=1.0):
+        u = tt(0.3); body = np.sin(2 * np.pi * np.cumsum(50 + 150 * np.exp(-u * 55)) / SR) * np.exp(-u * 11)
+        click = _f(rng.standard_normal(len(u)), 'bp', (1800, 5000)) * np.exp(-u * 260) * 0.35
+        put('dry', t, np.tanh(1.6 * (body + click)) * 0.9 * g)
+    def clap(t, g=1.0):
+        u = tt(0.3); env = np.zeros_like(u)
+        for off in (0.0, 0.010, 0.021): env += np.exp(-np.clip(u - off, 0, None) * 190) * (u >= off)
+        env += 0.55 * np.exp(-u * 17) * (u >= 0.021)
+        x = _f(rng.standard_normal(len(u)), 'bp', (1100, 6500)) * env
+        body = np.sin(2 * np.pi * 195 * u) * np.exp(-u * 38) * 0.35
+        put('dry', t, (x * 0.55 + body) * g); put('rev', t, x * 0.10 * g)
+    def hat(t, g=1.0, open_=False, pan=0.5):
+        d = 0.14 if open_ else 0.032; u = tt(d)
+        x = _f(rng.standard_normal(len(u)), 'highpass', 7500) * np.exp(-u * (26 if open_ else 130)) * np.minimum(1, u / 0.0015)
+        put('dry', t, x * g * (0.16 if open_ else 0.20), 1 - 0.35 * pan, 0.65 + 0.35 * pan)
+    def e808(t, m, d, m2=None, g=1.0):
+        n = int(d * SR); u = np.arange(n) / SR; f0 = note(m)
+        f = f0 * (1 + 1.1 * np.exp(-u * 48))
+        if m2 is not None:
+            s0 = 0.55 * d; f = f * np.where(u > s0, (note(m2) / f0) ** np.clip((u - s0) / (0.4 * d), 0, 1), 1.0)
+        x = np.sin(2 * np.pi * np.cumsum(f) / SR)
+        x = _f(np.tanh(2.4 * x), 'lowpass', 1100)                        # saturation keeps it audible on phone speakers
+        env = np.minimum(1, u / 0.003) * np.exp(-u * 1.9) * np.minimum(1, (d - u) / 0.05)
+        put('dry', t, x * env * g * 0.95)
+    def vp(m, d):                                                         # dark felted piano
+        u = tt(d); f = note(m); x = np.zeros_like(u)
+        for k, (a, dec) in enumerate(((1.0, 2.2), (0.5, 3.4), (0.28, 5.0), (0.12, 7.0)), 1):
+            if f * k < 4000: x += a * np.sin(2 * np.pi * f * k * u) * np.exp(-u * dec)
+        return _f(x, 'lowpass', 2600) * np.minimum(1, u / 0.004)
+    def vpluck(m, d):
+        f = note(m); P = int(round(SR / f)); n = int(d * SR)
+        x = np.zeros(n); x[:P] = rng.uniform(-1, 1, P)
+        a = np.zeros(P + 2); a[0] = 1; a[P] = -0.5 * 0.995; a[P + 1] = -0.5 * 0.995
+        return _f(lfilter([1.0], a, x), 'lowpass', 2800) * np.minimum(1, tt(d) / 0.002) * np.minimum(1, (d - tt(d)) / 0.05)
+    def vmarimba(m, d):
+        u = tt(d); f = note(m)
+        x = np.sin(2 * np.pi * f * u) * np.exp(-u * 8) + 0.35 * np.sin(2 * np.pi * 4 * f * u) * np.exp(-u * 26)
+        return _f(x, 'lowpass', 4000) * np.minimum(1, u / 0.002)
+    V = dict(piano=vp, pluck=vpluck, marimba=vmarimba)
+    def keys(t, notes, g=1.0, d=1.2):
+        x = sum(V[S['keys']](m, d) for m in notes)
+        put('dry', t, x * g * 0.05, 1.0, 0.8); put('dry', t + 0.011, x * g * 0.05, 0.8, 1.0); put('rev', t, x * g * 0.012)
+    def mel(t, m, g=1.0, pan=0.5, d=0.5):
+        x = V[S['mel']](m, d); put('dry', t, x * g * 0.10, 1 - 0.45 * pan, 0.55 + 0.45 * pan); put('rev', t, x * g * 0.015)
+    def snare_roll(t, g=1.0):
+        u = tt(0.12); x = _f(rng.standard_normal(len(u)), 'bp', (1200, 6000)) * np.exp(-u * 40); put('dry', t, x * 0.35 * g)
+    def riser(t0, t1):
+        d = t1 - t0; u = tt(d) / d; x = _f(rng.standard_normal(len(u)), 'bp', (300, 5000)) * (u ** 2.2); put('dry', t0, x * 0.13)
+
+    prog = S['prog']
+    swing = lambda s: (S['swing'] * BEAT if s % 2 == 1 else 0.0)
+
+    # ---- intro: dark keys on their own, hats creeping in, a riser and a snare roll into the drop ----
+    for i, m in enumerate(prog[0]['keys'] + [prog[0]['keys'][0] + 12]): keys(0.15 + i * 0.5, [m], 0.9, d=2.0)
+    t = g0 + BAR
+    while t < t_drop - 0.01:
+        for s in range(0, 16, 2):
+            if t + s * S16 < t_drop - 0.02: hat(t + s * S16, 0.5 + 0.3 * (s % 4 == 0), pan=(s % 8) / 7)
+        t += BAR
+    riser(t_drop - 2.2, t_drop)
+    for k in range(12): snare_roll(t_drop - BEAT * 1.5 + k * (BEAT * 1.5 / 12), 0.3 + 0.7 * k / 11)
+
+    # ---- groove ----
+    nb = int((t_hit - t_drop) / BAR) + 2
+    for b in range(nb):
+        tb = t_drop + b * BAR
+        if tb >= t_hit - 0.02: break
+        ch = prog[b % 4]
+        for s in range(16):
+            ts = tb + s * S16 + swing(s)
+            if ts >= t_hit - 0.02: break
+            nxt = [k for k in S['kick'] if k > s]
+            if s in S['kick']:
+                kick(ts); L8 = ((nxt[0] if nxt else 16) - s) * S16
+                slide = ch['to'] if (b % 4 == 3 and s == S['kick'][-1]) else None
+                e808(ts, ch['r'], L8 * 0.98, slide, 1.0)
+            if s in S['snare']: clap(ts)
+            if s % 2 == 0 or (S['hat_step'] == 1):
+                acc = 1.0 if s % 4 == 0 else (0.7 if s % 2 == 0 else 0.45)
+                if s in (14,) and S['hat_step'] == 2: hat(ts, 0.9, True, pan=0.8)
+                else: hat(ts, acc, pan=(s % 8) / 7)
+            if S['hat_step'] == 2 and s in (3, 11, 15): hat(ts, 0.5, pan=0.3)       # extra 16th ticks
+        # triplet hat roll into the next bar, every fourth bar
+        if b % 4 == S['roll_bar'] and tb + 3 * BEAT < t_hit:
+            for k in range(6): hat(tb + 3 * BEAT + k * (BEAT / 3 / 2) * 2 / 2 * 1.0, 0.45 + 0.1 * k, pan=(k % 2))
+        # chords: a long hit on the one, shorter answers
+        keys(tb, ch['keys'], 1.0, d=BAR * 0.9)
+        keys(tb + 6 * S16, ch['keys'][1:], 0.7, d=0.7); keys(tb + 10 * S16, ch['keys'][:2], 0.6, d=0.6)
+        if tb >= 12.0:
+            for j, s in enumerate((0, 6, 10, 13) if S['mel'] == 'piano' else (0, 3, 6, 8, 10, 13)):
+                if tb + s * S16 < t_hit - 0.02: mel(tb + s * S16, ch['mel'][j % 4] + (12 if tb >= 28.0 and j % 3 == 2 else 0), 1.0 if j == 0 else 0.8, pan=j / 5)
+
+    # ---- stinger: one huge 808 and a held chord, then it ends ----
+    root = prog[0]['r']
+    kick(t_hit, 1.0); e808(t_hit, root, 1.6, None, 1.15)
+    for m in prog[0]['keys'] + [prog[0]['keys'][0] + 12]: keys(t_hit, [m], 1.4, d=2.4)
+
+    # ---- master: nearly dry, a touch of room, full-range and hard-clipped for loudness ----
+    u = np.arange(int(0.45 * SR)) / SR
+    ir = _f(rng.standard_normal(len(u)), 'highpass', 400) * np.exp(-u * 10); ir[0] = 0
+    wet = np.stack([fftconvolve(bus['rev'][:, c], ir)[:N] for c in range(2)], 1)
+    mix = bus['dry'] + wet * 0.5
+    mix = np.stack([_f(mix[:, c], 'lowpass', 16000) for c in range(2)], 1)
+    mix = np.tanh(mix * 0.85)
+    fade = np.ones(N); f0 = int((total - 1.0) * SR); fade[f0:] = np.linspace(1, 0, N - f0)
+    mix *= fade[:, None]
+    return mix / max(1e-6, np.abs(mix).max())
