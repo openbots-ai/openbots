@@ -2,10 +2,10 @@
 const { chromium } = require('playwright');
 (async () => {
   const b = await chromium.launch();
-  const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
+  const p = await b.newPage({ viewport: process.env.AR === '4x5' ? { width: 1080, height: 1350 } : { width: 1920, height: 1080 } });
   p.on('pageerror', (e) => console.log('PAGEERR', e.message));
   p.on('console', (m) => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
-  await p.goto('http://localhost:8123/index.html');
+  await p.goto('http://localhost:8123/index.html' + (process.env.AR ? '?ar=' + process.env.AR : ''));
   await p.waitForFunction(() => window.__ready, null, { timeout: 15000 });
   console.log('total', await p.evaluate(() => window.__total));
   for (const t of process.argv.slice(2)) {

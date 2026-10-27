@@ -201,6 +201,13 @@ TRAP = {
                         dict(r=34, keys=[58, 62, 65], mel=[77, 74, 70, 74], to=41),   # Bb
                         dict(r=41, keys=[60, 65, 69], mel=[81, 77, 72, 77], to=48),   # F
                         dict(r=36, keys=[60, 64, 67], mel=[79, 76, 72, 76], to=43)]), # C
+    # UI groove: light and bouncy for under the interface sounds; plucked keys and a marimba top line, D minor
+    'uiGroove': dict(bpm=122, kick=(0, 6, 10), snare=(4, 12), hat_step=1, roll_bar=3, keys='pluck', mel='marimba', swing=0.03,
+                     bass_gain=0.5, mel_from=4.4,
+                     prog=[dict(r=38, keys=[62, 65, 69], mel=[81, 77, 74, 77], to=45),   # Dm
+                           dict(r=34, keys=[58, 62, 65], mel=[77, 74, 70, 74], to=41),   # Bb
+                           dict(r=41, keys=[60, 65, 69], mel=[81, 77, 72, 77], to=48),   # F
+                           dict(r=36, keys=[60, 64, 67], mel=[79, 76, 72, 76], to=43)]), # C
     # B: bouncier, snare on 2 and 4 at 144 BPM, E minor, pluck + marimba top line
     'trapB': dict(bpm=144, kick=(0, 6, 10), snare=(4, 12), hat_step=1, roll_bar=3, keys='pluck', mel='marimba', swing=0.05,
                   prog=[dict(r=40, keys=[64, 67, 71], mel=[83, 79, 76, 79], to=47),   # Em
@@ -302,7 +309,7 @@ def make_trap(total, t_drop, t_hit, style='trapA', seed=5):
             if s in S['kick']:
                 kick(ts); L8 = ((nxt[0] if nxt else 16) - s) * S16
                 slide = ch['to'] if (b % 4 == 3 and s == S['kick'][-1]) else None
-                e808(ts, ch['r'], L8 * 0.98, slide, 1.0)
+                e808(ts, ch['r'], L8 * 0.98, slide, S.get('bass_gain', 1.0))
             if s in S['snare']: clap(ts)
             if s % 2 == 0 or (S['hat_step'] == 1):
                 acc = 1.0 if s % 4 == 0 else (0.7 if s % 2 == 0 else 0.45)
@@ -315,7 +322,7 @@ def make_trap(total, t_drop, t_hit, style='trapA', seed=5):
         # chords: a long hit on the one, shorter answers
         keys(tb, ch['keys'], 1.0, d=BAR * 0.9)
         keys(tb + 6 * S16, ch['keys'][1:], 0.7, d=0.7); keys(tb + 10 * S16, ch['keys'][:2], 0.6, d=0.6)
-        if tb >= 12.0:
+        if tb >= S.get('mel_from', 12.0):
             for j, s in enumerate((0, 6, 10, 13) if S['mel'] == 'piano' else (0, 3, 6, 8, 10, 13)):
                 if tb + s * S16 < t_hit - 0.02: mel(tb + s * S16, ch['mel'][j % 4] + (12 if tb >= 28.0 and j % 3 == 2 else 0), 1.0 if j == 0 else 0.8, pan=j / 5)
 
