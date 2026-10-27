@@ -15,7 +15,7 @@ import {
     UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useTransform, type MotionValue, type Variants } from 'motion/react'
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { callBackground } from '@/lib/avatars'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
@@ -65,8 +65,8 @@ const contacts: Contact[] = [
         messages: [
             { from: 'them', text: 'checked invoices against payments: 3 overdue, $2,400 total. one client paid this morning ☕️' },
             { from: 'them', text: 'marked that one paid. drafted follow-ups for the other two, with invoice links. ready for your review.' },
-            { from: ME, text: 'call me and walk me through the drafts' },
-            { from: 'them', text: 'calling now 📞 nothing sends until you approve.' },
+            { from: ME, text: 'walk me through the drafts' },
+            { from: 'them', text: 'acme for $1,600 and bright co for $800, both friendly. nothing sends until you approve.' },
         ],
     },
     { name: 'Lulu', role: 'Trip Planner', hue: 45, preview: 'compared 12 stays. 3 fit your $600 trip budget ☀️', time: 'Yesterday' },
@@ -84,6 +84,9 @@ type Step =
 // Each step after the first brings in one new message; `arrives` marks that so only real arrivals animate
 const chatSteps = (chat: number): Step[] => [...contacts[chat].messages!, null].map((_, shown) => ({ view: 'chat', chat, shown, arrives: shown > 0 }))
 
+// The call at the end is off for now; the demo ends in Mochi's chat
+const CALL = false
+
 // Personal life comes first: Tofu plans the weekend, Rishi finds a deal, then Mochi handles work.
 const steps: Step[] = [
     { view: 'list', read: [] },
@@ -97,8 +100,12 @@ const steps: Step[] = [
     { view: 'list', read: [TOFU, RISHI] },
     { view: 'list', read: [TOFU, RISHI], press: MOCHI },
     ...chatSteps(MOCHI),
-    { view: 'call', chat: MOCHI, phase: 'incoming' },
-    { view: 'call', chat: MOCHI, phase: 'answering' },
+    ...(CALL
+        ? ([
+              { view: 'call', chat: MOCHI, phase: 'incoming' },
+              { view: 'call', chat: MOCHI, phase: 'answering' },
+          ] satisfies Step[])
+        : []),
 ]
 
 // The incoming call rings briefly, then the answer slider swipes across
@@ -659,6 +666,10 @@ export function PhoneDemo() {
     const [beat, setBeat] = useState(1)
     const [fit, setFit] = useState(fitScale)
     const inView = useInView(ref, { amount: 0.4 })
+    // The phone starts a little small and grows to full size as it scrolls into view
+    const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'start 0.35'] })
+    const grown = useSpring(useTransform(scrollYProgress, [0, 1], [0.85, 1]), { stiffness: 140, damping: 30 })
+    const still = useReducedMotion()
 
     useEffect(() => {
         const onResize = () => setFit(fitScale())
@@ -671,7 +682,7 @@ export function PhoneDemo() {
     // Step through the beats on a timer while the phone is on screen, then start over
     useEffect(() => {
         if (!inView) return
-        const ringing = beat === RING * 2 + 1
+        const ringing = RING >= 0 && beat === RING * 2 + 1
         if (ringing) {
             const swipe = animate(slide, 1, { delay: 0.4, duration: SWIPE_MS / 1000, ease: 'easeInOut' })
             const id = setTimeout(() => setBeat(beat + 1), 400 + SWIPE_MS + 150)
@@ -704,6 +715,7 @@ export function PhoneDemo() {
                     initial={{ y: 80, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.35, duration: 0.9, ease }}
+                    style={{ scale: still ? 1 : grown }}
                     className="relative aspect-[1350/2760] w-[336px]">
                     {/* Soft shadow behind the device body */}
                     <div

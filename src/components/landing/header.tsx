@@ -40,8 +40,8 @@ export const Header = () => {
                     className="ml-auto hidden md:inline-flex"
                     nativeButton={false}
                     render={
-                        <a href={sectionHref('early-access')}>
-                            Coming soon <ArrowRight data-icon="inline-end" />
+                        <a href="/dashboard">
+                            Explore the builder <ArrowRight data-icon="inline-end" />
                         </a>
                     }
                 />
