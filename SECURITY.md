@@ -125,7 +125,7 @@ other members' texts never reach the agent, its history or the model.
 ## Reporting a vulnerability
 
 Please report vulnerabilities privately through GitHub's private vulnerability reporting:
-[open a security advisory](https://github.com/shidhartha-sen/opendots/security/advisories/new). Don't open a public
+[open a security advisory](https://github.com/openbots-ai/openbots/security/advisories/new). Don't open a public
 issue or pull request for a vulnerability. Include what's affected (dashboard, backend or engine, and the engine
 version if it's the engine), how to reproduce it, and what an attacker could do with it. The maintainers will reply
 in the advisory within a few days and credit you when a fix is published, unless you'd rather not be named.

@@ -67,7 +67,7 @@ static site (the repo includes a `vercel.json`).
 1. **Clone and install.**
 
    ```sh
-   git clone https://github.com/shidhartha-sen/opendots && cd opendots
+   git clone https://github.com/openbots-ai/openbots && cd openbots
    npm ci
    ```
 

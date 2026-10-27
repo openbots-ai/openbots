@@ -199,16 +199,16 @@ npm view openbots-runner@0.2.0 dist.attestations
 npm audit signatures
 
 # Docker: check the image was signed by this repository's release workflow
-cosign verify ghcr.io/shidhartha-sen/openbots-runner:0.2.0 \
-  --certificate-identity-regexp 'https://github.com/shidhartha-sen/opendots/.github/workflows/runner-release.yml@.*' \
+cosign verify ghcr.io/openbots-ai/openbots-runner:0.2.0 \
+  --certificate-identity-regexp 'https://github.com/openbots-ai/openbots/.github/workflows/runner-release.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
-gh attestation verify oci://ghcr.io/shidhartha-sen/openbots-runner:0.2.0 --owner shidhartha-sen
+gh attestation verify oci://ghcr.io/openbots-ai/openbots-runner:0.2.0 --owner openbots-ai
 ```
 
 Or build it yourself from a commit you've read:
 
 ```sh
-git clone https://github.com/shidhartha-sen/opendots && cd opendots
+git clone https://github.com/openbots-ai/openbots && cd openbots
 npm ci && npm run runner:build
 node runner/dist/main.mjs
 ```

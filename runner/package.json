@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shidhartha-sen/opendots.git",
+    "url": "git+https://github.com/openbots-ai/openbots.git",
     "directory": "runner"
   },
   "dependencies": {

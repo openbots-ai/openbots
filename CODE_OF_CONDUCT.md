@@ -60,7 +60,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement privately, through
-a [GitHub private report](https://github.com/shidhartha-sen/opendots/security/advisories/new)
+a [GitHub private report](https://github.com/openbots-ai/openbots/security/advisories/new)
 (say in its title that it is a Code of Conduct report), or by contacting the
 repository maintainers directly on GitHub.
 All complaints will be reviewed and investigated promptly and fairly.

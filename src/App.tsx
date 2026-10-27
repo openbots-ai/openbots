@@ -11,7 +11,6 @@ import Features from '@/components/landing/features'
 import CallToAction from '@/components/landing/call-to-action'
 import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
-import { ContactPage } from '@/pages/contact'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
 import { isCrmPath } from '@/crm/lib/route'
 
@@ -54,7 +53,6 @@ function Page() {
 
     if (path === '/privacy') return <PrivacyPage />
     if (path === '/terms') return <TermsPage />
-    if (path === '/contact') return <ContactPage />
     if (path === '/pricing') return <Suspense fallback={null}><PricingPage /></Suspense>
     if (comingSoon[path]) return <ComingSoon title={comingSoon[path]} />
 

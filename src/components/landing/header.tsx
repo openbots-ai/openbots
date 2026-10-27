@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { ArrowRight, Menu, X } from 'lucide-react'
 import { Logo } from '@/components/landing/logo'
+import { GitHubMark } from '@/components/landing/github-mark'
 import { Button } from '@/components/ui/button'
-import { sectionHref } from '@/lib/site'
+import { GITHUB_URL, sectionHref } from '@/lib/site'
 
 const menuItems = [
     { name: 'Product', href: sectionHref('product') },
@@ -35,9 +36,17 @@ export const Header = () => {
                     ))}
                 </ul>
 
+                {/* The code is one click away, but Start building stays the main action */}
+                <a
+                    href={GITHUB_URL}
+                    aria-label="OpenBots on GitHub"
+                    className="text-muted-foreground hover:text-foreground hover:bg-foreground/6.5 -mr-6 ml-auto grid size-8 place-items-center rounded-full duration-150 max-md:-mr-4">
+                    <GitHubMark className="size-[18px]" />
+                </a>
+
                 <Button
                     size="sm"
-                    className="ml-auto hidden md:inline-flex"
+                    className="hidden md:inline-flex"
                     nativeButton={false}
                     render={
                         <a href="/dashboard">
@@ -49,7 +58,7 @@ export const Header = () => {
                 <button
                     onClick={() => setOpen(!open)}
                     aria-label={open ? 'Close menu' : 'Open menu'}
-                    className="ml-auto md:hidden">
+                    className="md:hidden">
                     {open ? <X className="size-5" /> : <Menu className="size-5" />}
                 </button>
             </nav>
