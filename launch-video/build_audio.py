@@ -79,64 +79,22 @@ for i, f in enumerate([523, 659, 784, 1047]): ding(wt('close', 3) + i * 0.09, 0.
 for i in range(3): pop(wt('close', 3 + i), 600 + 60 * i, 0.08)
 
 # ---------- music ----------
-BPM = 104; beat = 60 / BPM; bar = beat * 4
-music = np.zeros(N)
-note = lambda m: 440 * 2 ** ((m - 69) / 12)
-chords = [[48, 55, 59, 64], [43, 50, 59, 62], [45, 52, 60, 64], [41, 48, 57, 60]]   # Cmaj7, G, Am7, Fmaj7 (voicings)
-def pad(t, d, notes, g):
-    x = np.zeros(int(d * SR)); u = tt(d)
-    for m in notes:
-        for det in (-0.004, 0.004):
-            f = note(m) * (1 + det)
-            for h in range(1, 7): x += np.sin(2 * np.pi * f * h * u) / h ** 1.4
-    env = np.minimum(1, u / 0.5) * np.minimum(1, (d - u) / 0.7); put(music, t, lp(x, 1800) * env, g)
-def pluck(t, m, g):
-    d = 0.38; u = tt(d); f = note(m)
-    x = (np.sin(2 * np.pi * f * u) + 0.35 * np.sin(2 * np.pi * 2 * f * u) + 0.12 * np.sin(2 * np.pi * 3 * f * u)) * np.exp(-u * 11); put(music, t, x, g)
-def bass(t, m, d, g):
-    u = tt(d); x = np.sin(2 * np.pi * note(m) * u) * np.exp(-u * 3.5); put(music, t, x, g)
-def kick(t, g):
-    d = 0.22; u = tt(d); x = np.sin(2 * np.pi * (46 + 95 * np.exp(-u * 32)) * u) * np.exp(-u * 17); put(music, t, x, g)
-def hat(t, g):
-    d = 0.045; u = tt(d); x = bp(rng.standard_normal(len(u)), 6500, 12000) * np.exp(-u * 85); put(music, t, x, g)
-
-t, ci = 0.0, 0
-while t < TOTAL:
-    pad(t, bar * 2 + 0.6, chords[ci % 4], 0.030); t += bar * 2; ci += 1
-t_main = T['C']
-t, ci = 0.0, 0
-while t < TOTAL - 0.5:
-    ch = chords[ci % 4]
-    if t + bar * 2 > T['B2']:
-        # arpeggio across the two bars of this chord, 8th notes
-        for k in range(16):
-            tn = t + k * beat / 2
-            if tn >= T['B2'] and tn < TOTAL - 0.8:
-                m = ch[[0, 1, 2, 3, 2, 1, 3, 2][k % 8]] + 24
-                pluck(tn, m, 0.050 if tn < T['C'] else 0.060)
-    if t + bar * 2 > t_main:
-        for k in range(8):
-            tn = t + k * beat
-            if tn >= t_main - 0.01 and tn < TOTAL - 0.8: bass(tn, ch[0] - 12 if k % 2 == 0 else ch[0], beat * 0.9, 0.16)
-    t += bar * 2; ci += 1
-# drums: a soft kick on every beat from the first real scene, hats on the off-beats
-tn = 0.0
-while tn < TOTAL - 0.8:
-    if tn >= t_main: kick(tn, 0.20 if int(round(tn / beat)) % 2 == 0 else 0.14); hat(tn + beat / 2, 0.045)
-    tn += beat
-kick(T['B1'] + 0.38, 0.35)
+from music import make_music
+music = make_music(TOTAL, T['B1'] + 0.38, wt('close', 3))   # stereo; the drop lands on the logo hit, the stinger on "Own"
 
 # duck the music under the voice
 env = np.abs(vo); k = int(0.12 * SR)
 env = np.convolve(env, np.ones(k) / k, mode='same'); env = lp(env, 6); env = np.clip(env / (np.percentile(env, 97) + 1e-9), 0, 1)
-duck = 1 - 0.62 * env
-music *= duck
-music *= 0.55 / max(1e-6, np.abs(music).max())
-sfx *= 0.9 / max(1e-6, np.abs(sfx).max()) if np.abs(sfx).max() > 0.9 else 1
-fade = np.ones(N); f0 = int((TOTAL - 1.4) * SR); fade[f0:] = np.linspace(1, 0, N - f0); music *= fade
-mix = vo * 0.95 + music * 0.8 + sfx * 0.75
-mix = np.tanh(mix * 1.1) / np.tanh(1.1)
-mix *= 0.89 / np.abs(mix).max()
+duck = 1 - 0.5 * env
+# set the music's level from the voice: about 11 dB under the speech when nobody is talking, ducked a few dB more under it
+active = np.abs(vo) > 0.05; vo_rms = np.sqrt((vo[active] ** 2).mean())
+m_rms = np.sqrt((music[int(T['B1'] * SR):] ** 2).mean())
+music = music * (0.28 * vo_rms / m_rms) * duck[:, None]
+# the logo-hit impact and the sfx stay un-ducked
+sfx *= 0.9 / np.abs(sfx).max() if np.abs(sfx).max() > 0.9 else 1
+print('peaks vo %.2f music %.2f sfx %.2f' % (np.abs(vo).max(), np.abs(music).max(), np.abs(sfx).max()))
+mix = np.stack([vo, vo], 1) * 0.95 + music + np.stack([sfx, sfx], 1) * 0.75
+mix *= 0.8 / np.abs(mix).max()   # headroom; loudness is normalized when encoding
 os.makedirs(os.path.join(HERE, 'out'), exist_ok=True)
-sf.write(os.path.join(HERE, 'out/audio.wav'), np.stack([mix, mix], 1), SR)
+sf.write(os.path.join(HERE, 'out/audio.wav'), mix, SR)
 print('audio ok', round(TOTAL, 2), 'peak', round(float(np.abs(mix).max()), 2))
