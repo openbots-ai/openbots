@@ -43,12 +43,22 @@ def whoosh(t, d=0.7, g=0.35):
     lowb = bp(n, 250, 900) * np.sin(np.pi * np.clip(u * 1.4, 0, 1)) ** 2
     highb = bp(n, 1500, 4500) * np.sin(np.pi * np.clip((u - 0.15) * 1.3, 0, 1)) ** 2
     put(sfx, t, (lowb * 0.9 + highb * 0.35), g * 0.8)
+# interface sounds are pitched to the music's key (D minor pentatonic) so they play as part of the tune
+def snap(f, pcs=(2, 5, 7, 9, 0)):
+    m = 69 + 12 * np.log2(f / 440.0)
+    cands = [k for k in range(int(m) - 6, int(m) + 7) if k % 12 in pcs]
+    return 440.0 * 2 ** ((min(cands, key=lambda k: abs(k - m)) - 69) / 12)
+SNAP = os.environ.get('SFX_TUNED') == '1'
+SFXG = float(os.environ.get('SFX_GAIN', '1.0'))
 def pop(t, f=620, g=0.16):
+    if SNAP: f = snap(f); g *= SFXG
     d = 0.11; x = np.sin(2 * np.pi * (f + 260 * (1 - np.exp(-tt(d) * 60))) * tt(d)) * np.exp(-tt(d) * 38); put(sfx, t, x, g)
 def tick(t, f=1250, g=0.07):
+    if SNAP: f = snap(f); g *= SFXG
     d = 0.05; put(sfx, t, np.sin(2 * np.pi * f * tt(d)) * np.exp(-tt(d) * 90), g)
 def ding(t, g=0.16):
-    d = 0.9; x = (np.sin(2 * np.pi * 880 * tt(d)) + 0.35 * np.sin(2 * np.pi * 1320 * tt(d))) * np.exp(-tt(d) * 6); put(sfx, t, x, g * 0.6)
+    if SNAP: g *= SFXG
+    d = 0.9; x = (np.sin(2 * np.pi * 880 * tt(d)) + 0.35 * np.sin(2 * np.pi * (1397 if SNAP else 1320) * tt(d))) * np.exp(-tt(d) * 6); put(sfx, t, x, g * 0.6)
 def thunk(t, g=0.4):
     d = 0.35; x = np.sin(2 * np.pi * (90 - 35 * (1 - np.exp(-tt(d) * 20))) * tt(d)) * np.exp(-tt(d) * 14) + lp(rng.standard_normal(int(d * SR)), 600) * np.exp(-tt(d) * 40) * 0.6; put(sfx, t, x, g)
 def impact(t, g=0.5):
@@ -81,7 +91,7 @@ for i in range(3): pop(wt('close', 3 + i), 600 + 60 * i, 0.08)
 # ---------- music ----------
 from music import make_music, make_trap
 STYLE = os.environ.get('MUSIC_STYLE', 'trapA')
-HARD = STYLE.startswith('trap')
+HARD = STYLE.startswith('trap') or STYLE.startswith('ui')
 # stereo; the drop lands on the logo hit, the stinger on "Own"
 music = np.zeros((N, 2)) if STYLE == 'none' else (make_trap if HARD else make_music)(TOTAL, T['B1'] + 0.38, wt('close', 3), STYLE)
 # A finished track can replace the synthesized one: MUSIC_FILE=path MUSIC_START=seconds-into-the-track (to line its
@@ -100,11 +110,16 @@ if os.environ.get('MUSIC_FILE'):
 # duck the music under the voice
 env = np.abs(vo); k = int(0.12 * SR)
 env = np.convolve(env, np.ones(k) / k, mode='same'); env = lp(env, 6); env = np.clip(env / (np.percentile(env, 97) + 1e-9), 0, 1)
-duck = 1 - (0.38 if HARD else 0.5) * env
+duck = 1 - float(os.environ.get('MUSIC_DUCK', 0.38 if HARD else 0.5)) * env
 # set the music's level from the voice: about 11 dB under the speech when nobody is talking, ducked a few dB more under it
 active = np.abs(vo) > 0.05; vo_rms = np.sqrt((vo[active] ** 2).mean())
 m_rms = max(1e-9, np.sqrt((music[int(T['B1'] * SR):] ** 2).mean()))
-music = music * ((0.42 if HARD else 0.28) * vo_rms / m_rms) * duck[:, None]
+LEVEL = float(os.environ.get('MUSIC_LEVEL', 0.42 if HARD else 0.28))
+music = music * (LEVEL * vo_rms / m_rms) * duck[:, None]
+# the music also dips a little on every interface sound, so the sounds land cleanly on top of the groove
+if SNAP:
+    sfx_env = np.clip(lp(np.abs(sfx), 25) / (np.percentile(np.abs(lp(np.abs(sfx), 25)), 99) + 1e-9), 0, 1)
+    music = music * (1 - 0.35 * sfx_env)[:, None]
 # the logo-hit impact and the sfx stay un-ducked
 sfx *= 0.9 / np.abs(sfx).max() if np.abs(sfx).max() > 0.9 else 1
 print('peaks vo %.2f music %.2f sfx %.2f' % (np.abs(vo).max(), np.abs(music).max(), np.abs(sfx).max()))

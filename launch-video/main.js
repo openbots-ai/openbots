@@ -20,6 +20,9 @@ const ICON = {
 const CURSOR = (c) => `<svg class="cur" viewBox="0 0 24 24"><path d="M3 2l7 18 2.6-7.4L20 10z" fill="${c}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const AV = (n, ext = 'webp') => `assets/avatars/${n}.${ext}`;
 
+const P = new URLSearchParams(location.search).get('ar') === '4x5';   // portrait 1080x1350 for X
+const W = P ? 1080 : 1920;
+if (P) document.documentElement.classList.add('p45');
 const stage = document.getElementById('stage');
 const scenesEl = document.getElementById('scenes');
 const tl = gsap.timeline({ paused: true });
@@ -54,10 +57,12 @@ function boot(timing) {
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
       <div class="display" id="a1" style="display:flex;gap:.26em">${words('Your AI agent', 'g-gray')}</div>
       <div class="display" id="a2" style="display:flex;gap:.26em">${words("shouldn't live on")}</div>
-      <div class="display" id="a3" style="position:relative;display:flex;gap:.26em">
+      ${P ? `<div class="display" id="a3" style="position:relative;display:flex"><span class="w" id="a3a">someone else's</span><i id="strike" style="position:absolute;left:-2%;top:56%;height:11px;width:104%;border-radius:6px;background:var(--primary);transform:scaleX(0);transform-origin:0 50%"></i></div>
+      <div class="display" id="a3r" style="position:relative;display:flex"><span class="w" id="a3b">computer.</span><i id="strike2" style="position:absolute;left:-2%;top:56%;height:11px;width:104%;border-radius:6px;background:var(--primary);transform:scaleX(0);transform-origin:0 50%"></i></div>`
+      : `<div class="display" id="a3" style="position:relative;display:flex;gap:.26em">
         <span class="w" id="a3a">someone else's</span><span class="w" id="a3b">computer.</span>
         <i id="strike" style="position:absolute;left:-1%;top:56%;height:12px;width:102%;border-radius:6px;background:var(--primary);transform:scaleX(0);transform-origin:0 50%"></i>
-      </div>
+      </div>`}
       <div class="display" id="a4" style="margin-top:6px"><span class="w g-ink">make it yours.</span></div>
     </div>`);
   {
@@ -66,6 +71,7 @@ function boot(timing) {
     [[w0, 0], [w1, 1], [w2, 2], [w3, 3], [w4, 4], [w5, 5], [$(s, '#a3a'), 6], [$(s, '#a3b'), 8]].forEach(([e, i]) => popIn(e, wt('hook', i)));
     const te = lineEnd('hook') + 0.04;
     tl.to($(s, '#strike'), { scaleX: 1, duration: 0.3, ease: 'power3.inOut' }, te);
+    if ($(s, '#strike2')) tl.to($(s, '#strike2'), { scaleX: 1, duration: 0.3, ease: 'power3.inOut' }, te + 0.08);
     tl.to([$(s, '#a3a'), $(s, '#a3b')], { opacity: 0.28, duration: 0.3 }, te + 0.1);
     popIn($(s, '#a4'), te + 0.22, { y: 30 });
   }
@@ -102,15 +108,19 @@ function boot(timing) {
   /* ============ B2  an agent you own ============ */
   els.B2 = scene('B2', 'light', `
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
-      <div class="title" id="b1" style="display:flex;gap:.24em">${words('an agent you', '')}<span class="w g-ink">own,</span></div>
-      <div class="title" id="b2" style="display:flex;gap:.24em">${words('that lives in your', 'g-gray')}<span class="w g-ink">texts.</span></div>
+      ${P ? `<div class="title" style="display:flex;gap:.24em">${words('an agent', '')}</div>
+      <div class="title" style="display:flex;gap:.24em">${words('you', '')}<span class="w g-ink">own,</span></div>
+      <div class="title" style="display:flex;gap:.24em;margin-top:18px">${words('that lives', 'g-gray')}</div>
+      <div class="title" style="display:flex;gap:.24em">${words('in your', 'g-gray')}<span class="w g-ink">texts.</span></div>`
+      : `<div class="title" id="b1" style="display:flex;gap:.24em">${words('an agent you', '')}<span class="w g-ink">own,</span></div>
+      <div class="title" id="b2" style="display:flex;gap:.24em">${words('that lives in your', 'g-gray')}<span class="w g-ink">texts.</span></div>`}
     </div>
-    <div class="agent-chip chip-tofu" id="c1" style="left:170px;top:150px">${CURSOR('#d97706')}<img src="${AV('tofu', 'png')}"><div><b>Tofu</b><span>planning saturday</span></div></div>
-    <div class="agent-chip chip-rishi" id="c2" style="right:150px;top:260px">${CURSOR('#8b5cf6')}<img src="${AV('rishi', 'png')}"><div><b>Rishi</b><span>finding a deal</span></div></div>
-    <div class="agent-chip chip-mochi" id="c3" style="left:260px;top:700px">${CURSOR('#7c3aed')}<img src="${AV('mochi')}"><div><b>Mochi</b><span>checking invoices</span></div></div>`);
+    <div class="agent-chip chip-tofu" id="c1" style="${P ? 'left:60px;top:150px' : 'left:170px;top:150px'}">${CURSOR('#d97706')}<img src="${AV('tofu', 'png')}"><div><b>Tofu</b><span>planning saturday</span></div></div>
+    <div class="agent-chip chip-rishi" id="c2" style="${P ? 'right:50px;top:330px' : 'right:150px;top:260px'}">${CURSOR('#8b5cf6')}<img src="${AV('rishi', 'png')}"><div><b>Rishi</b><span>finding a deal</span></div></div>
+    <div class="agent-chip chip-mochi" id="c3" style="${P ? 'left:110px;top:1040px' : 'left:260px;top:700px'}">${CURSOR('#7c3aed')}<img src="${AV('mochi')}"><div><b>Mochi</b><span>checking invoices</span></div></div>`);
   {
-    const s = els.B2; const a = $$($(s, '#b1'), '.w'); const b = $$($(s, '#b2'), '.w');
-    [...a, ...b].forEach((e, i) => popIn(e, wt('own', i)));
+    const s = els.B2;
+    $$(s, '.title .w').forEach((e, i) => popIn(e, wt('own', i)));
     ['#c1', '#c2', '#c3'].forEach((q, i) => {
       popIn($(s, q), T.B2 + WIPE + 0.15 + i * 0.18, { y: 30, s: 0.8 });
       tl.fromTo($(s, q), { x: 0 }, { x: i % 2 ? -26 : 26, y: '+=-14', duration: 2.4, ease: 'sine.inOut' }, T.B2 + WIPE + 0.5);
@@ -145,12 +155,14 @@ function boot(timing) {
   const showDots = (container, t, t2) => { const e = html(dots); container.appendChild(e); tl.fromTo(e, { autoAlpha: 0, scale: 0.8, transformOrigin: '0% 100%' }, { autoAlpha: 1, scale: 1, duration: 0.2, ease: 'back.out(1.6)' }, t); $$(e, 'i').forEach((d, i) => tl.fromTo(d, { y: 0 }, { y: -4, duration: 0.25, yoyo: true, repeat: 3, ease: 'sine.inOut' }, t + i * 0.08)); tl.set(e, { display: 'none' }, t2); };
 
   /* ============ C  just text it ============ */
-  const card = (icon, title, sub, top) => `<div class="card fcard" style="position:absolute;left:980px;top:${top}px;width:760px;height:164px;display:flex;align-items:center;gap:30px;padding:0 40px"><div class="chip-icon" style="width:84px;height:84px;border-radius:24px">${icon}</div><div><div style="font-size:46px;letter-spacing:-0.02em">${title}</div><div style="font-size:26px;color:var(--muted);font-weight:400;margin-top:4px">${sub}</div></div></div>`;
+  const card = (icon, title, sub, top) => P
+    ? `<div class="card fcard" style="position:absolute;left:60px;top:${top}px;width:960px;height:128px;display:flex;align-items:center;gap:26px;padding:0 36px"><div class="chip-icon" style="width:72px;height:72px;border-radius:20px">${icon}</div><div><div style="font-size:42px;letter-spacing:-0.02em">${title}</div><div style="font-size:25px;color:var(--muted);font-weight:400;margin-top:2px">${sub}</div></div></div>`
+    : `<div class="card fcard" style="position:absolute;left:980px;top:${top}px;width:760px;height:164px;display:flex;align-items:center;gap:30px;padding:0 40px"><div class="chip-icon" style="width:84px;height:84px;border-radius:24px">${icon}</div><div><div style="font-size:46px;letter-spacing:-0.02em">${title}</div><div style="font-size:26px;color:var(--muted);font-weight:400;margin-top:4px">${sub}</div></div></div>`;
   els.C = scene('C', 'light', `
-    ${phone('ph1', 360, 66, 1.2, AV('mochi'), 'Mochi', 'Your personal assistant')}
-    ${card(ICON.search, 'searches the web', 'live answers, not guesses', 200)}
-    ${card(ICON.alarm, 'sets reminders', 'and watches, all by text', 400)}
-    ${card(ICON.check, 'gets things done', 'even on your own computer', 600)}`);
+    ${P ? phone('ph1', 363, 40, 1.07, AV('mochi'), 'Mochi', 'Your personal assistant') : phone('ph1', 360, 66, 1.2, AV('mochi'), 'Mochi', 'Your personal assistant')}
+    ${card(ICON.search, 'searches the web', 'live answers, not guesses', P ? 800 : 200)}
+    ${card(ICON.alarm, 'sets reminders', 'and watches, all by text', P ? 950 : 400)}
+    ${card(ICON.check, 'gets things done', 'even on your own computer', P ? 1100 : 600)}`);
   {
     const s = els.C; const msgs = $(s, '.msgs'); const input = $(s, '.input'); const t0 = L.text.start;
     const msg = 'remind me to call mom at 6, and find ramen under $20';
@@ -170,7 +182,7 @@ function boot(timing) {
 
   /* ============ D  models ============ */
   const slot = (id, left, name, blurb, val, prov, on) => `
-    <div class="card slot" id="${id}" style="position:absolute;left:${left}px;top:170px;width:520px;height:300px;padding:36px 40px;${on ? 'background:#fff;box-shadow:0 0 0 2px #23204e' : ''}">
+    <div class="card slot" id="${id}" style="position:absolute;left:${P ? 60 : left}px;top:${P ? 70 + ({ s1: 0, s2: 290, s3: 580 })[id] : 170}px;width:${P ? 960 : 520}px;height:${P ? 262 : 300}px;padding:${P ? '28px 40px' : '36px 40px'};${on ? 'background:#fff;box-shadow:0 0 0 2px #23204e' : ''}">
       <div style="display:flex;align-items:center;gap:14px;font-size:38px;letter-spacing:-0.02em"><div class="chip-icon" style="width:52px;height:52px;border-radius:15px">${prov}</div>${name}</div>
       <div style="font-size:22px;color:var(--muted);font-weight:400;margin-top:14px;line-height:1.35;height:62px">${blurb}</div>
       <div class="sel" style="margin-top:24px;height:64px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .08);display:flex;align-items:center;padding:0 22px;font-size:27px;gap:12px;position:relative;overflow:hidden">${val}</div>
@@ -180,8 +192,8 @@ function boot(timing) {
     ${slot('s1', 150, 'Brain', 'Reads your texts, plans the work and writes the replies.', '<span class="v" style="position:absolute;left:22px">GPT 5.1</span>', ICON.cpu, true)}
     ${slot('s2', 700, 'Backup', 'Takes over when the Brain’s provider fails.', 'Claude Haiku 4.5', ICON.shield)}
     ${slot('s3', 1250, 'Computer use', 'Does tasks on your Windows, Mac or Linux computer.', 'Claude Sonnet 5.5', ICON.cpu)}
-    <div id="provs" style="position:absolute;left:0;right:0;top:600px;display:flex;justify-content:center;gap:22px">${models.map(([p]) => `<div class="pill prov" style="background:#f5f5f5;box-shadow:0 0 0 1px rgb(0 0 0 / .05);font-size:34px;padding:18px 36px;color:#525252">${p === 'Local' ? ICON.hdd.replace('<svg', '<svg width="30" height="30"') : ''}${p}</div>`).join('')}</div>
-    <div id="dnote" style="position:absolute;left:0;right:0;top:770px;text-align:center;font-size:34px;color:var(--muted);font-weight:400;letter-spacing:-0.01em">every part of your agent can run on a different model</div>`);
+    <div id="provs" style="position:absolute;left:${P ? 60 : 0}px;right:${P ? 60 : 0}px;top:${P ? 980 : 600}px;display:flex;flex-wrap:wrap;justify-content:center;gap:${P ? '18px 18px' : '22px'}">${models.map(([p]) => `<div class="pill prov" style="background:#f5f5f5;box-shadow:0 0 0 1px rgb(0 0 0 / .05);font-size:34px;padding:18px 36px;color:#525252">${p === 'Local' ? ICON.hdd.replace('<svg', '<svg width="30" height="30"') : ''}${p}</div>`).join('')}</div>
+    <div id="dnote" style="position:absolute;left:${P ? 40 : 0}px;right:${P ? 40 : 0}px;top:${P ? 1190 : 770}px;text-align:center;font-size:${P ? 31 : 34}px;color:var(--muted);font-weight:400;letter-spacing:-0.01em">every part of your agent can run on a different model</div>`);
   {
     const s = els.D; const v = $(s, '.v'); const provs = $$(s, '.prov');
     const times = [wt('models', 6), wt('models', 7), wt('models', 8), wt('models', 9), wt('models', 12)];
@@ -200,7 +212,7 @@ function boot(timing) {
   /* ============ E  runs on your machine ============ */
   const pillKey = (txt, id) => `<div class="pill key" id="${id}" style="position:absolute;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .12);color:#23204e;font-size:30px;padding:14px 28px;gap:12px">${ICON.key.replace('<svg', '<svg width="30" height="30"')}${txt}</div>`;
   els.E = scene('E', 'light', `
-    <div id="laptop" style="position:absolute;left:150px;top:110px;width:740px;height:434px;transform:scale(1.62);transform-origin:0 0">
+    <div id="laptop" style="position:absolute;left:${P ? 59 : 150}px;top:${P ? 150 : 110}px;width:740px;height:434px;transform:scale(${P ? 1.3 : 1.62});transform-origin:0 0">
       <div class="device device-macbook-pro">
         <div class="device-frame">
           <div style="width:100%;height:100%;background:#fff;position:relative;overflow:hidden;border-radius:3px;padding:30px 34px 0">
@@ -212,39 +224,39 @@ function boot(timing) {
         <div class="device-stripe"></div><div class="device-header"></div><div class="device-sensors"></div><div class="device-btns"></div><div class="device-power"></div><div class="device-home"></div>
       </div>
     </div>
-    <div id="cloud" style="position:absolute;left:1500px;top:230px;width:330px;text-align:center;color:#737373">
-      <div style="width:200px;margin:0 auto">${ICON.cloud}</div>
+    <div id="cloud" style="position:absolute;left:${P ? 375 : 1500}px;top:${P ? 950 : 230}px;width:330px;text-align:center;color:#737373">
+      <div style="width:${P ? 130 : 200}px;margin:0 auto">${ICON.cloud}</div>
       <div style="font-size:34px;margin-top:6px;color:#0a0a0a">backend</div>
       <div style="font-size:24px;font-weight:400;margin-top:8px;line-height:1.35">settings and daily counts only</div>
       <div id="zero" style="margin-top:26px;display:inline-flex;align-items:center;gap:12px;font-size:30px;color:#0a0a0a;background:#f5f5f5;border-radius:99px;padding:10px 24px;box-shadow:0 0 0 1px rgb(0 0 0 / .08)"><b style="font-size:42px;font-weight:600">0</b> message text</div>
     </div>
-    <div id="flyer" class="bub imsg imsg-me me" style="position:absolute;z-index:3;left:1250px;top:420px;font-size:26px;padding:12px 22px;border-radius:26px;opacity:0">hey</div>
-    <div id="barrier" style="position:absolute;left:1425px;top:350px;width:10px;height:270px;border-radius:6px;background:#0a0a0a;opacity:0"></div>
+    <div id="flyer" class="bub imsg imsg-me me" style="position:absolute;z-index:3;left:${P ? 490 : 1250}px;top:${P ? 760 : 420}px;font-size:26px;padding:12px 22px;border-radius:26px;opacity:0">hey</div>
+    <div id="barrier" style="position:absolute;left:${P ? 360 : 1425}px;top:${P ? 890 : 350}px;width:${P ? 360 : 10}px;height:${P ? 10 : 270}px;border-radius:6px;background:#0a0a0a;opacity:0"></div>
     ${pillKey('OpenAI key', 'k1')}${pillKey('Anthropic key', 'k2')}${pillKey('Twilio key', 'k3')}`);
   {
     const s = els.E; const rows = $(s, '#rows');
     ['contacts', 'conversations', 'messages'].forEach((r) => rows.appendChild(html(`<div class="rw" style="height:36px;border-radius:9px;background:#f5f5f5;display:flex;align-items:center;padding:0 14px;font-size:15px;color:#171717;gap:10px">${r}<span style="margin-left:auto;letter-spacing:.2em;color:#a3a3a3">••••••••••</span></div>`)));
     const rw = $$(s, '.rw'); const T0 = T.E + WIPE;
-    tl.fromTo($(s, '#laptop'), { y: 80, autoAlpha: 0, scale: 1.5 }, { y: 0, autoAlpha: 1, scale: 1.62, duration: 0.7, ease: 'power4.out' }, T0 - 0.15);
+    tl.fromTo($(s, '#laptop'), { y: 80, autoAlpha: 0, scale: P ? 1.28 : 1.5 }, { y: 0, autoAlpha: 1, scale: P ? 1.3 : 1.62, duration: 0.7, ease: 'power4.out' }, T0 - 0.15);
     tl.fromTo(rw, { autoAlpha: 0, x: -20 }, { autoAlpha: 1, x: 0, duration: 0.35, stagger: 0.12, ease: 'power3.out' }, wt('local', 2));
     fadeUp($(s, '#cloud'), wt('local', 8) - 0.1);
     // keys fly onto the laptop on "Your keys."
-    [['#k1', 330, 640], ['#k2', 650, 660], ['#k3', 990, 640]].forEach(([q, x, y], i) => {
-      tl.fromTo($(s, q), { left: x, top: 1000, autoAlpha: 0, scale: 0.8 }, { left: x, top: y - 40, autoAlpha: 1, scale: 1, duration: 0.45, ease: 'back.out(1.7)' }, wt('local', 6) + i * 0.1 - 0.15);
+    (P ? [['#k1', 90, 500], ['#k2', 390, 520], ['#k3', 700, 500]] : [['#k1', 330, 640], ['#k2', 650, 660], ['#k3', 990, 640]]).forEach(([q, x, y], i) => {
+      tl.fromTo($(s, q), { left: x, top: P ? 1330 : 1000, autoAlpha: 0, scale: 0.8 }, { left: x, top: y - 40, autoAlpha: 1, scale: 1, duration: 0.45, ease: 'back.out(1.7)' }, wt('local', 6) + i * 0.1 - 0.15);
       tl.to($(s, q), { top: y - 250, scale: 0.7, autoAlpha: 0, duration: 0.4, ease: 'power3.in' }, wt('local', 6) + 0.8 + i * 0.08);
     });
     tl.fromTo($(s, '#lockbadge'), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.4 }, wt('local', 8));
     // a message tries to leave and hits the wall
     const fl = $(s, '#flyer');
-    tl.fromTo(fl, { x: 0, scale: 0.7, autoAlpha: 0 }, { x: 62, scale: 1, autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, wt('local', 10) - 0.1);
-    tl.fromTo($(s, '#barrier'), { autoAlpha: 0, scaleY: 0.4 }, { autoAlpha: 1, scaleY: 1, duration: 0.25, ease: 'back.out(2)' }, wt('local', 10) + 0.35);
-    tl.to(fl, { x: -30, autoAlpha: 0, scale: 0.8, duration: 0.35, ease: 'power2.in' }, wt('local', 10) + 0.45);
+    tl.fromTo(fl, P ? { y: 0, scale: 0.7, autoAlpha: 0 } : { x: 0, scale: 0.7, autoAlpha: 0 }, P ? { y: 38, scale: 1, autoAlpha: 1, duration: 0.5, ease: 'power2.out' } : { x: 62, scale: 1, autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, wt('local', 10) - 0.1);
+    tl.fromTo($(s, '#barrier'), P ? { autoAlpha: 0, scaleX: 0.4 } : { autoAlpha: 0, scaleY: 0.4 }, P ? { autoAlpha: 1, scaleX: 1, duration: 0.25, ease: 'back.out(2)' } : { autoAlpha: 1, scaleY: 1, duration: 0.25, ease: 'back.out(2)' }, wt('local', 10) + 0.35);
+    tl.to(fl, P ? { y: -20, autoAlpha: 0, scale: 0.8, duration: 0.35, ease: 'power2.in' } : { x: -30, autoAlpha: 0, scale: 0.8, duration: 0.35, ease: 'power2.in' }, wt('local', 10) + 0.45);
     tl.fromTo($(s, '#zero'), { scale: 1 }, { scale: 1.18, duration: 0.25, yoyo: true, repeat: 1, ease: 'power2.inOut' }, wt('local', 10) + 0.45);
   }
 
   /* ============ F  computer use ============ */
   els.F = scene('F', 'light', `
-    <div class="win" style="left:110px;top:110px;width:1040px;height:700px">
+    <div class="win" style="left:${P ? 60 : 110}px;top:${P ? 70 : 110}px;width:${P ? 960 : 1040}px;height:${P ? 800 : 700}px">
       <div class="bar"><i class="dot" style="background:#ff5f57"></i><i class="dot" style="background:#febc2e"></i><i class="dot" style="background:#28c840"></i><span class="url">trip-planner.app / new trip</span></div>
       <div style="padding:44px 64px">
         <div style="font-size:48px;letter-spacing:-0.02em;margin-bottom:30px">Plan a trip</div>
@@ -252,8 +264,8 @@ function boot(timing) {
         <div id="save" class="btn sm" style="height:64px;font-size:26px;padding:0 44px;margin-top:4px">Save</div>
       </div>
     </div>
-    <div class="agent-chip chip-tofu" id="cur" style="left:900px;top:760px">${CURSOR('#d97706')}<img src="${AV('tofu', 'png')}"><div><b>Tofu</b><span id="curlbl">using the computer</span></div></div>
-    <div class="card on-card" id="appr" style="position:absolute;left:1210px;top:190px;width:610px;padding:34px;background:#fff;box-shadow:0 30px 60px -30px rgb(0 0 0 / .18),0 0 0 1px rgb(0 0 0 / .06)">
+    <div class="agent-chip chip-tofu" id="cur" style="left:${P ? 700 : 900}px;top:${P ? 760 : 760}px">${CURSOR('#d97706')}<img src="${AV('tofu', 'png')}"><div><b>Tofu</b><span id="curlbl">using the computer</span></div></div>
+    <div class="card on-card" id="appr" style="position:absolute;left:${P ? 60 : 1210}px;top:${P ? 920 : 190}px;width:${P ? 960 : 610}px;padding:${P ? 30 : 34}px;background:#fff;box-shadow:0 30px 60px -30px rgb(0 0 0 / .18),0 0 0 1px rgb(0 0 0 / .06)">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px"><img src="${AV('tofu', 'png')}" style="width:62px;height:62px;border-radius:50%"><div><div style="font-size:30px">Tofu</div><div style="font-size:20px;color:#737373;font-weight:400">iMessage · now</div></div></div>
       <div class="row them"><p class="bub imsg imsg-them imsg-tail them" style="font-size:25px;max-width:100%;padding:14px 22px;border-radius:28px;line-height:1.4">Computer use: type “Montreal”. Reply YES to allow it, YES ALL to allow typing for the rest of this task, or NO.</p></div>
       <div class="row me" id="yes" style="margin-top:18px"><p class="bub imsg imsg-me imsg-tail me" style="font-size:30px;padding:10px 32px;border-radius:30px;max-width:100%">YES</p></div>
@@ -263,7 +275,7 @@ function boot(timing) {
     const t0 = T.F + WIPE; const vals = ['Montreal', 'Oct 16–18', '$600 max'];
     tl.fromTo($(s, '.win'), { y: 70, autoAlpha: 0, scale: 0.96 }, { y: 0, autoAlpha: 1, scale: 1, duration: 0.6, ease: 'power4.out' }, t0 - 0.2);
     popIn(cur, t0 + 0.1, { y: 30, s: 0.8 });
-    const pos = [[640, 288], [640, 408], [640, 528], [380, 650]];
+    const pos = P ? [[470, 252], [470, 392], [470, 530], [210, 690]] : [[640, 288], [640, 408], [640, 528], [380, 650]];
     tl.to(cur, { left: pos[0][0], top: pos[0][1], duration: 0.6, ease: 'power3.inOut' }, t0 + 0.4);
     tl.to(f[0], { boxShadow: '0 0 0 3px #3b37a3', duration: 0.12 }, t0 + 1.0);
     popIn($(s, '#appr'), wt('use', 5) + 0.05, { y: 50, s: 0.92 });
@@ -288,7 +300,7 @@ function boot(timing) {
   const person = (name, sub, hue, badge, id) => `<div class="prow" id="${id}" style="display:flex;align-items:center;gap:22px;height:104px;padding:0 28px;border-radius:22px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06);margin-bottom:16px"><span style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;background:hsl(${hue} 50% 52%)">${name[0]}</span><div><div style="font-size:32px">${name}</div><div style="font-size:22px;color:#737373;font-weight:400">${sub}</div></div>${badge}</div>`;
   const okBadge = '<span class="pill" style="margin-left:auto;background:#ecfdf5;color:#047857;font-size:22px;padding:8px 18px">verified</span>';
   els.G = scene('G', 'light', `
-    <div class="card" style="position:absolute;left:130px;top:150px;width:760px;height:600px;padding:40px">
+    <div class="card" style="position:absolute;left:${P ? 60 : 130}px;top:${P ? 70 : 150}px;width:${P ? 960 : 760}px;height:${P ? 560 : 600}px;padding:40px">
       <div style="display:flex;align-items:center;gap:16px;font-size:30px;color:#737373"><span style="width:54px;height:54px;border-radius:50%;background:#d4d4d4;display:grid;place-items:center;color:#fff">${ICON.user.replace('<svg', '<svg width="28" height="28"')}</span>+1 (415) 555-0199</div>
       <div style="position:relative;margin-top:36px">
         <div class="row them" id="stranger"><p class="bub imsg imsg-them imsg-tail them" style="font-size:30px;padding:16px 28px;border-radius:30px;max-width:86%">hey, can you book me a table?</p></div>
@@ -296,7 +308,7 @@ function boot(timing) {
       </div>
       <div id="count" style="position:absolute;left:40px;right:40px;bottom:40px;height:96px;border-radius:22px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06);display:flex;align-items:center;padding:0 28px;font-size:28px;gap:16px"><b style="font-size:46px;font-weight:600">1</b>text ignored today<span class="btn sm" style="margin-left:auto">Allow</span></div>
     </div>
-    <div class="card" style="position:absolute;left:960px;top:150px;width:830px;height:600px;padding:40px">
+    <div class="card" style="position:absolute;left:${P ? 60 : 960}px;top:${P ? 670 : 150}px;width:${P ? 960 : 830}px;height:${P ? 600 : 600}px;padding:40px">
       <div style="display:flex;align-items:center;gap:16px;font-size:36px;letter-spacing:-0.02em;margin-bottom:30px"><div class="chip-icon" style="width:58px;height:58px;border-radius:16px">${ICON.shield}</div>Allowed people</div>
       ${person('You', 'your verified phone', 250, okBadge, 'p1')}${person('Maya', '+1 (415) 555-0142', 330, '', 'p2')}${person('Sam', 'sam@icloud.com', 160, '', 'p3')}
     </div>`);
@@ -314,10 +326,10 @@ function boot(timing) {
 
   /* ============ H  setup from one dashboard ============ */
   const nav = (ic, t, on) => `<div style="display:flex;align-items:center;gap:16px;height:60px;padding:0 20px;border-radius:14px;font-size:26px;${on ? 'background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06)' : 'color:#404040'}"><span style="width:28px;height:28px;display:grid;place-items:center">${ic}</span>${t}</div>`;
-  const step = (i, t, b) => `<div class="step" style="border-radius:20px;padding:26px 28px;background:#fafafa;box-shadow:inset 0 0 0 1px #eee;height:210px;position:relative"><div style="display:flex;align-items:center;gap:16px;font-size:30px"><span class="num" style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .1);font-size:24px;color:#525252;font-weight:600">${i}</span>${t}</div><div style="font-size:23px;color:#737373;font-weight:400;margin-top:16px;line-height:1.4">${b}</div></div>`;
+  const step = (i, t, b) => `<div class="step" style="border-radius:20px;padding:${P ? '22px 24px' : '26px 28px'};background:#fafafa;box-shadow:inset 0 0 0 1px #eee;height:${P ? 168 : 210}px;position:relative"><div style="display:flex;align-items:center;gap:16px;font-size:30px"><span class="num" style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .1);font-size:24px;color:#525252;font-weight:600">${i}</span>${t}</div><div style="font-size:23px;color:#737373;font-weight:400;margin-top:16px;line-height:1.4">${b}</div></div>`;
   els.H = scene('H', 'light', `
-    <div class="win" id="dash" style="left:150px;top:80px;width:1620px;height:780px;display:flex">
-      <div style="width:330px;background:#f5f5f7;padding:28px 22px;flex:none">
+    <div class="win" id="dash" style="left:${P ? 60 : 150}px;top:${P ? 70 : 80}px;width:${P ? 960 : 1620}px;height:${P ? 1010 : 780}px;display:flex">
+      <div style="width:${P ? 270 : 330}px;background:#f5f5f7;padding:${P ? '26px 14px' : '28px 22px'};flex:none">
         <div style="display:flex;align-items:center;gap:12px;font-size:32px;font-weight:600;letter-spacing:-0.02em;padding:0 10px 26px"><img src="assets/favicon.svg" width="36">OpenBots</div>
         <div style="font-size:18px;color:#a3a3a3;letter-spacing:.08em;padding:6px 20px">BUILD</div>
         ${nav(ICON.bot, 'Agents', true)}${nav(ICON.cpu, 'Models')}${nav(ICON.book, 'Knowledge')}${nav(ICON.msg, 'Numbers')}
@@ -326,16 +338,16 @@ function boot(timing) {
       </div>
       <div style="flex:1;padding:0">
         <div style="height:84px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:0 40px;font-size:30px;font-weight:600">Agents<span class="btn sm" style="height:52px;font-size:22px">+ Create an agent</span></div>
-        <div style="margin:36px 40px;border:1px solid #e5e5e5;border-radius:22px;padding:34px">
+        <div style="margin:${P ? '28px' : '36px 40px'};border:1px solid #e5e5e5;border-radius:22px;padding:${P ? 26 : 34}px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:32px;margin-bottom:26px">Get your agents texting<span id="prog" style="font-size:24px;color:#737373;font-weight:400"></span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="display:grid;grid-template-columns:${P ? '1fr' : '1fr 1fr'};gap:${P ? 14 : 20}px">
             ${step(1, 'Add an AI key', 'OpenAI, Anthropic, Gemini, xAI or a local model.')}${step(2, 'Start your engine', 'It runs on a machine you choose and keeps your messages there.')}
             ${step(3, 'Verify your phone', 'Your engine texts it a code.')}${step(4, 'Set an agent live', 'It answers only you and the people you allow.')}
           </div>
         </div>
       </div>
     </div>
-    <div id="live" class="pill" style="position:absolute;left:1150px;top:780px;background:#ecfdf5;color:#047857;font-size:36px;padding:18px 40px"><i style="width:16px;height:16px;border-radius:50%;background:#10b981"></i>Live</div>`);
+    <div id="live" class="pill" style="position:absolute;left:${P ? 410 : 1150}px;top:${P ? 1100 : 780}px;background:#ecfdf5;color:#047857;font-size:36px;padding:18px 40px"><i style="width:16px;height:16px;border-radius:50%;background:#10b981"></i>Live</div>`);
   {
     const s = els.H; const t0 = T.H + WIPE; const st = $$(s, '.step');
     tl.fromTo($(s, '#dash'), { y: 80, autoAlpha: 0, scale: 0.95 }, { y: 0, autoAlpha: 1, scale: 1, duration: 0.7, ease: 'power4.out' }, t0 - 0.2);
@@ -355,7 +367,7 @@ function boot(timing) {
   els.I = scene('I', 'light', `
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:0">
       <div id="ilogo" style="margin-top:-60px;margin-bottom:-30px">${logo(260, 'z')}</div>
-      <div class="display" id="i1" style="font-size:168px;letter-spacing:-0.04em;display:flex;gap:.24em"><span class="w">Own</span><span class="w">your</span><span class="w g-ink">agent.</span></div>
+      <div class="display" id="i1" style="font-size:${P ? 200 : 168}px;letter-spacing:-0.04em;display:flex;column-gap:.24em;row-gap:0;${P ? 'flex-wrap:wrap;justify-content:center;width:980px;line-height:1' : ''}"><span class="w">Own</span><span class="w">your</span><span class="w g-ink">agent.</span></div>
       <div id="ipills" style="display:flex;gap:22px;margin-top:44px">
         <div class="pill ip" style="background:#23204e;color:#fff;font-size:34px;padding:18px 40px;font-weight:600">Open source</div>
       </div>
@@ -372,12 +384,12 @@ function boot(timing) {
   order.forEach((id, k) => {
     const e = els[id]; const t = T[id]; const end = k < order.length - 1 ? T[order[k + 1]] + WIPE : TOTAL;
     const cam = $(e, '.cam');
-    if (['C', 'D', 'E', 'F', 'G', 'H'].includes(id)) cam.style.top = '40px';
+    if (!P && ['C', 'D', 'E', 'F', 'G', 'H'].includes(id)) cam.style.top = '40px';
     if (k === 0) tl.set(e, { visibility: 'visible' }, 0);
     else {
       tl.set(e, { visibility: 'visible' }, t);
       const p = { v: 0 };
-      tl.fromTo(p, { v: 0 }, { v: 1, duration: WIPE, ease: 'power3.inOut', onUpdate() { const x = p.v * (1920 + 220); e.style.clipPath = `inset(0 ${Math.max(0, 1920 - x) / 19.2}% 0 0)`; } }, t);
+      tl.fromTo(p, { v: 0 }, { v: 1, duration: WIPE, ease: 'power3.inOut', onUpdate() { const x = p.v * (W + 220); e.style.clipPath = `inset(0 ${Math.max(0, W - x) / (W / 100)}% 0 0)`; } }, t);
       e.style.zIndex = k;
       tl.set(els[order[k - 1]], { visibility: 'hidden' }, t + WIPE);
       e.style.clipPath = 'inset(0 100% 0 0)';
