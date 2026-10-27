@@ -1,0 +1,55 @@
+{
+  "title": "OpenBots launch (X cut)",
+  "lines": [
+    {
+      "id": "hook",
+      "text": "Your AI agent shouldn't live on someone else's computer.",
+      "gapAfter": 0.55
+    },
+    {
+      "id": "meet",
+      "text": "Meet OpenBots.",
+      "gapAfter": 0.55
+    },
+    {
+      "id": "own",
+      "text": "An agent you own, that lives in your texts.",
+      "gapAfter": 0.4
+    },
+    {
+      "id": "text",
+      "text": "Just message it. It searches, sets reminders, and gets things done.",
+      "gapAfter": 0.3
+    },
+    {
+      "id": "models",
+      "text": "Pick the model behind every part. OpenAI, Anthropic, Gemini, xAI, or one running locally.",
+      "gapAfter": 0.3
+    },
+    {
+      "id": "local",
+      "text": "It all runs on your machine. Your keys. Your messages never leave it.",
+      "gapAfter": 0.3
+    },
+    {
+      "id": "use",
+      "text": "It can even use your computer, and asks before anything it can't undo.",
+      "gapAfter": 0.9
+    },
+    {
+      "id": "allow",
+      "text": "And it answers only you, and the people you allow.",
+      "gapAfter": 0.3
+    },
+    {
+      "id": "setup",
+      "text": "Set it up from one dashboard.",
+      "gapAfter": 0.8
+    },
+    {
+      "id": "close",
+      "text": "OpenBots. Open source. Own your agent.",
+      "gapAfter": 0.9
+    }
+  ]
+}
