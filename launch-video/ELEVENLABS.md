@@ -41,21 +41,27 @@ Generate a few takes and pick the one where the hits at **0:03** and **0:38** la
 
 ## Putting the music on the video
 
-`music.mp3` is the ElevenLabs track. `score.py` fits it to the cuts, then ffmpeg puts it on the video:
+`music.mp3` is the ElevenLabs track, used as it is. It runs at exactly 124 BPM from its first beat at 0:00, and the
+video is cut to that grid instead (`SCENES` in `index.html`, in beats):
+
+| Beats | Time | Scene |
+| --- | --- | --- |
+| 0–6 | 0:00–0:02.9 | Intro |
+| 6–14 | 0:02.9–0:06.8 | Logo |
+| 14–22 | 0:06.8–0:10.6 | Word swaps, one word every 2 beats |
+| 22–32 | 0:10.6–0:15.5 | Builder |
+| 32–44 | 0:15.5–0:21.3 | Just text it (on the track's drop) |
+| 44–60 | 0:21.3–0:29.0 | Computer use |
+| 60–66 | 0:29.0–0:31.9 | Any model |
+| 66–72 | 0:31.9–0:34.8 | Private |
+| 72–77 | 0:34.8–0:37.3 | Montage, one word every half-beat |
+| 77– | 0:37.3–0:44 | End card |
 
 ```
 python3 score.py music.mp3 score.wav
 ffmpeg -i openbots-launch.mp4 -i score.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest openbots-launch-with-music.mp4
 ```
 
-What `score.py` does to the track:
-
-- Starts it 0.47s in, which puts its own moments on the video's: a kick on the logo (0:03), its drop on "Just text it"
-  (0:15), its chorus on the model logos (~0:29) and its last hit on the end card (0:38).
-- Intro (0:00–0:03): fades in muffled, then opens up on the logo with a noise riser and a sub boom.
-- "Private by design" (0:32–0:35): muffled into a breakdown, with a riser back into the montage.
-- Montage (0:35–0:38): uses the chorus's strongest bar, because the original track winds down there.
-- End card (0:38–0:44): a sub boom on the last hit and a long reverb tail, fading to silence.
-- Loudness: normalised to -14 LUFS (the usual target for social video), with a limiter so it never clips.
-
-If the scene timing in `index.html` changes, update `SEGMENTS` and the times in `score.py` to match.
+`score.py` adds only a reverb tail so the end card rings out after the track stops (~0:39.5), a fade on the last
+frames, and loudness normalisation to -14 LUFS with a limiter. A different track at another tempo means changing
+`BEAT` in `index.html`.
