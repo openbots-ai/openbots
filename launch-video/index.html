@@ -330,20 +330,21 @@ function reveal(el, t, start, dur = 0.7, dist = 40) {
     el.style.filter = `blur(${(1 - p) * 14}px)`
 }
 
-// Scene list: [id, start, end] in seconds. Hard cuts between them, like the original.
-// Every scene is at least 3s so each one can be its own ElevenLabs music section (see ELEVENLABS.md)
+// The music (music.mp3, ElevenLabs) is exactly 124 BPM with its first beat at 0:00, so every cut sits on that beat grid.
+// Scene list: [id, start beat, end beat]. Hard cuts between them, like the original.
+const BEAT = 60 / 124
 const SCENES = [
-    ['s-intro', 0, 3.0],
-    ['s-logo', 3.0, 7.0],
-    ['s-kinetic', 7.0, 10.0],
-    ['s-build', 10.0, 15.0],
-    ['s-text', 15.0, 21.0],
-    ['s-computer', 21.0, 29.0],
-    ['s-models', 29.0, 32.0],
-    ['s-private', 32.0, 35.0],
-    ['s-montage', 35.0, 38.0],
-    ['s-end', 38.0, 44.0],
-]
+    ['s-intro', 0, 6],
+    ['s-logo', 6, 14],
+    ['s-kinetic', 14, 22],
+    ['s-build', 22, 32],
+    ['s-text', 32, 44], // the track's drop
+    ['s-computer', 44, 60],
+    ['s-models', 60, 66],
+    ['s-private', 66, 72],
+    ['s-montage', 72, 77], // ten words, one per half-beat
+    ['s-end', 77, 44 / BEAT],
+].map(([id, a, b]) => [id, a * BEAT, b * BEAT])
 const DURATION = 44.0
 
 // Backdrop palettes per scene: four blob colors + base
@@ -406,17 +407,17 @@ const TEXT_CHAT = [ASK, ON_IT]
 const YES_CHAT = [
     [ASK[0], ASK[1], -1, null],
     [ON_IT[0], ON_IT[1], -1, null],
-    ['them', 'got your 1099-DIV and 1099-B and drafted the email to Dana with both attached. reply YES to send it', 6.7, 6.35],
-    ['me', 'YES', 7.05, null],
-    ['them', 'sent ✓ Dana has both forms', 7.55, 7.3],
+    ['them', 'got your 1099-DIV and 1099-B and drafted the email to Dana with both attached. reply YES to send it', 6.5, 6.2],
+    ['me', 'YES', 6.85, null],
+    ['them', 'sent ✓ Dana has both forms', 7.3, 7.1],
 ]
 const MAIL_BODY = 'Hi Dana,\n\nAttached are my 2025 1099s from Northpeak (1099-DIV and 1099-B).\n\nThanks!\nSam'
 // Tofu moves like a cursor: quick dashes between targets, [start, end, target]. Targets are measured from the layout.
 const TOFU_MOVES = [
     [2.05, 2.4, 'docs'], [2.6, 2.85, 'dl1'], [2.98, 3.15, 'dl2'], [3.3, 3.62, 'mail'],
-    [3.95, 4.15, 'to'], [4.3, 4.42, 'subj'], [4.62, 4.78, 'body'], [5.38, 5.6, 'clip'], [5.95, 6.2, 'send'], [7.5, 7.8, 'rest'],
+    [3.95, 4.15, 'to'], [4.3, 4.42, 'subj'], [4.62, 4.78, 'body'], [5.38, 5.6, 'clip'], [5.95, 6.2, 'send'], [7.25, 7.5, 'rest'],
 ]
-const TOFU_CLICKS = [2.42, 2.88, 3.18, 3.65, 4.18, 4.45, 4.8, 5.63, 7.2]
+const TOFU_CLICKS = [2.42, 2.88, 3.18, 3.65, 4.18, 4.45, 4.8, 5.63, 7.0]
 const PROMPT = 'Warm, quick, a little playful. Keep replies short and never send anything without asking first.'
 const MODELS = ['claude', 'openai', 'gemini', 'grok']
 
@@ -526,7 +527,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-intro' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [3.0, 7.0, 35.0, 38.0]
+    const flashAt = [6, 14, 72, 77].map((b) => b * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -536,7 +537,7 @@ function render(t) {
 
     if (id === 's-intro') {
         reveal($('intro-t'), t, 0.9, 0.9, 20)
-        const out = prog(lt, 2.5, 3.0)
+        const out = prog(lt, 2.4, 2.9)
         if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
 
@@ -555,7 +556,7 @@ function render(t) {
     }
 
     if (id === 's-kinetic') {
-        const step = 0.75
+        const step = 2 * BEAT
         const i = Math.min(KINETIC.length - 1, Math.floor(lt / step))
         const w = $('kin-word')
         const last = i === KINETIC.length - 1
@@ -659,7 +660,7 @@ function render(t) {
         $('mb-4').textContent = lt >= 3.8 ? 'Mailbox' : 'History'
         $('mb-5').textContent = lt >= 3.8 ? 'Message' : 'Bookmarks'
         const mo = outBack(prog(lt, 3.8, 4.1))
-        const sent = inOut(prog(lt, 7.25, 7.6))
+        const sent = inOut(prog(lt, 7.03, 7.35))
         $('mail').style.display = lt >= 3.8 && sent < 1 ? 'block' : 'none'
         $('mail').style.transformOrigin = '50% 100%'
         $('mail').style.transform = `translateY(${-260 * sent}px) scale(${lerp(0.7, 1, mo) * lerp(1, 0.4, sent)})`
@@ -672,8 +673,8 @@ function render(t) {
             const ap = outBack(prog(lt, at, at + 0.25))
             $(a).style.display = lt >= at ? 'inline-flex' : 'none'; $(a).style.transform = `scale(${ap})`
         })
-        $('m-send').style.background = lt >= 6.2 && lt < 7.3 ? '#2f5ed8' : 'transparent'
-        $('m-send').style.color = lt >= 6.2 && lt < 7.3 ? '#fff' : '#b5b5bf'
+        $('m-send').style.background = lt >= 6.2 && lt < 7.05 ? '#2f5ed8' : 'transparent'
+        $('m-send').style.color = lt >= 6.2 && lt < 7.05 ? '#fff' : '#b5b5bf'
 
         // Tofu, moving like a cursor: fast dashes that settle right on target, a squish on every click
         let [x, y] = TARGETS.start
@@ -691,7 +692,7 @@ function render(t) {
         const rp = prog(lt, after, after + 0.4)
         $('tofu-ring').style.opacity = rp > 0 && rp < 1 ? 0.9 * (1 - rp) : 0
         $('tofu-ring').style.transform = `scale(${lerp(0.4, 1.9, rp)})`
-        $('tofu-msg').textContent = lt < 2.45 ? 'Opening your brokerage…' : lt < 3.6 ? 'Downloading your 1099s…' : lt < 5.9 ? 'Writing to Dana…' : lt < 7.2 ? 'Waiting for your YES' : 'Sent ✓'
+        $('tofu-msg').textContent = lt < 2.45 ? 'Opening your brokerage…' : lt < 3.6 ? 'Downloading your 1099s…' : lt < 5.9 ? 'Writing to Dana…' : lt < 7.0 ? 'Waiting for your YES' : 'Sent ✓'
         const lbl = $('tofu-msg'), half = lbl.offsetWidth / 2
         lbl.style.transform = `translateX(calc(-50% + ${Math.min(0, 915 - (x + half)) + Math.max(0, 8 - (x - half))}px))`
         // Near the top of the screen the label sits above Tofu so it never covers what Tofu is pointing at
