@@ -85,8 +85,8 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .mac { position: absolute; width: 1208px; height: 700px; }
 .mac > img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .mac-screen { position: absolute; left: 143px; top: 47px; width: 923px; height: 577px; overflow: hidden; font-family: -apple-system, 'SF Pro Text', Inter, sans-serif; color: #111;
-    background: radial-gradient(80% 90% at 15% 0%, #8f7bff 0%, transparent 60%), radial-gradient(70% 80% at 95% 100%, #6d8bff 0%, transparent 60%), radial-gradient(60% 60% at 60% 40%, #5b3fc4 0%, transparent 70%), #231d63; }
-.menubar { position: absolute; left: 0; right: 0; top: 0; height: 22px; display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 11.5px; color: #fff; background: rgb(18 14 58 / .35); backdrop-filter: blur(20px); z-index: 5; }
+    background: radial-gradient(70% 80% at 10% 0%, rgb(91 86 214 / .45) 0%, transparent 60%), radial-gradient(60% 70% at 100% 100%, rgb(109 139 255 / .3) 0%, transparent 60%), #141319; }
+.menubar { position: absolute; left: 0; right: 0; top: 0; height: 22px; display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 11.5px; color: #e8e8ee; background: rgb(10 10 14 / .55); backdrop-filter: blur(20px); z-index: 5; }
 .menubar b { font-weight: 700; }
 .mb-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .agent-pill { display: flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 999px; background: hsl(28 85% 96%); color: #7a3a0c; font-weight: 600; font-size: 10.5px; }
@@ -99,32 +99,35 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .shot span { display: inline-block; font-size: 8.5px; line-height: 1.2; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .6); padding: 1px 3px; border-radius: 3px; }
 .shot.sel span { background: #2b63d9; text-shadow: none; }
 .shot.sel .th { outline: 2px solid rgb(255 255 255 / .55); outline-offset: 2px; }
-.finder { position: absolute; left: 34px; top: 52px; width: 500px; height: 340px; border-radius: 11px; background: #fff; overflow: hidden; display: flex;
-    box-shadow: 0 22px 50px rgb(0 0 0 / .45), 0 0 0 .5px rgb(0 0 0 / .3); transform-origin: 30% 20%; }
-.f-side { width: 132px; background: #ececf0; padding: 34px 10px 0; font-size: 11px; color: #333; }
+.finder { position: absolute; left: 34px; top: 52px; width: 500px; height: 340px; border-radius: 11px; background: #1e1e23; color: #e6e6ea; overflow: hidden; display: flex;
+    box-shadow: 0 22px 50px rgb(0 0 0 / .6), 0 0 0 .5px rgb(255 255 255 / .14); transform-origin: 30% 20%; }
+.f-side { width: 132px; background: #26262c; padding: 34px 10px 0; font-size: 11px; color: #cfcfd6; }
 .f-side div { padding: 4px 8px; border-radius: 5px; margin-bottom: 1px; }
-.f-side .cap { font-size: 9.5px; font-weight: 600; color: #999; padding-left: 8px; margin: 6px 0 2px; }
-.f-side .on { background: #d6d6dc; }
+.f-side .cap { font-size: 9.5px; font-weight: 600; color: #77777f; padding-left: 8px; margin: 6px 0 2px; }
+.f-side .on { background: #3a3a42; }
 .f-main { flex: 1; position: relative; }
-.f-bar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #ececf0; font-size: 13px; font-weight: 700; }
+.f-bar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #2e2e35; font-size: 13px; font-weight: 700; }
 .lights { position: absolute; left: 12px; top: 12px; display: flex; gap: 7px; z-index: 2; }
 .lights i { width: 11px; height: 11px; border-radius: 50%; }
 .folder { position: absolute; width: 96px; text-align: center; font-size: 11px; }
 .folder .ic { width: 70px; height: 54px; margin: 0 auto 6px; position: relative; }
 .folder .ic::before { content: ''; position: absolute; left: 2px; top: 0; width: 30px; height: 12px; border-radius: 4px 4px 0 0; background: #3f9be8; }
 .folder .ic::after { content: ''; position: absolute; left: 0; right: 0; top: 7px; bottom: 0; border-radius: 4px; background: linear-gradient(180deg, #74c1f7, #4aa6ef); box-shadow: inset 0 1px 0 rgb(255 255 255 / .5); }
-.folder b { display: block; font-weight: 600; color: #222; }
-.folder small { color: #999; font-size: 10px; }
-.f-status { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; border-top: 1px solid #ececf0; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 10.5px; color: #777; }
-.f-prog { width: 110px; height: 5px; border-radius: 3px; background: #e6e6ec; overflow: hidden; }
+.folder b { display: block; font-weight: 600; color: #ececf0; }
+.folder small { color: #85858f; font-size: 10px; }
+.f-status { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; border-top: 1px solid #2e2e35; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 10.5px; color: #8d8d96; }
+.f-prog { width: 110px; height: 5px; border-radius: 3px; background: #34343c; overflow: hidden; }
 .f-prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5b56d6, #7a4fd1); }
-.dock { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 6px 8px; border-radius: 16px; background: rgb(255 255 255 / .22); backdrop-filter: blur(20px); box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .4); }
+.dock { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 6px 8px; border-radius: 16px; background: rgb(40 40 48 / .6); backdrop-filter: blur(20px); box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .4); }
 .dock i { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 1px 2px rgb(0 0 0 / .25); }
-.notif { position: absolute; right: 10px; top: 30px; width: 290px; display: flex; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgb(246 246 250 / .92); backdrop-filter: blur(24px); box-shadow: 0 10px 30px rgb(0 0 0 / .3); font-size: 11px; line-height: 1.35; z-index: 6; }
+.notif { position: absolute; right: 10px; top: 30px; width: 290px; display: flex; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgb(40 40 47 / .92); color: #ececf0; backdrop-filter: blur(24px); box-shadow: 0 10px 30px rgb(0 0 0 / .45), inset 0 0 0 .5px rgb(255 255 255 / .12); font-size: 11px; line-height: 1.35; z-index: 6; }
 .notif img { width: 32px; height: 32px; border-radius: 50%; }
 .notif b { font-size: 11.5px; }
 .marquee { position: absolute; border: 1px solid rgb(255 255 255 / .8); background: rgb(120 140 255 / .18); z-index: 3; }
 .acursor { position: absolute; z-index: 8; pointer-events: none; }
+.tofu { position: absolute; left: 0; top: 0; z-index: 9; pointer-events: none; }
+.tofu img { width: 74px; display: block; margin: -32px 0 0 -37px; filter: drop-shadow(0 10px 12px rgb(0 0 0 / .55)); }
+.tofu .lbl { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: rgb(20 20 26 / .85); color: #f2f2f6; font-size: 10px; font-weight: 600; box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .18); }
 .acursor .lbl { margin: 1px 0 0 13px; display: flex; width: max-content; align-items: center; gap: 6px; border-radius: 12px; padding: 4px 10px 4px 4px; background: hsl(28 85% 96%); box-shadow: inset 0 0 0 1px hsl(28 60% 88%), 0 2px 6px rgb(0 0 0 / .15); font-size: 10.5px; font-weight: 600; color: #222; }
 .acursor .lbl img { width: 18px; height: 18px; border-radius: 50%; }
 </style>
@@ -268,10 +271,7 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
                 <div class="marquee" id="marquee"></div>
                 <div class="dock"><i style="background:linear-gradient(#6fc3ff,#1e7bf0)"></i><i style="background:linear-gradient(#7af08a,#22b14c)"></i><i style="background:linear-gradient(#fff,#e6e6ea)"></i><i style="background:linear-gradient(#ffd45e,#ff9d0a)"></i><i style="background:linear-gradient(#b9a2ff,#5b56d6)"></i><i style="background:linear-gradient(#ff8a80,#e5392b)"></i><i style="background:linear-gradient(#cfd3dc,#8f96a3)"></i></div>
                 <div class="notif" id="notif"><img src="assets/tofu.png"><div><b>Tofu</b> <span style="color:#999;font-size:10px">· now</span><br>done: Screenshots › Aug, Sep and Oct, renamed by date. nothing deleted.</div></div>
-                <div class="acursor" id="acursor">
-                    <svg viewBox="0 0 16 16" width="17" height="17" style="color:hsl(28 70% 55%);filter:drop-shadow(0 1px 1px rgb(0 0 0/.3))"><path d="M1.5 1.5 14 6.2 8.4 8.4 6.2 14Z" fill="currentColor" stroke="#fff" stroke-width="1" stroke-linejoin="round"/></svg>
-                    <div class="lbl"><img src="assets/tofu.png"><span id="acursor-msg">Finding screenshots…</span></div>
-                </div>
+                <div class="tofu" id="tofu"><img id="tofu-img" src="assets/tofu-cutout.png"><span class="lbl" id="acursor-msg">Making folders…</span></div>
             </div>
         </div>
     </div>
@@ -580,17 +580,31 @@ function render(t) {
             const p = outBack(prog(lt, 1.7 + k * 0.15, 1.95 + k * 0.15))
             $('fold' + k).style.transform = `scale(${p})`; $('fold' + k).style.opacity = clamp(p)
         })
-        // Cursor path: into Finder, out to the desktop, drag-select every screenshot, drag them into Finder
-        const sel0 = [565, 38], sel1 = [910, 420], drop = [300, 205]
-        const path = [[460, 300, 1.2], [200, 150, 1.7], [565, 38, 2.2], [910, 420, 2.75], [910, 420, 2.9], [300, 205, 3.55]]
-        let cx = path[0][0], cy = path[0][1]
-        for (let k = 0; k < path.length - 1; k++) {
-            const [x0, y0, t0] = path[k], [x1, y1, t1] = path[k + 1]
-            if (lt >= t0) { const p = inOut(prog(lt, t0, t1)); cx = lerp(x0, x1, p); cy = lerp(y0, y1, p) }
+        // Tofu's path: into Finder, out to the desktop, drag-select every screenshot, carry them into Finder
+        const sel0 = [565, 38]
+        const path = [[460, 300, 1.2], [215, 165, 1.7], [565, 38, 2.2], [910, 420, 2.75], [910, 420, 2.9], [300, 205, 3.55], [372, 300, 4.4]]
+        const at = (u) => {
+            let x = path[0][0], y = path[0][1]
+            for (let k = 0; k < path.length - 1; k++) {
+                const [x0, y0, t0] = path[k], [x1, y1, t1] = path[k + 1]
+                if (u >= t0) { const p = inOut(prog(u, t0, t1)); x = lerp(x0, x1, p); y = lerp(y0, y1, p) }
+            }
+            return [x, y]
         }
-        $('acursor').style.left = cx + 'px'; $('acursor').style.top = cy + 'px'
-        $('acursor').style.opacity = prog(lt, 1.1, 1.3)
+        const [cx, cy] = at(lt), [px0, py0] = at(lt - 1 / FPS)
+        const vx = (cx - px0) * FPS, vy = (cy - py0) * FPS
+        const speed = Math.hypot(vx, vy)
+        // Idle bob, a lean into the direction of travel, and blur when moving fast
+        const bob = Math.sin(lt * 5) * 3 * (1 - clamp(speed / 300))
+        const tofuIn = outBack(prog(lt, 1.0, 1.35))
+        $('tofu').style.left = cx + 'px'; $('tofu').style.top = cy + bob + 'px'
+        $('tofu-img').style.transform = `rotate(${clamp(vx / 40, -18, 18)}deg) scale(${tofuIn * (1 + clamp(speed / 3000, 0, 0.08))}, ${tofuIn * (1 - clamp(speed / 3000, 0, 0.08))})`
+        $('tofu-img').style.filter = `drop-shadow(0 10px 12px rgb(0 0 0 / .55)) blur(${clamp(speed / 450, 0, 2.2)}px)`
+        $('tofu').style.opacity = clamp(tofuIn)
         $('acursor-msg').textContent = lt < 2.2 ? 'Making folders…' : lt < 2.9 ? 'Selecting 46 screenshots…' : lt < 4.3 ? 'Sorting by month…' : 'Done ✓'
+        // Keep Tofu's status label on screen near the edges
+        const lbl = $('acursor-msg'), half = lbl.offsetWidth / 2
+        lbl.style.transform = `translateX(calc(-50% + ${Math.min(0, 915 - (cx + half)) + Math.max(0, 8 - (cx - half))}px))`
         // Marquee selection
         const mq = prog(lt, 2.2, 2.75)
         $('marquee').style.display = mq > 0 && lt < 2.9 ? 'block' : 'none'
@@ -605,7 +619,7 @@ function render(t) {
             const folder = Math.floor(i / 5.34)
             const fileAt = 3.6 + i * 0.045
             const into = inOut(prog(lt, fileAt, fileAt + 0.3))
-            const stackX = cx - 30 + (i % 4) * 2, stackY = cy - 18 + (i % 4) * 2
+            const stackX = cx - 34 + (i % 4) * 2, stackY = cy + 8 + (i % 4) * 2
             // Folder centers in mac-screen coordinates: Finder left + sidebar + folder offset
             const fx = 34 + 132 + 22 + folder * 110 + 13, fy = 52 + 70 + 4
             let px = lerp(x, stackX, grab), py = lerp(y, stackY, grab)
