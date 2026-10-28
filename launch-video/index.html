@@ -151,7 +151,7 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
     <!-- 1. Bloom + "Introducing" -->
     <div class="scene" id="s-intro"><div class="center"><div class="sub" id="intro-t" style="font-size:44px;color:#fff">Introducing</div></div></div>
 
-    <!-- 2. Logo + "OpenBots 2.0" -->
+    <!-- 2. Logo + "OpenBots" -->
     <div class="scene" id="s-logo">
         <div class="center">
             <div id="logo-row" style="display:flex;align-items:center;gap:44px">
@@ -160,7 +160,6 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
                     <g transform="translate(12 -3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
                 </svg>
                 <div class="h-xl" id="logo-word">OpenBots</div>
-                <div class="h-xl grad-text" id="logo-ver">2.0</div>
             </div>
             <div class="sub" id="logo-sub" style="margin-top:40px;font-size:40px">is here</div>
         </div>
@@ -298,7 +297,7 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
                     <g transform="translate(-12 3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
                     <g transform="translate(12 -3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
                 </svg>
-                <div class="h-lg">OpenBots <span class="grad-text">2.0</span></div>
+                <div class="h-lg">OpenBots</div>
             </div>
             <div class="sub" id="end-sub" style="margin-top:34px;font-size:40px">Available now</div>
             <div class="btn" id="end-btn" style="margin-top:60px">Start building →</div>
@@ -544,12 +543,7 @@ function render(t) {
         $('logo-mark').style.transform = `scale(${lerp(0.3, 1, p)})`
         $('logo-mark').style.opacity = prog(lt, 0, 0.25)
         reveal($('logo-word'), lt, 0.35, 0.7, 50)
-        // "2.0" slams in from large
-        const v = outExpo(prog(lt, 1.2, 1.6))
-        $('logo-ver').style.opacity = v
-        $('logo-ver').style.transform = `scale(${lerp(2.4, 1, v)})`
-        $('logo-ver').style.filter = `blur(${(1 - v) * 20}px)`
-        reveal($('logo-sub'), lt, 1.9, 0.7, 24)
+        reveal($('logo-sub'), lt, 1.2, 0.7, 24)
         blink($('s-logo'), lt + 1.0)
     }
 

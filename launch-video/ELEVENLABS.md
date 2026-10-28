@@ -29,7 +29,7 @@ Generate a few takes and pick the one where the hits at **0:03** and **0:38** la
 | Section | Time | Scene on screen |
 | --- | --- | --- |
 | Intro bloom | 0:00–0:03 | Gradient blooms, "Introducing" |
-| Logo reveal | 0:03–0:07 | Logo, "OpenBots 2.0 is here" (hit) |
+| Logo reveal | 0:03–0:07 | Logo, "OpenBots is here" (hit) |
 | Word swaps | 0:07–0:10 | Your AI / models / rules / phone |
 | Feature: builder | 0:10–0:15 | Dashboard, model slots |
 | Feature: just text it | 0:15–0:21 | Landing-page iPhone: you ask Tofu to send Dana your 1099s |
