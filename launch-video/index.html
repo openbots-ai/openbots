@@ -32,7 +32,7 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .h-lg { font-size: 120px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.02; }
 .h-md { font-size: 72px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.05; }
 .sub { font-size: 34px; font-weight: 400; color: rgb(255 255 255 / .7); letter-spacing: -0.01em; }
-.grad-text { background: linear-gradient(100deg, #fff 0%, #dcdaff 50%, var(--glow) 100%); padding-right: .06em; margin-right: -.06em; -webkit-background-clip: text; background-clip: text; color: transparent; }
+.grad-text { background: linear-gradient(100deg, #fff 0%, #d6dcff 40%, #c9b8ff 100%); padding-right: .06em; margin-right: -.06em; -webkit-background-clip: text; background-clip: text; color: transparent; }
 .word { display: inline-block; will-change: transform, opacity, filter; }
 
 /* Product window */
@@ -192,7 +192,6 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
             </div>
             <div class="sub" id="end-sub" style="margin-top:34px;font-size:40px">Available now</div>
             <div class="btn" id="end-btn" style="margin-top:60px">Start building →</div>
-            <div class="sub" id="end-url" style="margin-top:40px;font-size:28px">github.com/openbots-ai/openbots</div>
         </div>
     </div>
 
@@ -220,28 +219,31 @@ function reveal(el, t, start, dur = 0.7, dist = 40) {
 }
 
 // Scene list: [id, start, end] in seconds. Hard cuts between them, like the original.
+// Every scene is at least 3s so each one can be its own ElevenLabs music section (see ELEVENLABS.md)
 const SCENES = [
-    ['s-intro', 0, 2.6],
-    ['s-logo', 2.6, 6.6],
-    ['s-kinetic', 6.6, 9.4],
-    ['s-build', 9.4, 15.4],
-    ['s-text', 15.4, 21.4],
-    ['s-computer', 21.4, 27.0],
-    ['s-models', 27.0, 31.0],
-    ['s-private', 31.0, 34.6],
-    ['s-montage', 34.6, 38.2],
-    ['s-end', 38.2, 44.0],
+    ['s-intro', 0, 3.0],
+    ['s-logo', 3.0, 7.0],
+    ['s-kinetic', 7.0, 10.0],
+    ['s-build', 10.0, 15.8],
+    ['s-text', 15.8, 21.8],
+    ['s-computer', 21.8, 27.4],
+    ['s-models', 27.4, 31.4],
+    ['s-private', 31.4, 35.0],
+    ['s-montage', 35.0, 38.0],
+    ['s-end', 38.0, 44.0],
 ]
 const DURATION = 44.0
 
 // Backdrop palettes per scene: four blob colors + base
 const PALETTES = {
-    'deep':   ['#3b37a3', '#7d79d8', '#1c1953', '#5b56d6', '#0b0926'],
-    'bright': ['#5b56d6', '#b9b6ff', '#3b37a3', '#7d79d8', '#151245'],
-    'dusk':   ['#2a2768', '#3b37a3', '#7d79d8', '#120f3a', '#0b0926'],
+    'deep':   ['#3b37a3', '#6f5bd9', '#1c1953', '#5a7bea', '#0b0926'],
+    'bright': ['#5b56d6', '#b9b6ff', '#7a4fd1', '#6d8bff', '#151245'],
+    'dusk':   ['#2a2768', '#4a3fb8', '#8a6be0', '#1d2a6e', '#0b0926'],
+    'violet': ['#6a3fc4', '#b9a2ff', '#3b37a3', '#8f7bff', '#170f3f'],
+    'blue':   ['#3b4fc4', '#8fa6ff', '#3b37a3', '#6d8bff', '#0d1238'],
 }
-const SCENE_PAL = { 's-intro': 'deep', 's-logo': 'bright', 's-kinetic': 'deep', 's-build': 'dusk', 's-text': 'bright',
-    's-computer': 'dusk', 's-models': 'deep', 's-private': 'dusk', 's-montage': 'bright', 's-end': 'bright' }
+const SCENE_PAL = { 's-intro': 'deep', 's-logo': 'bright', 's-kinetic': 'violet', 's-build': 'dusk', 's-text': 'blue',
+    's-computer': 'dusk', 's-models': 'violet', 's-private': 'blue', 's-montage': 'bright', 's-end': 'bright' }
 
 function backdrop(t, pal, intensity) {
     const c = PALETTES[pal]
@@ -268,7 +270,7 @@ function blink(root, t) {
 }
 
 const KINETIC = ['Your AI.', 'Your models.', 'Your rules.', 'Your phone.']
-const MONTAGE = ['Reminders', 'Web search', 'Check-ins', 'Handoffs', 'Quiet hours', 'Watches', 'Group chats', 'Analytics']
+const MONTAGE = ['Reminders', 'Web search', 'Check-ins', 'Handoffs', 'Quiet hours', 'Watches', 'Group chats', 'Knowledge', 'Budgets', 'Analytics']
 const CHAT = [
     ['me', 'remind me to call mom at 6', 0.6],
     ['them', 'done ✓ I’ll text you at 6pm', 1.5],
@@ -304,7 +306,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-intro' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [2.6, 6.6, 34.6, 38.2]
+    const flashAt = [3.0, 7.0, 35.0, 38.0]
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -313,8 +315,8 @@ function render(t) {
     $(id).style.transform = `scale(${zoom})`
 
     if (id === 's-intro') {
-        reveal($('intro-t'), t, 0.7, 0.9, 20)
-        const out = prog(lt, 2.1, 2.6)
+        reveal($('intro-t'), t, 0.9, 0.9, 20)
+        const out = prog(lt, 2.5, 3.0)
         if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
 
@@ -333,12 +335,12 @@ function render(t) {
     }
 
     if (id === 's-kinetic') {
-        const step = 0.7
+        const step = 0.75
         const i = Math.min(KINETIC.length - 1, Math.floor(lt / step))
         const w = $('kin-word')
         const last = i === KINETIC.length - 1
         w.innerHTML = last ? `Your <span class="grad-text">phone.</span>` : KINETIC[i]
-        const lp = outExpo(prog(lt - i * step, 0, 0.3))
+        const lp = outExpo(prog(lt - i * step + 1 / FPS, 0, 0.3))
         w.style.opacity = lp
         w.style.transform = `translateY(${(1 - lp) * 60}px) scale(${last ? lerp(1, 1.06, prog(lt - i * step, 0, 0.7)) : 1})`
         w.style.filter = `blur(${(1 - lp) * 16}px)`
@@ -452,12 +454,12 @@ function render(t) {
         const i = Math.min(MONTAGE.length - 1, Math.floor(lt / step))
         const w = $('mon-word')
         w.textContent = MONTAGE[i]
-        const lp = outExpo(prog(lt - i * step, 0, 0.18))
+        const lp = outExpo(prog(lt - i * step + 1 / FPS, 0, 0.12))
         w.style.opacity = lp
         w.style.transform = `scale(${lerp(1.25, 1, lp)})`
         w.style.filter = `blur(${(1 - lp) * 10}px)`
         // Alternate the base every cut for the strobe-like rhythm
-        $('stage').style.background = i % 2 ? '#3b37a3' : '#0b0926'
+        $('stage').style.background = ['#0b0926', '#3b37a3', '#170f3f', '#3b4fc4'][i % 4]
         $('aurora').style.opacity = i % 2 ? 0.5 : 1
     }
 
@@ -470,7 +472,6 @@ function render(t) {
         const bp = outBack(prog(lt, 1.1, 1.6))
         $('end-btn').style.opacity = clamp(bp)
         $('end-btn').style.transform = `scale(${lerp(0.7, 1, bp)})`
-        reveal($('end-url'), lt, 1.5, 0.7)
         blink($('s-end'), lt)
         // Fade to black at the very end
         $('flash').style.background = '#000'
