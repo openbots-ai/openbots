@@ -172,7 +172,6 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
     <!-- 4. Feature: build piece by piece -->
     <div class="scene" id="s-build">
         <div style="position:absolute;left:150px;top:0;bottom:0;width:640px;display:flex;flex-direction:column;justify-content:center">
-            <div class="pill" id="build-pill" style="align-self:flex-start;margin-bottom:34px">Agent builder</div>
             <div class="h-md" id="build-h">Build your AI<br><span class="grad-text">piece by piece.</span></div>
             <div class="sub" id="build-sub" style="margin-top:28px">Pick the model behind every part, its personality, rules and what it knows.</div>
         </div>
@@ -205,9 +204,8 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 
     <!-- 6. Feature: computer use. Tofu sends your 1099s from the brokerage you're already signed in to -->
     <div class="scene" id="s-computer">
-        <div class="center" style="justify-content:flex-start;padding-top:70px">
-            <div class="pill" id="cu-pill">Computer use</div>
-            <div class="h-md" id="cu-h" style="margin-top:22px;text-align:center">On your Mac, <span class="grad-text">signed in to everything.</span></div>
+        <div class="center" style="justify-content:flex-start;padding-top:130px">
+            <div class="h-md" id="cu-h" style="text-align:center">On your Mac, <span class="grad-text">signed in to everything.</span></div>
         </div>
         <div class="mac" id="mac" style="left:356px;top:330px">
             <img src="assets/macbook-pro.png">
@@ -568,7 +566,6 @@ function render(t) {
     }
 
     if (id === 's-build') {
-        reveal($('build-pill'), lt, 0.1, 0.6)
         reveal($('build-h'), lt, 0.25, 0.8, 50)
         reveal($('build-sub'), lt, 0.5, 0.8)
         const wp = outExpo(prog(lt, 0.2, 1.2))
@@ -617,7 +614,6 @@ function render(t) {
 
     if (id === 's-computer') {
         if (!TARGETS) measureTargets()
-        reveal($('cu-pill'), lt, 0.05, 0.6)
         reveal($('cu-h'), lt, 0.2, 0.8, 50)
         const wp = outExpo(prog(lt, 0.2, 1.2))
         // The laptop rises in, the headline lifts away and the camera zooms into the screen;
@@ -627,7 +623,7 @@ function render(t) {
         const scale = lerp(0.92, 1, wp) * lerp(1, 1.28, zoom) * lerp(1, 0.86, aside)
         $('mac').style.transform = `translate(${-250 * aside}px, ${(1 - wp) * 420 - 140 * zoom}px) scale(${scale})`
         $('mac').style.opacity = clamp(wp * 2)
-        ;['cu-pill', 'cu-h'].forEach((h) => { if (zoom > 0) { $(h).style.opacity = 1 - zoom; $(h).style.transform = `translateY(${-60 * zoom}px)` } })
+        if (zoom > 0) { $('cu-h').style.opacity = 1 - zoom; $('cu-h').style.transform = `translateY(${-60 * zoom}px)` }
         const pill = outBack(prog(lt, 1.1, 1.4))
         $('agent-pill').style.transform = `scale(${pill})`; $('agent-pill').style.opacity = clamp(pill)
         $('agent-dot').style.opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(lt * 8))
