@@ -41,10 +41,21 @@ Generate a few takes and pick the one where the hits at **0:03** and **0:38** la
 
 ## Putting the music on the video
 
-Save the track as `launch-video/music.mp3`, then from `launch-video/`:
+`music.mp3` is the ElevenLabs track. `score.py` fits it to the cuts, then ffmpeg puts it on the video:
 
 ```
-ffmpeg -i openbots-launch.mp4 -i music.mp3 -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -af "afade=t=out:st=42.5:d=1.5" -shortest openbots-launch-with-music.mp4
+python3 score.py music.mp3 score.wav
+ffmpeg -i openbots-launch.mp4 -i score.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest openbots-launch-with-music.mp4
 ```
 
-If the timing changes in `index.html`, update the section lengths here to match.
+What `score.py` does to the track:
+
+- Starts it 0.47s in, which puts its own moments on the video's: a kick on the logo (0:03), its drop on "Just text it"
+  (0:15), its chorus on the model logos (~0:29) and its last hit on the end card (0:38).
+- Intro (0:00–0:03): fades in muffled, then opens up on the logo with a noise riser and a sub boom.
+- "Private by design" (0:32–0:35): muffled into a breakdown, with a riser back into the montage.
+- Montage (0:35–0:38): uses the chorus's strongest bar, because the original track winds down there.
+- End card (0:38–0:44): a sub boom on the last hit and a long reverb tail, fading to silence.
+- Loudness: normalised to -14 LUFS (the usual target for social video), with a limiter so it never clips.
+
+If the scene timing in `index.html` changes, update `SEGMENTS` and the times in `score.py` to match.
