@@ -42,15 +42,6 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .dot { width: 13px; height: 13px; border-radius: 50%; background: #d9d9e0; }
 .url { margin-left: 18px; height: 28px; flex: 1; max-width: 520px; border-radius: 8px; background: #fff; border: 1px solid #e3e3ea; font-size: 15px; color: #777; display: flex; align-items: center; padding: 0 12px; }
 
-/* Phone */
-.phone { position: absolute; width: 430px; height: 880px; border-radius: 68px; background: #0d0d10; padding: 14px;
-    box-shadow: 0 60px 120px -20px rgb(5 3 30 / .75), inset 0 0 0 2px #2c2c33; }
-.screen { width: 100%; height: 100%; border-radius: 56px; background: #fff; overflow: hidden; position: relative; color: #111; }
-.island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: #0d0d10; z-index: 3; }
-.bubble { max-width: 300px; padding: 12px 17px; border-radius: 22px; font-size: 19px; line-height: 1.32; margin: 6px 16px; }
-.me { background: #2f80ff; color: #fff; margin-left: auto; border-bottom-right-radius: 6px; }
-.them { background: #e9e9ef; color: #111; border-bottom-left-radius: 6px; }
-
 .pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; font-size: 26px; font-weight: 500;
     background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .18); backdrop-filter: blur(10px); }
 .btn { padding: 22px 46px; border-radius: 16px; font-size: 30px; font-weight: 600; color: #fff;
@@ -61,6 +52,81 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .slot-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; }
 .slot-icon img { width: 28px; height: 28px; }
 .tag { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a8aa0; }
+
+/* Landing-page iPhone: the real device frame with the Messages UI laid out at the landing's 300x653 screen size */
+.ip-screen { position: absolute; left: 5.333%; top: 2.5%; width: 89.333%; height: 95%; border-radius: 15.75% / 7.25%; clip-path: inset(0 round 15.75% / 7.25%); overflow: hidden; background: #fff; }
+.ip-ui { position: absolute; left: 0; top: 0; width: 300.16px; height: 652.6px; transform-origin: 0 0; color: #000; font-family: -apple-system, 'SF Pro Text', Inter, sans-serif; }
+.ip-view { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; }
+.ip-status { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px 4px; font-size: 13px; font-weight: 600; }
+.ip-glass { background: rgb(255 255 255 / .9); box-shadow: 0 2px 12px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.05); }
+.ip-row { position: relative; display: flex; align-items: center; gap: 10px; padding-left: 20px; }
+.ip-row img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.ip-row .txt { min-width: 0; flex: 1; border-bottom: .5px solid #E5E5EA; padding: 14px 12px 14px 0; }
+.ip-row .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ip-row .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ip-row .name span { font-weight: 400; color: #a3a3a3; }
+.ip-row .time { font-size: 10px; color: #a3a3a3; flex-shrink: 0; }
+.ip-row .prev { margin-top: 2px; font-size: 11px; line-height: 1.375; color: #737373; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ip-row .unread { position: absolute; left: 6px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: #0A84FF; }
+.ip-home { position: absolute; bottom: 8px; left: 50%; width: 112px; height: 4px; margin-left: -56px; border-radius: 4px; background: #000; z-index: 10; }
+.ip-msg { display: flex; flex-direction: column; }
+.ip-msg p { position: relative; max-width: 78%; border-radius: 18px; padding: 6px 12px; font-size: 13px; line-height: 1.375; }
+.ip-msg.me { align-items: flex-end; } .ip-msg.me p { background: #0A84FF; color: #fff; }
+.ip-msg.them { align-items: flex-start; } .ip-msg.them p { background: #E9E9EB; }
+.imsg-tail::before, .imsg-tail::after { content: ''; position: absolute; bottom: 0; height: 18px; }
+.imsg-tail::before { width: 18px; background: inherit; }
+.imsg-tail::after { width: 10px; background: #fff; }
+.imsg-me.imsg-tail::before { right: -7px; border-bottom-left-radius: 16px 14px; }
+.imsg-me.imsg-tail::after { right: -10px; border-bottom-left-radius: 10px; }
+.imsg-them.imsg-tail::before { left: -7px; border-bottom-right-radius: 16px 14px; }
+.imsg-them.imsg-tail::after { left: -10px; border-bottom-right-radius: 10px; }
+
+/* MacBook Pro frame (pixelsign/html5-device-mockups, MIT); the screen sits over its display area */
+.mac { position: absolute; width: 1208px; height: 700px; }
+.mac > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mac-screen { position: absolute; left: 143px; top: 47px; width: 923px; height: 577px; overflow: hidden; font-family: -apple-system, 'SF Pro Text', Inter, sans-serif; color: #111;
+    background: radial-gradient(80% 90% at 15% 0%, #8f7bff 0%, transparent 60%), radial-gradient(70% 80% at 95% 100%, #6d8bff 0%, transparent 60%), radial-gradient(60% 60% at 60% 40%, #5b3fc4 0%, transparent 70%), #231d63; }
+.menubar { position: absolute; left: 0; right: 0; top: 0; height: 22px; display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 11.5px; color: #fff; background: rgb(18 14 58 / .35); backdrop-filter: blur(20px); z-index: 5; }
+.menubar b { font-weight: 700; }
+.mb-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.agent-pill { display: flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 999px; background: hsl(28 85% 96%); color: #7a3a0c; font-weight: 600; font-size: 10.5px; }
+.agent-pill img { width: 15px; height: 15px; border-radius: 50%; }
+.agent-pill i { width: 6px; height: 6px; border-radius: 50%; background: #ff7a1a; }
+.shot { position: absolute; width: 70px; text-align: center; }
+.shot .th { width: 54px; height: 36px; margin: 0 auto 3px; border-radius: 3px; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .35); overflow: hidden; position: relative; }
+.shot .th::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: var(--c); }
+.shot .th::after { content: ''; position: absolute; left: 6px; top: 11px; width: 30px; height: 3px; border-radius: 2px; background: #d4d4dc; box-shadow: 0 7px 0 #e4e4ea, 0 14px 0 #e4e4ea; }
+.shot span { display: inline-block; font-size: 8.5px; line-height: 1.2; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .6); padding: 1px 3px; border-radius: 3px; }
+.shot.sel span { background: #2b63d9; text-shadow: none; }
+.shot.sel .th { outline: 2px solid rgb(255 255 255 / .55); outline-offset: 2px; }
+.finder { position: absolute; left: 34px; top: 52px; width: 500px; height: 340px; border-radius: 11px; background: #fff; overflow: hidden; display: flex;
+    box-shadow: 0 22px 50px rgb(0 0 0 / .45), 0 0 0 .5px rgb(0 0 0 / .3); transform-origin: 30% 20%; }
+.f-side { width: 132px; background: #ececf0; padding: 34px 10px 0; font-size: 11px; color: #333; }
+.f-side div { padding: 4px 8px; border-radius: 5px; margin-bottom: 1px; }
+.f-side .cap { font-size: 9.5px; font-weight: 600; color: #999; padding-left: 8px; margin: 6px 0 2px; }
+.f-side .on { background: #d6d6dc; }
+.f-main { flex: 1; position: relative; }
+.f-bar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #ececf0; font-size: 13px; font-weight: 700; }
+.lights { position: absolute; left: 12px; top: 12px; display: flex; gap: 7px; z-index: 2; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; }
+.folder { position: absolute; width: 96px; text-align: center; font-size: 11px; }
+.folder .ic { width: 70px; height: 54px; margin: 0 auto 6px; position: relative; }
+.folder .ic::before { content: ''; position: absolute; left: 2px; top: 0; width: 30px; height: 12px; border-radius: 4px 4px 0 0; background: #3f9be8; }
+.folder .ic::after { content: ''; position: absolute; left: 0; right: 0; top: 7px; bottom: 0; border-radius: 4px; background: linear-gradient(180deg, #74c1f7, #4aa6ef); box-shadow: inset 0 1px 0 rgb(255 255 255 / .5); }
+.folder b { display: block; font-weight: 600; color: #222; }
+.folder small { color: #999; font-size: 10px; }
+.f-status { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; border-top: 1px solid #ececf0; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 10.5px; color: #777; }
+.f-prog { width: 110px; height: 5px; border-radius: 3px; background: #e6e6ec; overflow: hidden; }
+.f-prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5b56d6, #7a4fd1); }
+.dock { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 6px 8px; border-radius: 16px; background: rgb(255 255 255 / .22); backdrop-filter: blur(20px); box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .4); }
+.dock i { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+.notif { position: absolute; right: 10px; top: 30px; width: 290px; display: flex; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgb(246 246 250 / .92); backdrop-filter: blur(24px); box-shadow: 0 10px 30px rgb(0 0 0 / .3); font-size: 11px; line-height: 1.35; z-index: 6; }
+.notif img { width: 32px; height: 32px; border-radius: 50%; }
+.notif b { font-size: 11.5px; }
+.marquee { position: absolute; border: 1px solid rgb(255 255 255 / .8); background: rgb(120 140 255 / .18); z-index: 3; }
+.acursor { position: absolute; z-index: 8; pointer-events: none; }
+.acursor .lbl { margin: 1px 0 0 13px; display: flex; width: max-content; align-items: center; gap: 6px; border-radius: 12px; padding: 4px 10px 4px 4px; background: hsl(28 85% 96%); box-shadow: inset 0 0 0 1px hsl(28 60% 88%), 0 2px 6px rgb(0 0 0 / .15); font-size: 10.5px; font-weight: 600; color: #222; }
+.acursor .lbl img { width: 18px; height: 18px; border-radius: 50%; }
 </style>
 </head>
 <body>
@@ -122,38 +188,92 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
         <svg id="build-cursor" width="36" height="36" viewBox="0 0 24 24" style="position:absolute;filter:drop-shadow(0 4px 6px rgb(0 0 0/.3))"><path d="M4 2l16 9-7 2-3 7z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>
     </div>
 
-    <!-- 5. Feature: just text it -->
+    <!-- 5. Feature: just text it (the landing page's iPhone and Messages UI) -->
     <div class="scene" id="s-text">
-        <div class="phone" id="phone" style="left:745px;top:100px">
-            <div class="screen">
-                <div class="island"></div>
-                <div style="padding:70px 0 14px;text-align:center;border-bottom:1px solid #eee;background:#fafafa">
-                    <div style="width:58px;height:58px;margin:0 auto 6px;border-radius:50%;background:radial-gradient(120% 90% at 20% 0%,#b9b6ff,transparent 60%),#3b37a3"></div>
-                    <div style="font-size:15px;font-weight:600">Mochi ›</div>
+        <div id="phone" style="position:absolute;left:740px;top:88px;width:440px;height:899.6px">
+            <div style="position:absolute;left:1.85%;top:.8%;right:1.8%;bottom:.8%;border-radius:18.2% / 8.7%;box-shadow:0 60px 120px -20px rgb(5 3 30/.75),0 20px 40px -15px rgb(0 0 0/.4)"></div>
+            <div class="ip-screen">
+                <div class="ip-ui" style="transform:scale(1.3095)">
+                    <div class="ip-view" id="ip-list">
+                        <div class="ip-status"><span style="width:48px">9:41</span><span style="display:flex;align-items:center;gap:5px">
+<svg viewBox="0 0 18 12" width="17" height="11" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>
+<svg viewBox="0 0 16 12" width="15" height="11" fill="currentColor"><path d="M8 1.2c2.6 0 5 1 6.8 2.7.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A7.3 7.3 0 0 0 8 3.6c-1.9 0-3.7.7-5.1 2-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A9.8 9.8 0 0 1 8 1.2Z"/><path d="M8 5c1.6 0 3 .6 4.1 1.6.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A3.5 3.5 0 0 0 8 7.4c-.9 0-1.7.3-2.4.9-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A6 6 0 0 1 8 5Z"/><path d="M8 8.8c.6 0 1.1.2 1.5.6.2.2.2.5 0 .7L8.4 11.2c-.2.2-.5.2-.7 0L6.5 10.1c-.2-.2-.2-.5 0-.7.4-.4.9-.6 1.5-.6Z"/></svg>
+<svg viewBox="0 0 27 13" width="25" height="12"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="currentColor" stroke-opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="currentColor"/><path d="M25 4.5v4a2.2 2.2 0 0 0 0-4Z" fill="currentColor" fill-opacity=".45"/></svg></span></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px 8px">
+                            <span class="ip-glass" style="border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500">Edit</span>
+                            <span style="font-size:13px;font-weight:600">Messages</span>
+                            <span class="ip-glass" style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M7 12h10M10 18h4"/></svg></span>
+                        </div>
+                        <div id="ip-rows" style="flex:1;overflow:hidden"></div>
+                        <div style="position:absolute;left:12px;right:12px;bottom:24px;display:flex;gap:8px">
+                            <span class="ip-glass" style="flex:1;height:36px;border-radius:999px;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:13px;color:#737373">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search</span>
+                            <span class="ip-glass" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg></span>
+                        </div>
+                        <span class="ip-home"></span>
+                    </div>
+                    <div class="ip-view" id="ip-chat">
+                        <div style="position:absolute;left:0;right:0;top:0;z-index:10;padding-bottom:12px;background:linear-gradient(#fff 60%,rgb(255 255 255/0))">
+                            <div class="ip-status"><span style="width:48px">9:41</span><span style="display:flex;align-items:center;gap:5px">
+<svg viewBox="0 0 18 12" width="17" height="11" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>
+<svg viewBox="0 0 16 12" width="15" height="11" fill="currentColor"><path d="M8 1.2c2.6 0 5 1 6.8 2.7.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A7.3 7.3 0 0 0 8 3.6c-1.9 0-3.7.7-5.1 2-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A9.8 9.8 0 0 1 8 1.2Z"/><path d="M8 5c1.6 0 3 .6 4.1 1.6.2.2.2.5 0 .7l-1 1c-.2.2-.5.2-.7 0A3.5 3.5 0 0 0 8 7.4c-.9 0-1.7.3-2.4.9-.2.2-.5.2-.7 0l-1-1c-.2-.2-.2-.5 0-.7A6 6 0 0 1 8 5Z"/><path d="M8 8.8c.6 0 1.1.2 1.5.6.2.2.2.5 0 .7L8.4 11.2c-.2.2-.5.2-.7 0L6.5 10.1c-.2-.2-.2-.5 0-.7.4-.4.9-.6 1.5-.6Z"/></svg>
+<svg viewBox="0 0 27 13" width="25" height="12"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="currentColor" stroke-opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="currentColor"/><path d="M25 4.5v4a2.2 2.2 0 0 0 0-4Z" fill="currentColor" fill-opacity=".45"/></svg></span></div>
+                            <div style="position:relative;display:flex;flex-direction:column;align-items:center;padding:4px 12px 0">
+                                <span id="ip-back" class="ip-glass" style="position:absolute;left:12px;top:10px;height:36px;border-radius:999px;display:flex;align-items:center;padding:0 10px 0 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></span>
+                                <span class="ip-glass" style="position:absolute;right:12px;top:10px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="#404040"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-4v12l-6-4Z"/></svg></span>
+                                <img src="assets/tofu.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;box-shadow:0 4px 6px rgb(0 0 0/.12)">
+                                <span class="ip-glass" style="margin-top:-8px;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;position:relative">Tofu ›</span>
+                            </div>
+                        </div>
+                        <div id="ip-msgs" style="flex:1;display:flex;flex-direction:column;gap:2px;overflow:hidden;padding:164px 16px 0"></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px 28px">
+                            <span class="ip-glass" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#525252;font-size:20px">+</span>
+                            <span style="flex:1;height:36px;border-radius:999px;background:#f5f5f5;display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 16px;color:#a3a3a3;font-size:13px">iMessage<span style="width:28px;height:28px;border-radius:50%;background:#e5e5e5;display:grid;place-items:center">↑</span></span>
+                        </div>
+                        <span class="ip-home"></span>
+                    </div>
                 </div>
-                <div id="chat" style="padding-top:14px"></div>
             </div>
+            <img src="assets/iphone-frame.png" style="position:absolute;inset:0;width:100%;height:100%">
         </div>
-        <div class="h-lg" id="text-l" style="position:absolute;right:1290px;top:430px;text-align:right">Just</div>
-        <div class="h-lg grad-text" id="text-r" style="position:absolute;left:1290px;top:430px">text it.</div>
-        <div class="sub" id="text-sub" style="position:absolute;left:0;right:0;bottom:60px;text-align:center">iMessage or SMS. No new app.</div>
+        <div class="h-lg" id="text-l" style="position:absolute;right:1260px;top:430px;text-align:right">Just</div>
+        <div class="h-lg grad-text" id="text-r" style="position:absolute;left:1260px;top:430px">text it.</div>
+        <div class="sub" id="text-sub" style="position:absolute;left:0;right:0;bottom:40px;text-align:center">iMessage or SMS. No new app.</div>
     </div>
 
-    <!-- 6. Feature: computer use -->
+    <!-- 6. Feature: computer use, on a real laptop frame -->
     <div class="scene" id="s-computer">
-        <div class="center" style="justify-content:flex-start;padding-top:96px">
+        <div class="center" style="justify-content:flex-start;padding-top:70px">
             <div class="pill" id="cu-pill">Computer use</div>
-            <div class="h-md" id="cu-h" style="margin-top:26px;text-align:center">It does the work <span class="grad-text">on your computer.</span></div>
+            <div class="h-md" id="cu-h" style="margin-top:22px;text-align:center">It does the work <span class="grad-text">on your computer.</span></div>
         </div>
-        <div class="window" id="cu-win" style="left:310px;top:360px;width:1300px;height:640px;background:#eef0f6">
-            <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">Files — Desktop</div></div>
-            <div id="cu-grid" style="padding:34px 40px;display:grid;grid-template-columns:repeat(8,1fr);gap:22px"></div>
+        <div class="mac" id="mac" style="left:356px;top:330px">
+            <img src="assets/macbook-pro.png">
+            <div class="mac-screen" id="mac-screen">
+                <div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span>
+                    <div class="mb-right"><span class="agent-pill" id="agent-pill"><img src="assets/tofu.png"><i id="agent-dot"></i>Tofu is using this computer</span><span>Tue Oct 28&nbsp;&nbsp;9:41 AM</span></div>
+                </div>
+                <div id="shots"></div>
+                <div class="finder" id="finder">
+                    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+                    <div class="f-side"><div class="cap">Favorites</div><div>Recents</div><div>Applications</div><div class="on">Desktop</div><div>Documents</div><div>Downloads</div><div class="cap">Locations</div><div>Macintosh HD</div></div>
+                    <div class="f-main">
+                        <div class="f-bar"><span style="color:#bbb;font-weight:400">‹ ›</span>Screenshots</div>
+                        <div class="folder" id="fold0" style="left:22px;top:70px"><div class="ic"></div><b>Aug</b><small id="fc0">0 items</small></div>
+                        <div class="folder" id="fold1" style="left:132px;top:70px"><div class="ic"></div><b>Sep</b><small id="fc1">0 items</small></div>
+                        <div class="folder" id="fold2" style="left:242px;top:70px"><div class="ic"></div><b>Oct</b><small id="fc2">0 items</small></div>
+                        <div class="f-status"><span id="f-msg">3 folders</span><span class="f-prog" id="f-prog-wrap"><i id="f-prog"></i></span></div>
+                    </div>
+                </div>
+                <div class="marquee" id="marquee"></div>
+                <div class="dock"><i style="background:linear-gradient(#6fc3ff,#1e7bf0)"></i><i style="background:linear-gradient(#7af08a,#22b14c)"></i><i style="background:linear-gradient(#fff,#e6e6ea)"></i><i style="background:linear-gradient(#ffd45e,#ff9d0a)"></i><i style="background:linear-gradient(#b9a2ff,#5b56d6)"></i><i style="background:linear-gradient(#ff8a80,#e5392b)"></i><i style="background:linear-gradient(#cfd3dc,#8f96a3)"></i></div>
+                <div class="notif" id="notif"><img src="assets/tofu.png"><div><b>Tofu</b> <span style="color:#999;font-size:10px">· now</span><br>done: Screenshots › Aug, Sep and Oct, renamed by date. nothing deleted.</div></div>
+                <div class="acursor" id="acursor">
+                    <svg viewBox="0 0 16 16" width="17" height="17" style="color:hsl(28 70% 55%);filter:drop-shadow(0 1px 1px rgb(0 0 0/.3))"><path d="M1.5 1.5 14 6.2 8.4 8.4 6.2 14Z" fill="currentColor" stroke="#fff" stroke-width="1" stroke-linejoin="round"/></svg>
+                    <div class="lbl"><img src="assets/tofu.png"><span id="acursor-msg">Finding screenshots…</span></div>
+                </div>
+            </div>
         </div>
-        <div id="cu-toast" class="card" style="left:1250px;top:690px;width:430px;padding:22px 26px;background:#fff;color:#111;border:none;box-shadow:0 30px 60px -10px rgb(5 3 30/.5)">
-            <div style="font-size:15px;color:#888;font-weight:600;margin-bottom:6px">MOCHI · NOW</div>
-            <div style="font-size:21px;line-height:1.35">Sorted 46 screenshots into folders by month. Nothing deleted ✓</div>
-        </div>
-        <svg id="cu-cursor" width="40" height="40" viewBox="0 0 24 24" style="position:absolute;filter:drop-shadow(0 4px 6px rgb(0 0 0/.3))"><path d="M4 2l16 9-7 2-3 7z" fill="#3b37a3" stroke="#fff" stroke-width="1.5"/></svg>
     </div>
 
     <!-- 7. Feature: any model -->
@@ -271,22 +391,52 @@ function blink(root, t) {
 
 const KINETIC = ['Your AI.', 'Your models.', 'Your rules.', 'Your phone.']
 const MONTAGE = ['Reminders', 'Web search', 'Check-ins', 'Handoffs', 'Quiet hours', 'Watches', 'Group chats', 'Knowledge', 'Budgets', 'Analytics']
-const CHAT = [
-    ['me', 'remind me to call mom at 6', 0.6],
-    ['them', 'done ✓ I’ll text you at 6pm', 1.5],
-    ['me', 'also find me a sushi spot near work for friday', 2.4],
-    ['them', 'Sora on 5th, 4.7★, booked 7:30 for two 🍣', 3.5],
+// The landing page's Messages list and Tofu's chat, word for word
+const CONTACTS = [
+    ['Tofu', 'Desktop Helper', 'tofu.png', 'my desktop is a mess. sort the screenshots into folders by month?', '9:41 AM', true],
+    ['Rishi', 'Forms & Errands', 'rishi.png', 'submitted ✓ confirmation saved to Downloads', '9:38 AM', true],
+    ['Mochi', 'Your personal assistant', 'mochi.webp', '3 overdue invoices. follow-ups ready to review ☕️', '8:42 AM', true],
+    ['Lulu', 'Trip Planner', 'lulu.png', 'compared 12 stays. 3 fit your $600 trip budget ☀️', 'Yesterday', false],
+    ['Biscuit', 'Meal Planner', 'biscuit.webp', '5 dinners, $48 grocery cart. used your pantry first 🥕', 'Yesterday', false],
+    ['Honey', 'Home Finder', 'honey.webp', '2 new pet-friendly listings under $1,800. tour requests drafted 🏡', 'Tuesday', false],
+    ['Pip', 'Writing Buddy', 'pip.webp', 'your landlord reply is drafted, with the repair dates included ✨', 'Monday', false],
 ]
+// [from, text, arrives at (scene seconds), typing dots shown from]
+const CHAT = [
+    ['me', 'my desktop is a mess. sort the screenshots into folders by month?', 2.0, null],
+    ['them', 'on it. found 46 screenshots, opening Files on your computer 🐯', 3.4, 2.6],
+]
+// Desktop screenshots, scattered the way a messy desktop is: [x, y, label, accent]
+const SHOT_DATES = ['Aug 3', 'Aug 9', 'Aug 14', 'Aug 21', 'Aug 30', 'Sep 2', 'Sep 8', 'Sep 15', 'Sep 19', 'Sep 27', 'Oct 1', 'Oct 6', 'Oct 11', 'Oct 17', 'Oct 22', 'Oct 26']
+const SHOTS = SHOT_DATES.map((d, i) => {
+    const col = i % 4, row = Math.floor(i / 4)
+    const jx = [9, -14, 4, -6, 12, -3, -11, 7][i % 8], jy = [5, -7, 10, -2, -9, 6, 2, -5][(i * 3) % 8]
+    return [585 + col * 80 + jx, 50 + row * 92 + jy, `Screenshot ${d}`, ['#5b56d6', '#22b14c', '#ff9d0a', '#1e7bf0', '#e5392b'][i % 5]]
+})
 const PROMPT = 'Warm, quick, a little playful. Keep replies short and never send anything without asking first.'
 const MODELS = ['claude', 'openai', 'gemini', 'grok']
 
-// Built once: chat bubbles, desktop files, model logos
-CHAT.forEach(([who, txt], i) => { const b = document.createElement('div'); b.className = `bubble ${who}`; b.id = 'chat' + i; b.textContent = txt; $('chat').appendChild(b) })
-for (let i = 0; i < 24; i++) {
-    const f = document.createElement('div'); f.id = 'file' + i
-    f.style.cssText = 'height:96px;border-radius:12px;background:linear-gradient(160deg,#dfe3ee,#c8cddc);position:relative'
-    $('cu-grid').appendChild(f)
-}
+// Built once: the Messages list and chat, desktop files, model logos
+CONTACTS.forEach(([name, role, img, prev, time, unread], i) => {
+    const r = document.createElement('div'); r.className = 'ip-row'; r.id = 'row' + i
+    r.innerHTML = `${unread ? '<span class="unread"></span>' : ''}<img src="assets/${img}"><div class="txt" style="${i === CONTACTS.length - 1 ? 'border-color:transparent' : ''}"><div class="top"><span class="name">${name} <span>· ${role}</span></span><span class="time">${time} ›</span></div><p class="prev">${prev}</p></div>`
+    $('ip-rows').appendChild(r)
+})
+CHAT.forEach(([who, txt], i) => {
+    const m = document.createElement('div'); m.className = `ip-msg ${who}`; m.id = 'msg' + i
+    m.style.marginTop = i > 0 && CHAT[i - 1][0] !== who ? '8px' : '0'
+    m.innerHTML = `<p class="imsg-${who} imsg-tail">${txt}</p>` + (who === 'me' ? '<span class="dlv" style="margin:2px 4px 0 0;font-size:10px;font-weight:500;color:#a3a3a3">Delivered</span>' : '')
+    $('ip-msgs').appendChild(m)
+})
+const typing = document.createElement('div'); typing.id = 'ip-typing'; typing.className = 'ip-msg them'; typing.style.marginTop = '8px'
+typing.innerHTML = '<p class="imsg-them imsg-tail" style="display:flex;gap:4px;padding:10px 12px">' + [0, 1, 2].map((k) => `<i class="tdot" style="width:6px;height:6px;border-radius:50%;background:#737373"></i>`).join('') + '</p>'
+$('ip-msgs').insertBefore(typing, $('msg1'))
+SHOTS.forEach(([x, y, label, c], i) => {
+    const d = document.createElement('div'); d.className = 'shot'; d.id = 'shot' + i
+    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', c)
+    d.innerHTML = `<div class="th"></div><span>${label}</span>`
+    $('shots').appendChild(d)
+})
 MODELS.forEach((m, i) => {
     const d = document.createElement('div'); d.id = 'model' + i
     d.style.cssText = 'width:190px;height:190px;border-radius:44px;background:#fff;display:grid;place-items:center;box-shadow:0 30px 60px -15px rgb(5 3 30/.6)'
@@ -382,50 +532,99 @@ function render(t) {
         $('text-l').style.transform = `translateX(${(1 - hp) * 200}px)`
         $('text-r').style.transform = `translateX(${-(1 - hp) * 200}px)`
         $('text-l').style.filter = $('text-r').style.filter = `blur(${(1 - hp) * 14}px)`
-        CHAT.forEach(([, , at], i) => {
-            const bp = outBack(prog(lt, at + 0.4, at + 0.8))
-            const el = $('chat' + i)
-            el.style.opacity = clamp(bp)
-            el.style.transform = `scale(${lerp(0.6, 1, bp)})`
-            el.style.transformOrigin = CHAT[i][0] === 'me' ? 'right bottom' : 'left bottom'
+        // Tap Tofu's row, then the chat pushes in from the right the way iOS navigates
+        const pressed = lt > 1.15 && lt < 1.6
+        $('row0').style.background = pressed ? '#D1D1D6' : ''
+        $('row0').querySelector('.txt').style.borderColor = pressed ? 'transparent' : ''
+        const push = outExpo(prog(lt, 1.45, 1.95))
+        $('ip-chat').style.transform = `translateX(${(1 - push) * 100}%)`
+        $('ip-chat').style.display = lt >= 1.45 ? 'flex' : 'none'
+        $('ip-list').style.transform = `translateX(${-30 * push}%)`
+        CHAT.forEach(([who, , at], i) => {
+            const el = $('msg' + i)
+            const bp = outExpo(prog(lt, at, at + 0.4))
+            el.style.display = lt >= at ? 'flex' : 'none'
+            el.style.opacity = clamp(bp * 1.5)
+            // Yours rise from the compose bar; replies grow from their tail
+            el.style.transform = who === 'me' ? `translateY(${(1 - bp) * 22}px) scale(${lerp(0.97, 1, bp)})` : `scale(${lerp(0.86, 1, bp)})`
+            el.style.transformOrigin = who === 'me' ? 'right bottom' : 'left bottom'
+            const dlv = el.querySelector('.dlv')
+            if (dlv) dlv.style.opacity = prog(lt, at + 0.35, at + 0.55)
         })
-        reveal($('text-sub'), lt, 4.6, 0.7)
+        const [, , replyAt, typingFrom] = CHAT[1]
+        const typingOn = lt >= typingFrom && lt < replyAt
+        $('ip-typing').style.display = typingOn ? 'flex' : 'none'
+        $('ip-typing').style.transform = `scale(${lerp(0.8, 1, outExpo(prog(lt, typingFrom, typingFrom + 0.3)))})`
+        $('ip-typing').style.transformOrigin = 'left bottom'
+        document.querySelectorAll('.tdot').forEach((d, k) => (d.style.opacity = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin((lt - k * 0.2) * Math.PI * 2 / 1.2))))
+        reveal($('text-sub'), lt, 4.3, 0.7)
     }
 
     if (id === 's-computer') {
         reveal($('cu-pill'), lt, 0.05, 0.6)
         reveal($('cu-h'), lt, 0.2, 0.8, 50)
-        const wp = outExpo(prog(lt, 0.3, 1.3))
-        $('cu-win').style.transform = `translateY(${(1 - wp) * 400}px) scale(${lerp(0.9, 1, wp)})`
-        $('cu-win').style.opacity = clamp(wp * 2)
-        // Files fly into three month folders
-        for (let i = 0; i < 24; i++) {
-            const el = $('file' + i)
-            const folder = i % 3
-            const start = 1.6 + i * 0.07
-            const p = inOut(prog(lt, start, start + 0.5))
-            const col = i % 8, row = Math.floor(i / 8)
-            const tx = (folder * 2 - col) * 152 + 152, ty = -row * 118
-            el.style.transform = `translate(${tx * p}px, ${ty * p}px) scale(${lerp(1, 0.4, p)})`
-            el.style.opacity = 1 - p * 0.9
-            el.style.background = p >= 1 ? '#3b37a3' : 'linear-gradient(160deg,#dfe3ee,#c8cddc)'
-        }
-        // Three folders labelled by month appear in the first row's slots 1, 3, 5
-        ;[1, 3, 5].forEach((slot, k) => {
-            const el = $('file' + slot)
-            const p = prog(lt, 1.4, 1.8)
-            if (p > 0) {
-                el.style.opacity = 1; el.style.transform = `scale(${lerp(0.7, 1, outBack(p))})`
-                el.style.background = 'linear-gradient(160deg,#7d79d8,#3b37a3)'
-                el.innerHTML = `<div style="position:absolute;bottom:-32px;left:0;right:0;text-align:center;font-size:17px;color:#333;font-weight:600">${['Aug', 'Sep', 'Oct'][k]}</div>`
-            }
+        const wp = outExpo(prog(lt, 0.2, 1.2))
+        // The laptop rises in; once the headline has been read it lifts away and the camera zooms into the screen
+        const zoom = inOut(prog(lt, 1.9, 2.6))
+        const drift = lerp(1, 1.04, prog(lt, 2.6, 5.6))
+        $('mac').style.transform = `translateY(${(1 - wp) * 420 - 140 * zoom}px) scale(${lerp(0.92, 1, wp) * lerp(1, 1.28, zoom) * drift})`
+        ;['cu-pill', 'cu-h'].forEach((h) => { if (zoom > 0) { $(h).style.opacity = 1 - zoom; $(h).style.transform = `translateY(${-60 * zoom}px)` } })
+        $('mac').style.opacity = clamp(wp * 2)
+        const pill = outBack(prog(lt, 1.1, 1.4))
+        $('agent-pill').style.transform = `scale(${pill})`; $('agent-pill').style.opacity = clamp(pill)
+        $('agent-dot').style.opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(lt * 8))
+        // Finder opens with three new month folders
+        const fo = outBack(prog(lt, 1.3, 1.65))
+        $('finder').style.transform = `scale(${lerp(0.85, 1, fo)})`; $('finder').style.opacity = clamp(fo * 1.5)
+        ;[0, 1, 2].forEach((k) => {
+            const p = outBack(prog(lt, 1.7 + k * 0.15, 1.95 + k * 0.15))
+            $('fold' + k).style.transform = `scale(${p})`; $('fold' + k).style.opacity = clamp(p)
         })
-        const tp = outBack(prog(lt, 4.0, 4.5))
-        $('cu-toast').style.opacity = clamp(tp)
-        $('cu-toast').style.transform = `translateY(${(1 - tp) * 60}px)`
-        const cx = lerp(900, 640, inOut(prog(lt, 1.2, 3.6))), cy = lerp(1000, 560, inOut(prog(lt, 1.2, 2.2)))
-        $('cu-cursor').style.left = cx + 'px'; $('cu-cursor').style.top = cy + 'px'
-        $('cu-cursor').style.opacity = prog(lt, 1.0, 1.3) * (1 - prog(lt, 4.2, 4.5))
+        // Cursor path: into Finder, out to the desktop, drag-select every screenshot, drag them into Finder
+        const sel0 = [565, 38], sel1 = [910, 420], drop = [300, 205]
+        const path = [[460, 300, 1.2], [200, 150, 1.7], [565, 38, 2.2], [910, 420, 2.75], [910, 420, 2.9], [300, 205, 3.55]]
+        let cx = path[0][0], cy = path[0][1]
+        for (let k = 0; k < path.length - 1; k++) {
+            const [x0, y0, t0] = path[k], [x1, y1, t1] = path[k + 1]
+            if (lt >= t0) { const p = inOut(prog(lt, t0, t1)); cx = lerp(x0, x1, p); cy = lerp(y0, y1, p) }
+        }
+        $('acursor').style.left = cx + 'px'; $('acursor').style.top = cy + 'px'
+        $('acursor').style.opacity = prog(lt, 1.1, 1.3)
+        $('acursor-msg').textContent = lt < 2.2 ? 'Making folders…' : lt < 2.9 ? 'Selecting 46 screenshots…' : lt < 4.3 ? 'Sorting by month…' : 'Done ✓'
+        // Marquee selection
+        const mq = prog(lt, 2.2, 2.75)
+        $('marquee').style.display = mq > 0 && lt < 2.9 ? 'block' : 'none'
+        $('marquee').style.left = sel0[0] + 'px'; $('marquee').style.top = sel0[1] + 'px'
+        $('marquee').style.width = (cx - sel0[0]) + 'px'; $('marquee').style.height = (cy - sel0[1]) + 'px'
+        let landed = [0, 0, 0]
+        SHOTS.forEach(([x, y], i) => {
+            const el = $('shot' + i)
+            el.classList.toggle('sel', lt > 2.2 && x + 35 < cx && y + 20 < cy || lt >= 2.9)
+            // Dragged as a stack under the cursor, then filed into their month's folder
+            const grab = inOut(prog(lt, 2.9 + i * 0.012, 3.55))
+            const folder = Math.floor(i / 5.34)
+            const fileAt = 3.6 + i * 0.045
+            const into = inOut(prog(lt, fileAt, fileAt + 0.3))
+            const stackX = cx - 30 + (i % 4) * 2, stackY = cy - 18 + (i % 4) * 2
+            // Folder centers in mac-screen coordinates: Finder left + sidebar + folder offset
+            const fx = 34 + 132 + 22 + folder * 110 + 13, fy = 52 + 70 + 4
+            let px = lerp(x, stackX, grab), py = lerp(y, stackY, grab)
+            px = lerp(px, fx, into); py = lerp(py, fy, into)
+            el.style.left = px + 'px'; el.style.top = py + 'px'
+            el.style.transform = `scale(${lerp(1, 0.75, grab) * lerp(1, 0.2, into)})`
+            el.style.opacity = into >= 1 ? 0 : 1
+            el.style.zIndex = grab > 0 ? 4 : 1
+            if (into >= 1) landed[folder]++
+        })
+        // Counts tick up to the real 46: 15 + 16 + 15
+        const totals = [15, 16, 15], per = [6, 5, 5]
+        landed.forEach((n, k) => { $('fc' + k).textContent = `${Math.round(totals[k] * n / per[k])} items` })
+        const fp = prog(lt, 3.6, 4.4)
+        $('f-prog').style.width = fp * 100 + '%'
+        $('f-prog-wrap').style.display = fp > 0 && fp < 1 ? 'block' : 'none'
+        $('f-msg').textContent = fp <= 0 ? '3 folders' : fp < 1 ? `Moving ${Math.round(46 * fp)} of 46 items…` : '46 items sorted · nothing deleted'
+        const np = outExpo(prog(lt, 4.45, 4.95))
+        $('notif').style.transform = `translateX(${(1 - np) * 320}px)`; $('notif').style.opacity = clamp(np * 2)
     }
 
     if (id === 's-models') {
