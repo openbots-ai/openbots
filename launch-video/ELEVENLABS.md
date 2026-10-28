@@ -32,8 +32,8 @@ Generate a few takes and pick the one where the hits at **0:03** and **0:38** la
 | Logo reveal | 0:03–0:07 | Logo, "OpenBots 2.0 is here" (hit) |
 | Word swaps | 0:07–0:10 | Your AI / models / rules / phone |
 | Feature: builder | 0:10–0:15.8 | Dashboard, model slots |
-| Feature: just text it | 0:15.8–0:21.8 | iPhone chat |
-| Feature: computer use | 0:21.8–0:27.4 | Files sorting into folders |
+| Feature: just text it | 0:15.8–0:21.8 | Landing-page iPhone: Messages list, then Tofu's chat |
+| Feature: computer use | 0:21.8–0:27.4 | MacBook: Tofu sorts the desktop screenshots in Finder |
 | Feature: any model | 0:27.4–0:31.4 | Model logos |
 | Feature: private | 0:31.4–0:35 | Lock (breakdown) |
 | Rapid montage | 0:35–0:38 | 10 feature words, 0.3s each |
