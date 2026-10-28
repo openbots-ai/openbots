@@ -23,71 +23,135 @@
   "sections": [
     {
       "section_name": "Intro bloom",
-      "positive_local_styles": ["soft airy synth pad swelling from silence", "shimmering reverse riser", "no drums", "building anticipation"],
-      "negative_local_styles": ["drums", "bass"],
+      "positive_local_styles": [
+        "soft airy synth pad swelling from silence",
+        "shimmering reverse riser",
+        "no drums",
+        "building anticipation"
+      ],
+      "negative_local_styles": [
+        "drums",
+        "bass"
+      ],
       "duration_ms": 3000,
       "lines": []
     },
     {
       "section_name": "Logo reveal",
-      "positive_local_styles": ["big impact hit on the downbeat", "deep sub boom", "wide bright synth chord", "short tail then a gentle pulse"],
-      "negative_local_styles": ["busy melody"],
+      "positive_local_styles": [
+        "big impact hit on the downbeat",
+        "deep sub boom",
+        "wide bright synth chord",
+        "short tail then a gentle pulse"
+      ],
+      "negative_local_styles": [
+        "busy melody"
+      ],
       "duration_ms": 4000,
       "lines": []
     },
     {
       "section_name": "Word swaps",
-      "positive_local_styles": ["staccato plucked synth on every beat", "four rhythmic accents", "rising tension", "filtered kick"],
-      "negative_local_styles": ["full drums"],
+      "positive_local_styles": [
+        "staccato plucked synth on every beat",
+        "four rhythmic accents",
+        "rising tension",
+        "filtered kick"
+      ],
+      "negative_local_styles": [
+        "full drums"
+      ],
       "duration_ms": 3000,
       "lines": []
     },
     {
       "section_name": "Feature: builder",
-      "positive_local_styles": ["main groove kicks in", "steady four on the floor kick", "bright arpeggio", "clean bassline", "focused and productive"],
+      "positive_local_styles": [
+        "main groove kicks in",
+        "steady four on the floor kick",
+        "bright arpeggio",
+        "clean bassline",
+        "focused and productive"
+      ],
       "negative_local_styles": [],
-      "duration_ms": 5800,
+      "duration_ms": 5000,
       "lines": []
     },
     {
       "section_name": "Feature: just text it",
-      "positive_local_styles": ["same groove", "playful bell melody", "light percussion ticks like message pops", "friendly"],
+      "positive_local_styles": [
+        "same groove",
+        "playful bell melody",
+        "light percussion ticks like message pops",
+        "friendly"
+      ],
       "negative_local_styles": [],
       "duration_ms": 6000,
       "lines": []
     },
     {
       "section_name": "Feature: computer use",
-      "positive_local_styles": ["groove continues with more energy", "added hi-hats", "driving bass", "sense of momentum"],
+      "positive_local_styles": [
+        "groove continues with more energy",
+        "added hi-hats",
+        "driving bass",
+        "sense of momentum",
+        "small satisfying accent near the end of the section"
+      ],
       "negative_local_styles": [],
-      "duration_ms": 5600,
+      "duration_ms": 8000,
       "lines": []
     },
     {
       "section_name": "Feature: any model",
-      "positive_local_styles": ["lift into the chorus", "layered synth chords", "open and expansive"],
+      "positive_local_styles": [
+        "lift into the chorus",
+        "layered synth chords",
+        "open and expansive"
+      ],
       "negative_local_styles": [],
-      "duration_ms": 4000,
+      "duration_ms": 3000,
       "lines": []
     },
     {
       "section_name": "Feature: private",
-      "positive_local_styles": ["breakdown", "drums drop out", "warm pad and soft piano", "calm and trustworthy", "riser in the last second"],
-      "negative_local_styles": ["kick drum"],
-      "duration_ms": 3600,
+      "positive_local_styles": [
+        "breakdown",
+        "drums drop out",
+        "warm pad and soft piano",
+        "calm and trustworthy",
+        "riser in the last second"
+      ],
+      "negative_local_styles": [
+        "kick drum"
+      ],
+      "duration_ms": 3000,
       "lines": []
     },
     {
       "section_name": "Rapid montage",
-      "positive_local_styles": ["full energy return", "fast driving drums", "stabs on every eighth note", "peak intensity", "build to a climax"],
+      "positive_local_styles": [
+        "full energy return",
+        "fast driving drums",
+        "stabs on every eighth note",
+        "peak intensity",
+        "build to a climax"
+      ],
       "negative_local_styles": [],
       "duration_ms": 3000,
       "lines": []
     },
     {
       "section_name": "End card",
-      "positive_local_styles": ["final big impact hit on the downbeat", "resolving major chord", "long shimmering reverb tail", "fade to silence"],
-      "negative_local_styles": ["drums after the hit"],
+      "positive_local_styles": [
+        "final big impact hit on the downbeat",
+        "resolving major chord",
+        "long shimmering reverb tail",
+        "fade to silence"
+      ],
+      "negative_local_styles": [
+        "drums after the hit"
+      ],
       "duration_ms": 6000,
       "lines": []
     }
