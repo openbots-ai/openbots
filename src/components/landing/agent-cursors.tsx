@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
 
 type Point = { x: number; y: number; duration?: number }
@@ -177,8 +177,14 @@ const Cursor = ({ agent, state }: { agent: Agent; state: CursorState }) => (
 const jitter = (n: number) => (Math.random() - 0.5) * n
 
 // Two agents working on the hero itself: Tofu highlights copy, Rishi sketches frames on the left.
-// They fade away as soon as the page starts scrolling.
+// They fade away as soon as the page starts scrolling. With reduced motion on (macOS "Reduce motion", Windows
+// "Animation effects" off) MotionConfig skips their glides, so the timed scripts would make them jump from point
+// to point; they're decorative, so they stay hidden instead, like the other demos hold still.
 export function AgentCursors() {
+    return useReducedMotion() ? null : <Cursors />
+}
+
+function Cursors() {
     const layerRef = useRef<HTMLDivElement>(null)
     // Which phrase is highlighted; its box is re-measured live so it stays on the text
     const [highlight, setHighlight] = useState<{ target: string; duration: number } | null>(null)
