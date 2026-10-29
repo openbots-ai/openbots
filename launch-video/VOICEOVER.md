@@ -13,39 +13,39 @@ second), with room to breathe around the cuts. The montage is left without a lin
 
 ## The script
 
+The voice doesn't describe what's on screen; it says why it matters, and the picture shows how.
+
 | # | Starts at | Scene | Line |
 | --- | --- | --- | --- |
-| 1 | 0:00.6 | Introducing | Introducing… |
-| 2 | 0:03.0 | Logo | OpenBots. Personal AI that's actually yours. |
-| 3 | 0:07.7 | Your models / Your rules | Your models. Your rules. |
-| 4 | 0:10.9 | Builder | Build it piece by piece. Pick every model, set every rule. |
-| 5 | 0:15.7 | Just text it | Then just text it. |
-| 6 | 0:21.5 | Computer use | Run it in the cloud, or right on your own computer, where you're already signed in. |
-| 7 | 0:29.2 | Any model | Bring any model, with your own keys. |
-| 8 | 0:32.1 | Private by design | Your conversations stay on your machine. |
+| 1 | 0:00.3 | Introducing | Most AI lives in someone else's app. |
+| 2 | 0:03.2 | Logo | OpenBots lives with you. |
+| 3 | 0:07.0 | Word swaps | It works the way you tell it to. |
+| 4 | 0:10.9 | Builder | You decide what it knows, how it talks, and what it's never allowed to do. |
+| 5 | 0:15.7 | Just text it | And when you need something, you don't open an app. You send a text. |
+| 6 | 0:21.5 | Computer use | It works from your own computer, where you're already signed in, and asks before anything it can't undo. |
+| 7 | 0:29.2 | Any model | Use whichever AI you trust. |
+| 8 | 0:32.1 | Private by design | Your conversations are stored on your machine, not ours. |
 | – | 0:34.8 | Montage | *(no line)* |
 | 9 | 0:37.6 | End card | OpenBots. Personal AI, kept personal. |
-
-Line 3 lands best with each phrase on its word swap: "Your models" at 0:07.7, "Your rules" at 0:08.7.
 
 ## One block to paste (if generating it as a single take)
 
 ```
-Introducing…
+Most AI lives in someone else's app.
 
-OpenBots. Personal AI that's actually yours.
+OpenBots lives with you.
 
-Your models. Your rules.
+It works the way you tell it to.
 
-Build it piece by piece. Pick every model, set every rule.
+You decide what it knows, how it talks, and what it's never allowed to do.
 
-Then just text it.
+And when you need something, you don't open an app. You send a text.
 
-Run it in the cloud, or right on your own computer, where you're already signed in.
+It works from your own computer, where you're already signed in, and asks before anything it can't undo.
 
-Bring any model, with your own keys.
+Use whichever AI you trust.
 
-Your conversations stay on your machine.
+Your conversations are stored on your machine, not ours.
 
 OpenBots. Personal AI, kept personal.
 ```
