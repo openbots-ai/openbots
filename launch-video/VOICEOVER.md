@@ -13,42 +13,46 @@ second), with room to breathe around the cuts. The montage is left without a lin
 
 ## The script
 
-The voice doesn't describe what's on screen; it says why it matters, and the picture shows how.
+Written the way someone would actually say it: contractions, short sentences, everyday words. The voice says why it
+matters; the picture shows how.
 
 | # | Starts at | Scene | Line |
 | --- | --- | --- | --- |
-| 1 | 0:00.3 | Introducing | Most AI lives in someone else's app. |
-| 2 | 0:03.2 | Logo | OpenBots lives with you. |
-| 3 | 0:07.0 | Word swaps | It works the way you tell it to. |
-| 4 | 0:10.9 | Builder | You decide what it knows, how it talks, and what it's never allowed to do. |
-| 5 | 0:15.7 | Just text it | And when you need something, you don't open an app. You send a text. |
-| 6 | 0:21.5 | Computer use | It works from your own computer, where you're already signed in, and asks before anything it can't undo. |
-| 7 | 0:29.2 | Any model | Use whichever AI you trust. |
-| 8 | 0:32.1 | Private by design | Your conversations are stored on your machine, not ours. |
+| 1 | 0:00.3 | Introducing | Most AI lives in somebody else's app. |
+| 2 | 0:03.2 | Logo | OpenBots is yours. |
+| 3 | 0:07.0 | Word swaps | It does things your way. |
+| 4 | 0:10.9 | Builder | You pick what it knows, how it talks, and what's off-limits. |
+| 5 | 0:15.7 | Just text it | Need something? Just text it. No new app. |
+| 6 | 0:21.5 | Computer use | It can even use your computer, where you're already logged in. And it checks with you before anything big. |
+| 7 | 0:29.2 | Any model | Use whatever AI you like. |
+| 8 | 0:32.1 | Private by design | And your chats are saved on your computer, not ours. |
 | – | 0:34.8 | Montage | *(no line)* |
-| 9 | 0:37.6 | End card | OpenBots. Personal AI, kept personal. |
+| 9 | 0:37.6 | End card | OpenBots. Personal AI that stays personal. |
 
 ## One block to paste (if generating it as a single take)
 
 ```
-Most AI lives in someone else's app.
+Most AI lives in somebody else's app.
 
-OpenBots lives with you.
+OpenBots is yours.
 
-It works the way you tell it to.
+It does things your way.
 
-You decide what it knows, how it talks, and what it's never allowed to do.
+You pick what it knows, how it talks, and what's off-limits.
 
-And when you need something, you don't open an app. You send a text.
+Need something? Just text it. No new app.
 
-It works from your own computer, where you're already signed in, and asks before anything it can't undo.
+It can even use your computer, where you're already logged in. And it checks with you before anything big.
 
-Use whichever AI you trust.
+Use whatever AI you like.
 
-Your conversations are stored on your machine, not ours.
+And your chats are saved on your computer, not ours.
 
-OpenBots. Personal AI, kept personal.
+OpenBots. Personal AI that stays personal.
 ```
 
-With Eleven v3 you can steer the read with audio tags, for example `[warm]` before line 2 and `[confident]` before
-line 9. With Multilingual v2, add pauses between lines with `<break time="1.0s" />`.
+## Making it sound natural in ElevenLabs
+
+- Pick a conversational voice from the Voice Library (filter by "Conversational"), not a "Narration" or "Advertisement" one.
+- Eleven v3: start with `[casual]` and let the punctuation do the pacing. Multilingual v2: Stability around 35%, Style around 10%; higher stability sounds more read-off-a-page.
+- Generate each line two or three times and keep the take that sounds least performed.
