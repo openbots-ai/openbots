@@ -384,21 +384,21 @@ const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16))
 const mix = (a, b, t) => '#' + hex(a).map((v, k) => Math.round(lerp(v, hex(b)[k], t)).toString(16).padStart(2, '0')).join('')
 const shadeAt = (p) => { const x = p * (MONTAGE_SHADES.length - 1), k = Math.min(MONTAGE_SHADES.length - 2, Math.floor(x)); return mix(MONTAGE_SHADES[k], MONTAGE_SHADES[k + 1], x - k) }
 const MONTAGE = ['Reminders', 'Web search', 'Check-ins', 'Handoffs', 'Quiet hours', 'Watches', 'Group chats', 'Knowledge', 'Budgets', 'Analytics']
-// The landing page's Messages list; Lulu's chat is the one the phone scene opens
+// The landing page's Messages list; Rishi (from the landing page's phone demo and hero) is the chat the phone scene opens
 const CONTACTS = [
-    ['Lulu', 'Trip Planner', 'lulu.png', 'compared 12 stays. 3 fit your $600 trip budget ☀️', '9:41 AM', true],
+    ['Rishi', 'Forms & Errands', 'rishi.png', 'submitted ✓ confirmation saved to Downloads', '9:41 AM', true],
     ['Tofu', 'Desktop Helper', 'tofu.png', '46 screenshots sorted into folders by month 🐯', '9:38 AM', true],
     ['Mochi', 'Your personal assistant', 'mochi.webp', '3 overdue invoices. follow-ups ready to review ☕️', '8:42 AM', true],
-    ['Rishi', 'Forms & Errands', 'rishi.png', 'submitted ✓ confirmation saved to Downloads', 'Yesterday', false],
+    ['Lulu', 'Trip Planner', 'lulu.png', 'compared 12 stays. 3 fit your $600 trip budget ☀️', 'Yesterday', false],
     ['Biscuit', 'Meal Planner', 'biscuit.webp', '5 dinners, $48 grocery cart. used your pantry first 🥕', 'Yesterday', false],
     ['Honey', 'Home Finder', 'honey.webp', '2 new pet-friendly listings under $1,800. tour requests drafted 🏡', 'Tuesday', false],
     ['Pip', 'Writing Buddy', 'pip.webp', 'your landlord reply is drafted, with the repair dates included ✨', 'Monday', false],
 ]
 // [from, text, arrives at (scene seconds), typing dots shown from]
-// Phone scene: Lulu answers from the web
+// Phone scene: Rishi runs an errand by text (a web search and a reminder)
 const TEXT_CHAT = [
-    ['me', 'any nonstop flights to austin next weekend under $300?', 2.0, null],
-    ['them', 'found 3 ✈️ best is fri 6:10pm, back sun 8pm, $248 round trip. want a heads up if it drops?', 3.4, 2.6],
+    ['me', 'is the DMV open today? i need to renew my license', 2.0, null],
+    ['them', 'open till 5pm 🐶 bring your old license and proof of address. reminder set for 3:30', 3.4, 2.6],
 ]
 // Computer scene: your request to Tofu, then the phone comes back for your YES
 const ASK = ['me', 'can you send Dana my 1099s? they’re in my brokerage account']
@@ -460,7 +460,7 @@ function buildPhone(p, withList, chat, [name, img]) {
         $(`${p}-msgs`).appendChild(m)
     })
 }
-buildPhone('phone', true, TEXT_CHAT, ['Lulu', 'lulu.png'])
+buildPhone('phone', true, TEXT_CHAT, ['Rishi', 'rishi.png'])
 buildPhone('phone2', false, YES_CHAT, ['Tofu', 'tofu.png'])
 
 // Messages arrive the way iOS shows them: typing dots, then the bubble; tails only on the last bubble of a run
