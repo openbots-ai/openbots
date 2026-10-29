@@ -8,6 +8,7 @@ second), with room to breathe around the cuts. The montage is left without a lin
 - **Model:** Eleven v3 (most expressive) or Multilingual v2 (most consistent).
 - **Voice:** a warm, confident, conversational narrator, closer to a friend than an announcer. Mid-pitch, unhurried.
 - **Settings (v2):** Stability ~45%, Similarity ~75%, Style ~20%, Speaker boost on.
+- **Already voiced:** `vo.py` voices this script with Kokoro (open source) and mixes it over the sound effects into `openbots-launch-voiceover.mp4`. ElevenLabs clips can replace it later.
 - **Best results:** generate each line as its own clip so it can be placed exactly on its scene. Send the clips back
   and they get placed at the times below and mixed over the sound effects.
 
