@@ -10,7 +10,6 @@ import json
 import os
 import subprocess
 import sys
-import urllib.request
 
 import numpy as np
 
@@ -19,16 +18,14 @@ DUR = 44.0
 HERE = os.path.dirname(os.path.abspath(__file__))
 SFX_DIR = os.path.join(HERE, 'assets', 'sfx')
 
-# kind -> (Openverse id, file, url, license, creator, title, max seconds, gain)
+# kind -> Openverse id, file, url, license, creator, title, max seconds, gain (assets/sfx/sounds.json)
 SOUNDS = json.load(open(os.path.join(SFX_DIR, 'sounds.json')))
 
 
 def fetch(entry):
     path = os.path.join(SFX_DIR, entry['file'])
     if not os.path.exists(path):
-        req = urllib.request.Request(entry['url'], headers={'User-Agent': 'openbots-launch-video/1.0'})
-        with urllib.request.urlopen(req, timeout=120) as r, open(path, 'wb') as f:
-            f.write(r.read())
+        subprocess.run(['curl', '-sSfL', '--max-time', '120', '-A', 'openbots-launch-video/1.0', '-o', path, entry['url']], check=True)
     return path
 
 
@@ -45,7 +42,12 @@ def prepare(entry, pitch=1.0):
         a = a[::-1].copy()
     env = np.abs(a).max(1)
     start = entry.get('start')
-    i0 = int(start * SR) if start is not None else int(np.argmax(env > env.max() * 0.08))
+    if start == 'peak':  # a recording of several hits: start on the loudest one
+        i0 = int(np.argmax(env)) - int(0.01 * SR)
+    elif start is not None:
+        i0 = int(start * SR)
+    else:
+        i0 = int(np.argmax(env > env.max() * 0.08))
     i0 = max(0, i0 - int(0.004 * SR))
     a = a[i0:i0 + int(entry['max'] * SR)]
     fade = min(len(a), int(0.04 * SR))
