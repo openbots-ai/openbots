@@ -13,42 +13,46 @@ second), with room to breathe around the cuts. The montage is left without a lin
 
 ## The script
 
-Written the way someone would actually say it: contractions, short sentences, everyday words. The voice says why it
-matters; the picture shows how.
-
 | # | Starts at | Scene | Line |
 | --- | --- | --- | --- |
-| 1 | 0:00.3 | Introducing | Most AI lives in somebody else's app. |
-| 2 | 0:03.2 | Logo | OpenBots is yours. |
-| 3 | 0:07.0 | Word swaps | It does things your way. |
-| 4 | 0:10.9 | Builder | You pick what it knows, how it talks, and what's off-limits. |
-| 5 | 0:15.7 | Just text it | Need something? Just text it. No new app. |
-| 6 | 0:21.5 | Computer use | It can even use your computer, where you're already logged in. And it checks with you before anything big. |
-| 7 | 0:29.2 | Any model | Use whatever AI you like. |
-| 8 | 0:32.1 | Private by design | And your chats are saved on your computer, not ours. |
+| 1 | 0:00.6 | Introducing | Introducing… |
+| 2 | 0:03.0 | Logo | OpenBots. A personal AI that's actually yours, and designed for your workflows. |
+| 3 | 0:07.7 | Your models / Your rules | Your models. Your rules. |
+| 4 | 0:10.9 | Builder | Build it piece by piece. Pick every model, set every rule. |
+| 5 | 0:15.7 | Just text it | Then just text it. You pick what it knows, how it talks, and its guardrails. |
+| 6 | 0:21.5 | Computer use | It can use your computer, where you're already logged in. And it checks with you before anything big. |
+| 7 | 0:29.2 | Any model | Choose your specific model for each layer of the stack. |
+| 8 | 0:32.1 | Private by design | Your conversations stay on your machine, by design. |
 | – | 0:34.8 | Montage | *(no line)* |
-| 9 | 0:37.6 | End card | OpenBots. Personal AI that stays personal. |
+| 9 | 0:37.6 | End card | Personal AI that actually feels personal. OpenBots. |
+
+Lines 2 and 7 are the longest for their scenes. If a take runs long, it's fine for them to spill a second into the next
+scene; when the clips come back, the next line just starts a beat later.
 
 ## One block to paste (if generating it as a single take)
 
 ```
-Most AI lives in somebody else's app.
+Introducing…
 
-OpenBots is yours.
+OpenBots.
 
-It does things your way.
+A personal AI that's actually yours, and designed for your workflows.
 
-You pick what it knows, how it talks, and what's off-limits.
+Your models. Your rules.
 
-Need something? Just text it. No new app.
+Build it piece by piece. Pick every model, set every rule.
 
-It can even use your computer, where you're already logged in. And it checks with you before anything big.
+Then just text it.
 
-Use whatever AI you like.
+You pick what it knows, how it talks, and its guardrails.
 
-And your chats are saved on your computer, not ours.
+It can use your computer, where you're already logged in. And it checks with you before anything big.
 
-OpenBots. Personal AI that stays personal.
+Choose your specific model for each layer of the stack.
+
+Your conversations stay on your machine, by design.
+
+Personal AI that actually feels personal. OpenBots.
 ```
 
 ## Making it sound natural in ElevenLabs
