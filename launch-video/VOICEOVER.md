@@ -24,7 +24,7 @@ second), with room to breathe around the cuts. The montage is left without a lin
 | 7 | 0:29.2 | Any model | Choose your specific model for each layer of the stack. |
 | 8 | 0:32.1 | Private by design | Your conversations stay on your machine, by design. |
 | – | 0:34.8 | Montage | *(no line)* |
-| 9 | 0:37.6 | End card | Personal AI that actually feels personal. OpenBots. |
+| 9 | 0:37.6 | End card | So go ahead… make it yours. OpenBots. |
 
 Lines 2 and 7 are the longest for their scenes. If a take runs long, it's fine for them to spill a second into the next
 scene; when the clips come back, the next line just starts a beat later.
@@ -52,7 +52,7 @@ Choose your specific model for each layer of the stack.
 
 Your conversations stay on your machine, by design.
 
-Personal AI that actually feels personal. OpenBots.
+So go ahead… make it yours. OpenBots.
 ```
 
 ## Making it sound natural in ElevenLabs
