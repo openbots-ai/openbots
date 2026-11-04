@@ -30,7 +30,7 @@ const RISHI = 1
 const MOCHI = 2
 
 const contacts: Contact[] = [
-    // Real computer work: Tofu tidies files on your computer, Rishi fills in a form and waits for your YES before sending
+    // Real computer work in one exchange each: Tofu tidies files on your computer, Rishi fills in a form and waits for your YES
     {
         name: 'Tofu',
         role: 'Desktop Helper',
@@ -39,25 +39,18 @@ const contacts: Contact[] = [
         time: '9:41 AM',
         messages: [
             { from: ME, text: 'my desktop is a mess. sort the screenshots into folders by month?' },
-            { from: 'them', text: 'on it. found 46 screenshots, opening Files on your computer 🐯' },
-            { from: 'them', text: 'done: Screenshots › Aug, Sep and Oct, renamed by date. nothing deleted.' },
-            { from: ME, text: 'legend. remind me friday to clean downloads too' },
-            { from: 'them', text: 'reminder set for friday 5pm 🧹' },
+            { from: 'them', text: 'done 🐯 sorted 46 screenshots on your computer into Aug, Sep and Oct, renamed by date. nothing deleted.' },
         ],
     },
     {
         name: 'Rishi',
         role: 'Forms & Errands',
         hue: 270,
-        preview: 'submitted ✓ confirmation saved to Downloads',
+        preview: 'dentist form filled in. reply YES to submit',
         time: '9:38 AM',
         messages: [
-            { from: ME, text: 'fill in the dentist’s new patient form, the link’s in my email' },
-            { from: 'them', text: 'filled in your details from your notes. one thing: it needs your insurance member id' },
-            { from: ME, text: 'it’s on the card photo in my Documents folder' },
-            { from: 'them', text: 'found it and added it. ready to submit, reply YES to send it' },
-            { from: ME, text: 'YES' },
-            { from: 'them', text: 'submitted ✓ confirmation saved to Downloads 🐶' },
+            { from: ME, text: 'fill in the dentist’s new patient form from my email? insurance card’s in my Documents' },
+            { from: 'them', text: 'filled in ✓ your details plus the member id from your card photo. reply YES and I’ll submit it 🐶' },
         ],
     },
     {
