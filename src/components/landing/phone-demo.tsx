@@ -30,27 +30,28 @@ const RISHI = 1
 const MOCHI = 2
 
 const contacts: Contact[] = [
-    // Real computer work in one exchange each: Tofu tidies files on your computer, Rishi fills in a form and waits for your YES
+    // One exchange each that shows what a chatbot can't do: Tofu works across your apps and files, Rishi keeps
+    // watch, remembers what you told it and waits for your YES before spending money
     {
         name: 'Tofu',
-        role: 'Desktop Helper',
+        role: 'Paperwork',
         hue: 28,
-        preview: '46 screenshots sorted into folders by month 🐯',
+        preview: '63 receipts in Taxes 2026.xlsx. $4,212 deductible 🐯',
         time: '9:41 AM',
         messages: [
-            { from: ME, text: 'my desktop is a mess. sort the screenshots into folders by month?' },
-            { from: 'them', text: 'done 🐯 sorted 46 screenshots on your computer into Aug, Sep and Oct, renamed by date. nothing deleted.' },
+            { from: ME, text: 'pull every receipt from my email and downloads this year into a spreadsheet for my taxes?' },
+            { from: 'them', text: 'done 🐯 63 receipts, sorted by category in Taxes 2026.xlsx on your desktop. $4,212 looks deductible.' },
         ],
     },
     {
         name: 'Rishi',
-        role: 'Forms & Errands',
+        role: 'Travel & Errands',
         hue: 270,
-        preview: 'dentist form filled in. reply YES to submit',
+        preview: 'found a $462 flight for the wedding. reply YES to book',
         time: '9:38 AM',
         messages: [
-            { from: ME, text: 'fill in the dentist’s new patient form from my email? insurance card’s in my Documents' },
-            { from: 'them', text: 'filled in ✓ your details plus the member id from your card photo. reply YES and I’ll submit it 🐶' },
+            { from: ME, text: 'keep an eye on flights to lisbon for my sister’s wedding, under $500' },
+            { from: 'them', text: 'found one ✈️ TAP, Jun 12–19, $462, aisle seat like you like. reply YES and I’ll book it 🐶' },
         ],
     },
     {
