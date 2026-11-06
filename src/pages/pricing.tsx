@@ -149,7 +149,7 @@ export function PricingPage() {
                 className="pb-20 pt-24 text-center md:pb-28 md:pt-36">
                 <StaggerItem>
                     <p className="type-label text-muted-foreground">Simple pricing</p>
-                    <h1 className="type-title mx-auto mt-3 max-w-3xl text-balance">Free to build. You bring the keys.</h1>
+                    <h1 className="type-title mx-auto mt-3 max-w-3xl text-balance">Pay as you go</h1>
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-5 max-w-xl text-balance">
