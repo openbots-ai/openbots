@@ -15,7 +15,7 @@ SR = 48000
 DUR = 97 * 60 / 124  # the video: 97 beats at 124 BPM (see SCENES in index.html)
 HERE = os.path.dirname(os.path.abspath(__file__))
 VO_DIR = os.path.join(HERE, 'assets', 'vo')
-VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'  # Sarah - Mature, Reassuring, Confident
+VOICE_ID = 'cgSgspJ2msm6clMCkdW9'  # Jessica - Playful, Bright, Warm
 MODEL = 'eleven_multilingual_v2'
 
 # (start, line). Scene starts: opening lines 0 / 2.9 / 5.8, Introducing 8.23, logo 11.13, words 14.03 / 15.0 / 15.97,
@@ -49,7 +49,8 @@ def voice(i, text):
     if not os.path.exists(path):
         body = json.dumps({'text': text, 'model_id': MODEL,
                            'voice_settings': {'stability': 0.4, 'similarity_boost': 0.75, 'style': 0.15, 'use_speaker_boost': True}})
-        subprocess.run(['curl', '-sSf', '--max-time', '120', '-X', 'POST',
+        # ElevenLabs occasionally rejects a request in a burst; retry a couple of times before giving up
+        subprocess.run(['curl', '-sSf', '--retry', '3', '--retry-all-errors', '--retry-delay', '3', '--max-time', '120', '-X', 'POST',
                         '-H', f"xi-api-key: {os.environ.get('ELEVENLABS_API_KEY', 'proxy-injected')}",
                         '-H', 'Content-Type: application/json', '-d', body, '-o', path,
                         f'https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=mp3_44100_128'], check=True)
