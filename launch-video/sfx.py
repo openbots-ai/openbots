@@ -148,27 +148,32 @@ def sound(kind, extra):
     raise ValueError(kind)
 
 
-cues = json.load(open(sys.argv[1]))
-n = int(DUR * SR)
-mix = np.zeros((n + 4 * SR, 2))
-for t, kind, gain, extra in cues:
-    s = sound(kind, extra) * gain
-    i = int(t * SR)
-    mix[i:i + len(s)] += s[:len(mix) - i]
-mix = mix[:n]
+def main():
+    cues = json.load(open(sys.argv[1]))
+    n = int(DUR * SR)
+    mix = np.zeros((n + 4 * SR, 2))
+    for t, kind, gain, extra in cues:
+        s = sound(kind, extra) * gain
+        i = int(t * SR)
+        mix[i:i + len(s)] += s[:len(mix) - i]
+    mix = mix[:n]
 
-# A short room reverb glues the separate sounds together
-ir_t = secs(0.7)
-size = 1 << int(np.ceil(np.log2(n + len(ir_t))))
-for ch in range(2):
-    ir = rng.standard_normal(len(ir_t)) * np.exp(-ir_t / 0.18)
-    ir /= np.sqrt((ir ** 2).sum())
-    mix[:, ch] += np.fft.irfft(np.fft.rfft(mix[:, ch], size) * np.fft.rfft(ir, size), size)[:n] * 0.18
+    # A short room reverb glues the separate sounds together
+    ir_t = secs(0.7)
+    size = 1 << int(np.ceil(np.log2(n + len(ir_t))))
+    for ch in range(2):
+        ir = rng.standard_normal(len(ir_t)) * np.exp(-ir_t / 0.18)
+        ir /= np.sqrt((ir ** 2).sum())
+        mix[:, ch] += np.fft.irfft(np.fft.rfft(mix[:, ch], size) * np.fft.rfft(ir, size), size)[:n] * 0.18
 
-fade = np.clip((DUR - np.arange(n) / SR) / 0.6, 0, 1)
-mix *= fade[:, None]
-mix /= max(1.0, np.abs(mix).max() / 0.98)
-subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '2', '-i', '-',
-                '-af', 'loudnorm=I=-16:TP=-1.0:LRA=15,alimiter=limit=0.89:level=false', '-ar', str(SR), '-c:a', 'pcm_s16le', sys.argv[2]],
-               input=mix.astype(np.float32).tobytes(), check=True)
-print('wrote', sys.argv[2])
+    fade = np.clip((DUR - np.arange(n) / SR) / 0.6, 0, 1)
+    mix *= fade[:, None]
+    mix /= max(1.0, np.abs(mix).max() / 0.98)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '2', '-i', '-',
+                    '-af', 'loudnorm=I=-16:TP=-1.0:LRA=15,alimiter=limit=0.89:level=false', '-ar', str(SR), '-c:a', 'pcm_s16le', sys.argv[2]],
+                   input=mix.astype(np.float32).tobytes(), check=True)
+    print('wrote', sys.argv[2])
+
+
+if __name__ == '__main__':
+    main()

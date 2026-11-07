@@ -75,6 +75,12 @@ def keystrokes(entry, count=12):
 # Freesound doesn't allow downloads to every machine, so recordings can also be added by hand to assets/sfx/;
 # a kind whose file is missing is left silent
 SOUNDS = {k: e for k, e in SOUNDS.items() if os.path.exists(os.path.join(SFX_DIR, e['file'])) or os.environ.get('SFX_DOWNLOAD')}
+# The opening and the lock keep the original synthesized sounds (sfx.py); everything else is a real recording
+sys.path.insert(0, HERE)
+import sfx as synth  # noqa: E402
+
+SYNTH_UNTIL = 3.9  # the intro swell and shimmer, and the low thump and whoosh on the logo
+SYNTH_KINDS = {'lock'}
 cues = json.load(open(sys.argv[1]))
 n = int(DUR * SR)
 mix = np.zeros((n + 10 * SR, 2))
@@ -82,6 +88,11 @@ cache = {}
 keys = keystrokes(SOUNDS['key']) if 'key' in SOUNDS else []
 rng = np.random.default_rng(3)
 for t, kind, gain, extra in cues:
+    if t < SYNTH_UNTIL or kind in SYNTH_KINDS:
+        s = synth.sound(kind, extra) * gain
+        i = int(t * SR)
+        mix[i:i + len(s)] += s[:len(mix) - i]
+        continue
     if kind == 'key':
         if not keys:
             continue
