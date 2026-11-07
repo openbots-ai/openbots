@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { ArrowRight, BarChart3, KeyRound } from 'lucide-react'
+import { BarChart3, KeyRound } from 'lucide-react'
 import { slotOf } from '@convex/lib/models'
 import { creditsFor, SLOT_UNITS } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
@@ -214,19 +213,6 @@ export function PricingPage() {
                 <StaggerItem>
                     <p className="type-label text-muted-foreground">Simple pricing</p>
                     <h1 className="type-display mx-auto mt-3 max-w-3xl text-balance">Pay as you go</h1>
-                </StaggerItem>
-                <StaggerItem>
-                    <p className="type-body-lg text-muted-foreground mx-auto mt-5 max-w-xl text-balance">
-                        OpenBots is free. Your agents run on your own AI and texting accounts, so you pay those providers directly, at their prices.
-                    </p>
-                </StaggerItem>
-                <StaggerItem className="mt-9 flex justify-center">
-                    <Button
-                        size="lg"
-                        className="type-body h-12 px-7"
-                        nativeButton={false}
-                        render={<a href="/dashboard">Explore the builder <ArrowRight data-icon="inline-end" /></a>}
-                    />
                 </StaggerItem>
             </Stagger>
 
