@@ -149,6 +149,9 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
     </div>
 
     <!-- 1. Bloom + "Introducing" -->
+    <!-- 0. Opening lines, in the same type as "Introducing" -->
+    <div class="scene" id="s-hook"><div class="center"><div class="sub" id="hook-t" style="font-size:44px;color:#fff;text-align:center"></div></div></div>
+
     <div class="scene" id="s-intro"><div class="center"><div class="sub" id="intro-t" style="font-size:44px;color:#fff">Introducing</div></div></div>
 
     <!-- 2. Logo + "OpenBots" -->
@@ -328,7 +331,11 @@ function reveal(el, t, start, dur = 0.7, dist = 40) {
 // The music (music.mp3, ElevenLabs) is exactly 124 BPM with its first beat at 0:00, so every cut sits on that beat grid.
 // Scene list: [id, start beat, end beat]. Hard cuts between them, like the original.
 const BEAT = 60 / 124
+// The opening lines come first; every scene after them keeps its length, shifted by HOOK beats
+const HOOK_LINES = ["Everyone's building your personal AI assistant.", 'What if you could build your own?', 'In just a few clicks.']
+const HOOK = 4 * HOOK_LINES.length // four beats per line
 const SCENES = [
+    ['s-hook', -HOOK, 0],
     ['s-intro', 0, 6],
     ['s-logo', 6, 14],
     ['s-kinetic', 14, 22],
@@ -339,8 +346,8 @@ const SCENES = [
     ['s-private', 66, 72],
     ['s-montage', 72, 77], // ten words, one per half-beat
     ['s-end', 77, 44 / BEAT],
-].map(([id, a, b]) => [id, a * BEAT, b * BEAT])
-const DURATION = 44.0
+].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
+const DURATION = 44.0 + HOOK * BEAT
 
 // Backdrop palettes per scene: four blob colors + base
 const PALETTES = {
@@ -350,7 +357,7 @@ const PALETTES = {
     'violet': ['#6a3fc4', '#b9a2ff', '#3b37a3', '#8f7bff', '#170f3f'],
     'blue':   ['#3b4fc4', '#8fa6ff', '#3b37a3', '#6d8bff', '#0d1238'],
 }
-const SCENE_PAL = { 's-intro': 'deep', 's-logo': 'bright', 's-kinetic': 'violet', 's-build': 'dusk', 's-text': 'blue',
+const SCENE_PAL = { 's-hook': 'deep', 's-intro': 'deep', 's-logo': 'bright', 's-kinetic': 'violet', 's-build': 'dusk', 's-text': 'blue',
     's-computer': 'dusk', 's-models': 'violet', 's-private': 'blue', 's-montage': 'bright', 's-end': 'bright' }
 
 function backdrop(t, pal, intensity) {
@@ -521,12 +528,12 @@ function render(t) {
     SCENES.forEach(([sid]) => ($(sid).style.display = sid === id ? 'block' : 'none'))
 
     // Backdrop intensity: the intro blooms from black
-    const intensity = id === 's-intro' ? lerp(0.05, 1, outExpo(prog(lt, 0, 2.2))) : 1
+    const intensity = id === 's-hook' ? lerp(0.05, 1, outExpo(prog(lt, 0, 2.2))) : 1
     backdrop(t, SCENE_PAL[id], intensity)
-    $('aurora').style.opacity = id === 's-intro' ? outExpo(prog(lt, 0, 1.6)) : 1
+    $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [6, 14, 72, 77].map((b) => b * BEAT)
+    const flashAt = [6, 14, 72, 77].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -534,8 +541,19 @@ function render(t) {
     const zoom = 1 + 0.03 * prog(lt, 0, s1 - s0)
     $(id).style.transform = `scale(${zoom})`
 
+    if (id === 's-hook') {
+        // One line every four beats, each rising in and blurring out like "Introducing"
+        const step = 4 * BEAT
+        const i = Math.min(HOOK_LINES.length - 1, Math.floor(lt / step))
+        const el = $('hook-t')
+        el.textContent = HOOK_LINES[i]
+        reveal(el, lt - i * step, i === 0 ? 0.3 : 0.05, 0.7, 20)
+        const out = prog(lt - i * step, step - 0.4, step)
+        if (out > 0) { el.style.opacity = 1 - out; el.style.filter = `blur(${out * 12}px)` }
+    }
+
     if (id === 's-intro') {
-        reveal($('intro-t'), t, 0.9, 0.9, 20)
+        reveal($('intro-t'), lt, 0.9, 0.9, 20)
         const out = prog(lt, 2.4, 2.9)
         if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
@@ -766,7 +784,8 @@ function buildCues() {
     })
 
     // Intro: an airy swell that lands on the logo cut
-    add(0, 'swell', 0.8, at['s-logo'])
+    HOOK_LINES.forEach((_, i) => i && add(at['s-hook'] + i * 4 * BEAT, 'swish', 0.35))
+    add(at['s-intro'], 'swell', 0.8, at['s-logo'] - at['s-intro'])
     // Logo
     add(at['s-logo'], 'impact', 1)
     add(at['s-logo'] + 0.35, 'whoosh', 0.45, 0.5)
