@@ -1,4 +1,4 @@
-"""Voiceover with ElevenLabs, mixed over the sound effects: python3 el_vo.py timeline.json sfx-real.wav vo-mix.wav
+"""Voiceover with ElevenLabs, mixed over the sound effects: python3 el_vo.py timeline.json sfx-real.wav vo-mix.wav [score.wav]
 
 The script is voiced as continuous passages rather than line by line, so it flows like one read: each passage is
 sent with the text before and after it, and the settings keep the delivery steady. Clips and their word timings are
@@ -115,6 +115,13 @@ duck = 1 - 0.5 * np.clip(talking * 4, 0, 1)
 speech = vo[np.abs(vo) > 0.01]
 vo *= 0.16 / max(1e-6, np.sqrt(np.mean(speech ** 2)))
 mix = sfx * duck[:, None] * 0.8 + vo[:, None]
+if len(sys.argv) > 4:
+    # Music bed (score.py output): low and relaxed, dipping ~10 dB under the voice
+    music = np.frombuffer(subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', sys.argv[4], '-ar', str(SR), '-ac', '2', '-f', 'f32le', '-'],
+                                         capture_output=True, check=True).stdout, dtype=np.float32).reshape(-1, 2)[:n]
+    music = np.pad(music, ((0, n - len(music)), (0, 0)))
+    music *= 0.12 / max(1e-6, np.sqrt(np.mean(music ** 2)))
+    mix += music * (1 - 0.68 * np.clip(talking * 4, 0, 1))[:, None]
 mix /= max(1.0, np.abs(mix).max() / 0.98)
 subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '2', '-i', '-',
                 '-af', 'loudnorm=I=-16:TP=-1.0:LRA=11,alimiter=limit=0.89:level=false', '-ar', str(SR), '-c:a', 'pcm_s16le', sys.argv[3]],

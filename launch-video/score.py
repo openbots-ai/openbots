@@ -4,13 +4,16 @@ The track plays as it is, from its first beat at 0:00; the video's cuts are time
 SCENES in index.html). The only additions: a reverb tail so the end card rings out instead of going silent
 when the track stops (~0:39.5), a fade to silence on the last frames, and loudness normalisation.
 """
+import json
+import os
 import subprocess
 import sys
 
 import numpy as np
 
 SR = 48000
-DUR = 44.0
+# Video length, from the timeline written by `node render.mjs --timeline timeline.json`
+DUR = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'timeline.json')))['duration']
 src, out = sys.argv[1], sys.argv[2]
 
 cmd = ['ffmpeg', '-loglevel', 'error', '-i', src, '-ar', str(SR), '-ac', '2', '-f', 'f32le', '-']
@@ -43,7 +46,7 @@ for ch in range(2):
 mix[start:] += tail[:n - start] * 1.4
 
 # Fade to silence with the picture, then loudness-normalise (-14 LUFS) with a limiter so nothing clips
-mix *= (1 - ramp(42.6, 44.0) ** 2)[:, None]
+mix *= (1 - ramp(DUR - 1.4, DUR) ** 2)[:, None]
 mix /= max(1.0, np.abs(mix).max() / 0.98)
 subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '2', '-i', '-',
                 '-af', 'loudnorm=I=-14:TP=-1.0:LRA=11,alimiter=limit=0.89:level=false', '-ar', str(SR), '-c:a', 'pcm_s16le', out],
