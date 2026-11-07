@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ArrowRight, BarChart3, KeyRound } from 'lucide-react'
-import { BRAIN_MODELS } from '@convex/lib/models'
+import { SAME_AS_BRAIN, slotOf } from '@convex/lib/models'
+import { creditsFor, SLOT_UNITS } from '@convex/lib/usage'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -23,8 +25,36 @@ const PRICES: Record<string, [number, number]> = {
     'gemini-2.5-flash': [0.3, 2.5],
     'grok-4': [3, 15],
 }
-// What one reply is assumed to use: the chat so far plus the agent's instructions in, a short text out
-const REPLY_TOKENS = { input: 1500, output: 150 }
+
+// What one unit of each job is assumed to use, in tokens: a reply carries the chat so far and the agent's
+// instructions, an image adds about a thousand tokens, and a decision is a short question with a short answer
+const TOKENS: Record<string, { input: number; output: number }> = {
+    brain: { input: 1500, output: 150 },
+    vision: { input: 1100, output: 100 },
+    decisions: { input: 500, output: 30 },
+}
+
+// Per-unit prices for the options that aren't billed by the token: a voice note is about 400 characters, a note
+// you send about 30 seconds, and a call is billed by the minute
+const FLAT: Record<string, number> = {
+    elevenlabs: 0.04,
+    'openai-tts': 0.006,
+    'cartesia-sonic': 0.012,
+    'deepgram-nova': 0.0022,
+    whisper: 0.003,
+    'gpt-realtime': 0.15,
+    'gemini-live': 0.1,
+}
+
+// The jobs the estimate prices, in the order the dashboard lists them, each with a volume slider
+const JOBS = [
+    { slot: 'brain', min: 100, max: 50000, step: 100, start: 1000, unitNote: 'Texts your agents send back each month.' },
+    { slot: 'voice', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Voice notes your agents send you.' },
+    { slot: 'listening', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Voice notes people send your agents.' },
+    { slot: 'vision', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Photos and screenshots your agents read.' },
+    { slot: 'decisions', min: 0, max: 50000, step: 100, start: 0, unitNote: 'Quick yes-or-no calls, like “is this urgent?”.' },
+    { slot: 'calls', min: 0, max: 2000, step: 10, start: 0, unitNote: 'Minutes your agent spends talking live.' },
+] as const
 
 const TEXTING = [
     { id: 'sendblue', label: 'Sendblue (iMessage)', perText: 0, note: 'A flat plan on Sendblue' },
@@ -33,29 +63,39 @@ const TEXTING = [
 
 const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const count = (n: number) => n.toLocaleString('en-US')
+const first = (v: number | readonly number[]) => (typeof v === 'number' ? v : v[0])
+
 const tokensCost = (id: string, t: { input: number; output: number }) => {
     const [i, o] = PRICES[id] ?? [0, 0]
     return (t.input * i + t.output * o) / 1_000_000
 }
-const first = (v: number | readonly number[]) => (typeof v === 'number' ? v : v[0])
+
+// What one unit of a job costs on a given option; "Same as Brain" borrows the Brain's model
+const unitCost = (slot: string, option: string, brainModel: string) => {
+    const id = option === SAME_AS_BRAIN ? brainModel : option
+    return id in PRICES ? tokensCost(id, TOKENS[slot] ?? TOKENS.brain) : (FLAT[id] ?? 0)
+}
 
 const optionClass = 'aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground'
 const cardClass = 'rounded-[2rem] bg-neutral-100/70 p-8 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8 md:p-10'
 
 function CostEstimator() {
-    const [replies, setReplies] = useState(1000)
-    const [model, setModel] = useState(BRAIN_MODELS[0].id)
+    const [volumes, setVolumes] = useState<Record<string, number>>(() => Object.fromEntries(JOBS.map((j) => [j.slot, j.start])))
+    const [choices, setChoices] = useState<Record<string, string>>(() => Object.fromEntries(JOBS.map((j) => [j.slot, slotOf(j.slot)?.default ?? ''])))
     const [texting, setTexting] = useState(TEXTING[0].id)
 
     const channel = TEXTING.find((t) => t.id === texting) ?? TEXTING[0]
-    const modelCost = replies * tokensCost(model, REPLY_TOKENS)
-    const textCost = replies * channel.perText
-    const total = modelCost + textCost
-    const breakdown = [
-        ['AI model', modelCost, 'Paid to your AI provider'],
-        ['Texting', textCost, channel.note],
-        ['OpenBots', 0, 'Free'],
-    ] as const
+    const brainModel = choices.brain
+
+    const lines = JOBS.map((job) => {
+        const slot = slotOf(job.slot)!
+        const option = slot.options.find((o) => o.id === choices[job.slot])
+        const amount = volumes[job.slot] * unitCost(job.slot, choices[job.slot], brainModel)
+        return { job, slot, label: option?.label ?? '', volume: volumes[job.slot], amount }
+    })
+    const textCost = volumes.brain * channel.perText
+    const total = lines.reduce((sum, l) => sum + l.amount, 0) + textCost
+    const credits = lines.reduce((sum, l) => sum + creditsFor(l.job.slot, l.volume), 0)
 
     return (
         <section className="pb-20 md:pb-28">
@@ -65,35 +105,61 @@ function CostEstimator() {
                     <h2 className="type-title mt-2">What will you pay your providers?</h2>
                 </div>
                 <p className="type-body text-muted-foreground max-w-md">
-                    Adjust the slider and pick a model to see an approximate monthly bill. These are estimates from public list prices, not a quote.
+                    Every part of an agent can run on a different model. Set how much each one does and pick what it runs on to see an approximate monthly bill. These are estimates from public list prices, not a quote.
                 </p>
             </div>
 
             <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
-                <div className="flex flex-col gap-5">
-                    <article className={cardClass}>
-                        <div className="flex items-end justify-between gap-4">
-                            <h3 className="type-heading">Monthly replies</h3>
-                            <span className="text-5xl font-medium tracking-[-0.05em] tabular-nums">{count(replies)}</span>
-                        </div>
-                        <Slider className="mt-6" aria-label="Monthly replies" min={100} max={50000} step={100} value={replies} onValueChange={(v) => setReplies(first(v))} />
-                        <p className="type-body-sm text-muted-foreground mt-4">How many texts your agents send back each month.</p>
+                <article className={cardClass}>
+                    <h3 className="type-heading">Choose your setup</h3>
+                    <div className="mt-6 flex flex-col divide-y divide-black/5 border-t border-black/5 dark:divide-white/10 dark:border-white/10">
+                        {JOBS.map((job) => {
+                            const slot = slotOf(job.slot)!
+                            const unit = SLOT_UNITS[job.slot]
+                            return (
+                                <div key={job.slot} className="py-7">
+                                    <div className="flex items-baseline justify-between gap-4">
+                                        <div>
+                                            <h4 className="type-subheading">{slot.label}</h4>
+                                            <p className="type-body-sm text-muted-foreground mt-1">{slot.blurb}</p>
+                                        </div>
+                                        <span className="shrink-0 text-right">
+                                            <span className={job.slot === 'brain' ? 'text-4xl font-medium tracking-[-0.05em] tabular-nums' : 'text-2xl font-medium tracking-[-0.04em] tabular-nums'}>
+                                                {count(volumes[job.slot])}
+                                            </span>
+                                            <span className="type-caption text-muted-foreground block">{unit.many} a month</span>
+                                        </span>
+                                    </div>
+                                    <Slider
+                                        className="mt-5"
+                                        aria-label={`${slot.label}: ${unit.many} a month`}
+                                        min={job.min}
+                                        max={job.max}
+                                        step={job.step}
+                                        value={volumes[job.slot]}
+                                        onValueChange={(v) => setVolumes((prev) => ({ ...prev, [job.slot]: first(v) }))}
+                                    />
+                                    <p className="type-caption text-muted-foreground mt-3">{job.unitNote}</p>
+                                    <ToggleGroup
+                                        variant="outline"
+                                        className="mt-4 flex-wrap"
+                                        aria-label={`${slot.label} model`}
+                                        value={[choices[job.slot]]}
+                                        onValueChange={(v) => v[0] && setChoices((prev) => ({ ...prev, [job.slot]: v[0] }))}>
+                                        {slot.options.map((o) => (
+                                            <ToggleGroupItem key={o.id} value={o.id} size="lg" className={optionClass}>
+                                                {o.label}
+                                            </ToggleGroupItem>
+                                        ))}
+                                    </ToggleGroup>
+                                </div>
+                            )
+                        })}
 
-                    </article>
-
-                    <article className={cardClass}>
-                        <h3 className="type-heading">Choose your options</h3>
-                        <div className="mt-6 grid gap-x-8 gap-y-5 border-t border-black/5 pt-6 dark:border-white/10 md:grid-cols-[7rem_1fr]">
-                            <p className="type-label text-muted-foreground pt-2">Model</p>
-                            <ToggleGroup variant="outline" className="flex-wrap" aria-label="Model" value={[model]} onValueChange={(v) => v[0] && setModel(v[0])}>
-                                {BRAIN_MODELS.map((m) => (
-                                    <ToggleGroupItem key={m.id} value={m.id} size="lg" className={optionClass}>
-                                        {m.label}
-                                    </ToggleGroupItem>
-                                ))}
-                            </ToggleGroup>
-                            <p className="type-label text-muted-foreground pt-2">Texting</p>
-                            <ToggleGroup variant="outline" className="flex-wrap" aria-label="Texting provider" value={[texting]} onValueChange={(v) => v[0] && setTexting(v[0])}>
+                        <div className="py-7">
+                            <h4 className="type-subheading">Texting</h4>
+                            <p className="type-body-sm text-muted-foreground mt-1">Sends and receives the texts, one per reply.</p>
+                            <ToggleGroup variant="outline" className="mt-4 flex-wrap" aria-label="Texting provider" value={[texting]} onValueChange={(v) => v[0] && setTexting(v[0])}>
                                 {TEXTING.map((t) => (
                                     <ToggleGroupItem key={t.id} value={t.id} size="lg" className={optionClass}>
                                         {t.label}
@@ -101,26 +167,40 @@ function CostEstimator() {
                                 ))}
                             </ToggleGroup>
                         </div>
-                    </article>
-                </div>
+                    </div>
+                </article>
 
-                <aside className="bg-primary text-primary-foreground flex flex-col rounded-[2rem] p-8 md:p-10" aria-live="polite">
+                <aside className="bg-primary text-primary-foreground flex flex-col rounded-[2rem] p-8 md:p-10 lg:sticky lg:top-24 lg:self-start" aria-live="polite">
                     <p className="type-label text-white/60">Estimated per month</p>
                     <span className="mt-4 text-6xl font-medium tracking-[-0.06em] tabular-nums">{money(total)}</span>
-                    <p className="type-body-sm mt-2 text-white/60">About {count(replies)} budget credits</p>
+                    <p className="type-body-sm mt-2 text-white/60">About {count(credits)} budget credits</p>
                     <dl className="mt-8 flex flex-col gap-4 border-t border-white/15 pt-6">
-                        {breakdown.map(([label, amount, note]) => (
-                            <div key={label} className="flex items-baseline justify-between gap-4">
+                        {lines.map(({ job, slot, label, volume, amount }) => (
+                            <div key={job.slot} className={cn('flex items-baseline justify-between gap-4', volume === 0 && 'opacity-50')}>
                                 <div>
-                                    <dt className="type-body-sm">{label}</dt>
-                                    <dd className="type-caption text-white/50">{note}</dd>
+                                    <dt className="type-body-sm">{slot.label}</dt>
+                                    <dd className="type-caption text-white/50">{volume === 0 ? 'Not used' : label}</dd>
                                 </div>
                                 <span className="type-body-sm font-medium tabular-nums">{money(amount)}</span>
                             </div>
                         ))}
+                        <div className="flex items-baseline justify-between gap-4">
+                            <div>
+                                <dt className="type-body-sm">Texting</dt>
+                                <dd className="type-caption text-white/50">{channel.note}</dd>
+                            </div>
+                            <span className="type-body-sm font-medium tabular-nums">{money(textCost)}</span>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-4 border-t border-white/15 pt-4">
+                            <div>
+                                <dt className="type-body-sm">OpenBots</dt>
+                                <dd className="type-caption text-white/50">Free</dd>
+                            </div>
+                            <span className="type-body-sm font-medium tabular-nums">{money(0)}</span>
+                        </div>
                     </dl>
                     <p className="type-caption mt-auto pt-8 text-white/50">
-                        Assumes about {count(REPLY_TOKENS.input)} tokens in and {REPLY_TOKENS.output} out per reply. Real bills depend on how long your chats run.
+                        Assumes about {count(TOKENS.brain.input)} tokens in and {TOKENS.brain.output} out per reply. Real bills depend on how long your chats run. Jev has no per-use price listed, so it counts as $0.
                     </p>
                 </aside>
             </div>
@@ -136,7 +216,7 @@ export function PricingPage() {
                 className="pb-20 pt-24 text-center md:pb-28 md:pt-36">
                 <StaggerItem>
                     <p className="type-label text-muted-foreground">Simple pricing</p>
-                    <h1 className="type-title mx-auto mt-3 max-w-3xl text-balance">Pay as you go</h1>
+                    <h1 className="mx-auto mt-4 max-w-5xl text-balance text-6xl leading-[1.02] font-medium tracking-[-0.045em] md:text-8xl lg:text-9xl">Pay as you go</h1>
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-5 max-w-xl text-balance">
