@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { ArrowRight, BarChart3, Check, KeyRound, WalletCards } from 'lucide-react'
+import { ArrowRight, BarChart3, KeyRound } from 'lucide-react'
 import { BRAIN_MODELS } from '@convex/lib/models'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Stagger, StaggerItem } from '@/components/landing/motion'
 import { PageShell } from '@/pages/page-shell'
-import { UsageGauge } from '@/components/usage-gauge'
 
 // What your agents use, who bills you for it, and what it counts toward your budget (convex/lib/usage.ts)
 const usage = [
@@ -14,8 +13,6 @@ const usage = [
     ['Computer use', 'Anthropic', '2 credits a step'],
     ['Texts', 'Twilio or Sendblue', 'Not counted'],
 ]
-
-const promises = ['Free during early access', 'No markup on any model', 'Your own keys, your own bills', 'Stops at the budget you set']
 
 // Rough public list prices in dollars per million tokens (input, output). Only for the estimate: your provider's own page is the truth
 const PRICES: Record<string, [number, number]> = {
@@ -28,8 +25,6 @@ const PRICES: Record<string, [number, number]> = {
 }
 // What one reply is assumed to use: the chat so far plus the agent's instructions in, a short text out
 const REPLY_TOKENS = { input: 1500, output: 150 }
-// A computer-use step sends a screenshot each time, so it reads far more than a reply does
-const STEP_TOKENS = { input: 3000, output: 200 }
 
 const TEXTING = [
     { id: 'sendblue', label: 'Sendblue (iMessage)', perText: 0, note: 'A flat plan on Sendblue' },
@@ -49,19 +44,17 @@ const cardClass = 'rounded-[2rem] bg-neutral-100/70 p-8 ring-1 ring-black/4 dark
 
 function CostEstimator() {
     const [replies, setReplies] = useState(1000)
-    const [steps, setSteps] = useState(0)
     const [model, setModel] = useState(BRAIN_MODELS[0].id)
     const [texting, setTexting] = useState(TEXTING[0].id)
 
     const channel = TEXTING.find((t) => t.id === texting) ?? TEXTING[0]
-    const modelCost = replies * tokensCost(model, REPLY_TOKENS) + steps * tokensCost(model, STEP_TOKENS)
+    const modelCost = replies * tokensCost(model, REPLY_TOKENS)
     const textCost = replies * channel.perText
     const total = modelCost + textCost
-    const credits = replies + steps * 2
     const breakdown = [
         ['AI model', modelCost, 'Paid to your AI provider'],
         ['Texting', textCost, channel.note],
-        ['OpenBots', 0, 'Free during early access'],
+        ['OpenBots', 0, 'Free'],
     ] as const
 
     return (
@@ -72,7 +65,7 @@ function CostEstimator() {
                     <h2 className="type-title mt-2">What will you pay your providers?</h2>
                 </div>
                 <p className="type-body text-muted-foreground max-w-md">
-                    Adjust the sliders and pick a model to see an approximate monthly bill. These are estimates from public list prices, not a quote.
+                    Adjust the slider and pick a model to see an approximate monthly bill. These are estimates from public list prices, not a quote.
                 </p>
             </div>
 
@@ -86,12 +79,6 @@ function CostEstimator() {
                         <Slider className="mt-6" aria-label="Monthly replies" min={100} max={50000} step={100} value={replies} onValueChange={(v) => setReplies(first(v))} />
                         <p className="type-body-sm text-muted-foreground mt-4">How many texts your agents send back each month.</p>
 
-                        <div className="mt-10 flex items-end justify-between gap-4">
-                            <h3 className="type-subheading">Computer-use steps</h3>
-                            <span className="text-3xl font-medium tracking-[-0.04em] tabular-nums">{count(steps)}</span>
-                        </div>
-                        <Slider className="mt-5" aria-label="Monthly computer-use steps" min={0} max={20000} step={100} value={steps} onValueChange={(v) => setSteps(first(v))} />
-                        <p className="type-body-sm text-muted-foreground mt-4">Clicks and keystrokes on your own computer. Leave it at 0 if you don’t use it.</p>
                     </article>
 
                     <article className={cardClass}>
@@ -120,7 +107,7 @@ function CostEstimator() {
                 <aside className="bg-primary text-primary-foreground flex flex-col rounded-[2rem] p-8 md:p-10" aria-live="polite">
                     <p className="type-label text-white/60">Estimated per month</p>
                     <span className="mt-4 text-6xl font-medium tracking-[-0.06em] tabular-nums">{money(total)}</span>
-                    <p className="type-body-sm mt-2 text-white/60">About {count(credits)} budget credits</p>
+                    <p className="type-body-sm mt-2 text-white/60">About {count(replies)} budget credits</p>
                     <dl className="mt-8 flex flex-col gap-4 border-t border-white/15 pt-6">
                         {breakdown.map(([label, amount, note]) => (
                             <div key={label} className="flex items-baseline justify-between gap-4">
@@ -153,7 +140,7 @@ export function PricingPage() {
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-5 max-w-xl text-balance">
-                        OpenBots is free during early access. Your agents run on your own AI and texting accounts, so you pay those providers directly, at their prices.
+                        OpenBots is free. Your agents run on your own AI and texting accounts, so you pay those providers directly, at their prices.
                     </p>
                 </StaggerItem>
                 <StaggerItem className="mt-9 flex justify-center">
@@ -167,42 +154,6 @@ export function PricingPage() {
             </Stagger>
 
             <CostEstimator />
-
-            <section className="grid gap-5 pb-20 md:grid-cols-3 md:pb-28">
-                <article className="bg-primary text-primary-foreground rounded-[2rem] p-8 md:col-span-2 md:p-10">
-                    <p className="type-label text-white/60">What OpenBots costs</p>
-                    <div className="mt-5 flex items-end gap-3">
-                        <span className="text-7xl font-medium tracking-[-0.06em]">$0</span>
-                        <span className="type-body text-white/60 pb-2">per month</span>
-                    </div>
-                    <p className="type-body-lg mt-6 max-w-lg text-white/70">
-                        No subscription, no seats and no markup. What your agents spend goes straight to the providers you picked.
-                    </p>
-                    <ul className="mt-9 grid gap-3 sm:grid-cols-2">
-                        {promises.map((item) => (
-                            <li key={item} className="type-body-sm flex items-center gap-2.5">
-                                <span className="flex size-5 items-center justify-center rounded-full bg-white/12">
-                                    <Check className="size-3" aria-hidden />
-                                </span>
-                                {item}
-                            </li>
-                        ))}
-                    </ul>
-                </article>
-
-                <article className="flex flex-col rounded-[2rem] bg-violet-100 p-8 text-violet-950 ring-1 ring-violet-950/5 md:p-10">
-                    <WalletCards className="size-7" aria-hidden />
-                    <p className="type-label mt-8 text-violet-950/60">Your rules</p>
-                    <h2 className="type-heading mt-2">Pick the ceiling</h2>
-                    <p className="type-body-sm mt-3 text-violet-950/70">
-                        Set a daily or weekly budget for your agents. When it’s used up, they stop until the next one starts.
-                    </p>
-                    <div className="mt-auto pt-6">
-                        <UsageGauge label="Today's budget" used={31} limit={50} note="31 of 50 credits used" />
-                        <p className="mt-3 text-center text-xs text-violet-950/60">Example usage</p>
-                    </div>
-                </article>
-            </section>
 
             <section className="pb-24 md:pb-36">
                 <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
