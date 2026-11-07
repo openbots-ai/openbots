@@ -71,19 +71,6 @@
   "max": 1.6,
   "gain": 0.8
  },
- "swell-out": {
-  "id": "96a9062b-be8d-42ae-aacc-f64d3a34294a",
-  "file": "561207__rizzard__riser.wav",
-  "url": "https://cdn.freesound.org/previews/561/561207_10825267-hq.mp3",
-  "license": "cc0",
-  "license_version": "1.0",
-  "creator": "Rizzard",
-  "title": "Riser",
-  "landing": "https://freesound.org/people/Rizzard/sounds/561207",
-  "max": 1.6,
-  "gain": 0.5,
-  "reverse": true
- },
  "impact": {
   "id": "eab8a6e2-0ac8-4615-9e0d-ebde30523783",
   "file": "351256__kinoton__deep-whoosh-1.wav",

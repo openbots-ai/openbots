@@ -834,7 +834,6 @@ function buildCues() {
     // End card: the final hit, a shimmer, the button pops, then it all fades out
     s = at['s-end']
     add(s, 'impact', 1.1); add(s, 'shimmer', 0.6); add(s + 1.1, 'pop', 0.6, 3)
-    add(s + 4.8, 'swell-out', 0.5)
     return c.sort((a, b) => a[0] - b[0])
 }
 
