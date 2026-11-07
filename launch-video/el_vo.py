@@ -12,36 +12,36 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 44.0 + 15 * 60 / 124  # same length as the video
+DUR = 97 * 60 / 124  # the video: 97 beats at 124 BPM (see SCENES in index.html)
 HERE = os.path.dirname(os.path.abspath(__file__))
 VO_DIR = os.path.join(HERE, 'assets', 'vo')
 VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'  # Sarah - Mature, Reassuring, Confident
 MODEL = 'eleven_multilingual_v2'
 
-# (start, line). Scene starts: opening lines 0 / 2.9 / 5.8, Introducing 8.23, logo 11.13, words 15.0 / 15.97 / 16.94,
-# builder 17.9, phone 22.74, computer 28.55, models 36.29, private 39.19, montage 42.1, end card 44.52
+# (start, line). Scene starts: opening lines 0 / 2.9 / 5.8, Introducing 8.23, logo 11.13, words 14.03 / 15.0 / 15.97,
+# builder 16.94, phone 21.77, computer 26.61, models 34.35, private 37.26, montage 40.16, end card 42.58
 LINES = [
     (0.3, "Everyone's building your personal AI assistant."),
     (3.25, 'But what if you could build your own?'),
     (5.9, 'In just a few clicks.'),
     (8.5, 'Introducing…'),
     (11.2, 'OpenBots.'),
-    (15.05, 'Your AI.'),
-    (16.0, 'Your models.'),
-    (16.97, 'Your rules.'),
-    (18.1, 'Build your AI piece by piece. Pick the model behind every part.'),
-    (22.9, 'Just text it. iMessage or SMS. No new app.'),
-    (28.8, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
-    (36.45, 'Bring any model. Even local ones.'),
-    (39.35, 'Private by design. Encrypted on your machine.'),
-    (42.6, 'And so much more.'),
-    (44.8, 'OpenBots. Available now.'),
+    (14.08, 'Your AI.'),
+    (15.03, 'Your models.'),
+    (16.0, 'Your rules.'),
+    (17.1, 'Build your AI piece by piece. Pick the model behind every part.'),
+    (21.9, 'Just text it. iMessage or SMS. No new app.'),
+    (26.85, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
+    (34.5, 'Bring any model. Even local ones.'),
+    (37.4, 'Private by design. Encrypted on your machine.'),
+    (40.5, 'And so much more.'),
+    (42.8, 'OpenBots. Available now.'),
 ]
 
 
 def clip_path(i, text):
     slug = ''.join(c if c.isalnum() else '-' for c in text.lower()).strip('-')[:40]
-    return os.path.join(VO_DIR, f'{i:02d}-{slug}.mp3')
+    return os.path.join(VO_DIR, VOICE_ID, f'{i:02d}-{slug}.mp3')
 
 
 def voice(i, text):
@@ -60,7 +60,7 @@ def voice(i, text):
     return a[max(0, loud[0] - int(0.02 * SR)):loud[-1] + int(0.12 * SR)] if len(loud) else a
 
 
-os.makedirs(VO_DIR, exist_ok=True)
+os.makedirs(os.path.join(VO_DIR, VOICE_ID), exist_ok=True)
 n = int(DUR * SR)
 vo = np.zeros(n)
 for i, (start, text) in enumerate(LINES):

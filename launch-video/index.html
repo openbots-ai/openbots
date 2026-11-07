@@ -339,17 +339,17 @@ const HOOK = HOOK_STARTS[HOOK_LINES.length]
 const SCENES = [
     ['s-hook', -HOOK, 0],
     ['s-intro', 0, 6],
-    ['s-logo', 6, 14],
-    ['s-kinetic', 14, 20], // three words, two beats each
-    ['s-build', 20, 30],
-    ['s-text', 30, 42],
-    ['s-computer', 42, 58],
-    ['s-models', 58, 64],
-    ['s-private', 64, 70],
-    ['s-montage', 70, 75], // ten words, one per half-beat
-    ['s-end', 75, 44 / BEAT - 2],
+    ['s-logo', 6, 12],
+    ['s-kinetic', 12, 18], // three words, two beats each
+    ['s-build', 18, 28],
+    ['s-text', 28, 38],
+    ['s-computer', 38, 54],
+    ['s-models', 54, 60],
+    ['s-private', 60, 66],
+    ['s-montage', 66, 71], // ten words, one per half-beat
+    ['s-end', 71, 80],
 ].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
-const DURATION = 44.0 + (HOOK - 2) * BEAT
+const DURATION = SCENES[SCENES.length - 1][2]
 
 // Backdrop palettes per scene: four blob colors + base
 const PALETTES = {
@@ -535,7 +535,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [6, 14, 70, 75].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [6, 12, 66, 71].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -625,7 +625,7 @@ function render(t) {
         $('phone-chat').style.display = lt >= 1.45 ? 'flex' : 'none'
         $('phone-list').style.transform = `translateX(${-30 * push}%)`
         renderChat('phone', TEXT_CHAT, lt)
-        reveal($('text-sub'), lt, 4.3, 0.7)
+        reveal($('text-sub'), lt, 3.9, 0.6)
     }
 
     if (id === 's-computer') {
@@ -766,7 +766,7 @@ function render(t) {
         blink($('s-end'), lt)
         // Fade to black at the very end
         $('flash').style.background = '#000'
-        $('flash').style.opacity = prog(lt, 5.0, 5.8)
+        $('flash').style.opacity = prog(lt, s1 - s0 - 0.7, s1 - s0 - 0.05)  // fade to black at the very end
     } else {
         $('flash').style.background = '#fff'
     }
@@ -805,7 +805,7 @@ function buildCues() {
     add(s, 'whoosh', 0.8, 0.9); add(s + 0.3, 'swish', 0.5)
     add(s + 1.15, 'tap', 0.8); add(s + 1.45, 'slide', 0.6)
     chat(s, TEXT_CHAT)
-    add(s + 4.3, 'tick', 0.4, 1)
+    add(s + 3.9, 'tick', 0.4, 1)
     // Computer use: laptop rises, camera zooms, Tofu shows up and works; the phone slides in for your YES
     s = at['s-computer']
     add(s + 0.2, 'whoosh', 0.8, 1.0); add(s + 1.1, 'pop', 0.5, 1); add(s + 1.15, 'pop', 0.6, 2)

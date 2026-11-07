@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 44.0 + 15 * 60 / 124  # the video: 44s, plus the 17-beat opening, minus the 2 beats "Your phone." had
+DUR = 97 * 60 / 124  # the video: 97 beats at 124 BPM (see SCENES in index.html)
 rng = np.random.default_rng(11)
 
 
