@@ -72,16 +72,17 @@
   "gain": 0.8
  },
  "swell": {
-  "id": "dd07153a-ca3d-4693-a6c8-fbe1338bce06",
-  "file": "522095__magnuswaker__energy-riser.wav",
-  "url": "https://cdn.freesound.org/previews/522/522095_11537497-hq.mp3",
+  "id": "eab8a6e2-0ac8-4615-9e0d-ebde30523783",
+  "file": "351256__kinoton__deep-whoosh-1.wav",
+  "url": "https://cdn.freesound.org/previews/351/351256_2247456-hq.mp3",
   "license": "cc0",
   "license_version": "1.0",
-  "creator": "magnuswaker",
-  "title": "Energy Riser",
-  "landing": "https://freesound.org/people/magnuswaker/sounds/522095",
+  "creator": "Kinoton",
+  "title": "Deep Whoosh #1",
+  "landing": "https://freesound.org/people/Kinoton/sounds/351256",
   "max": 3.0,
-  "gain": 0.8
+  "gain": 0.75,
+  "reverse": true
  },
  "swell-out": {
   "id": "96a9062b-be8d-42ae-aacc-f64d3a34294a",
@@ -179,5 +180,15 @@
   "landing": "https://freesound.org/people/Counter-gamer/sounds/404104",
   "max": 2.2,
   "gain": 0.5
+ },
+ "lock": {
+  "file": "lock-snap.wav",
+  "url": "",
+  "license": "original",
+  "creator": "OpenBots",
+  "title": "Lock snap (synthesized)",
+  "landing": "",
+  "max": 0.15,
+  "gain": 1.0
  }
 }
