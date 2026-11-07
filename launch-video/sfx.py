@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 44.0 + 12 * 60 / 124  # the video: 44s plus the 12-beat opening
+DUR = 44.0 + 17 * 60 / 124  # the video: 44s plus the 17-beat opening
 rng = np.random.default_rng(11)
 
 

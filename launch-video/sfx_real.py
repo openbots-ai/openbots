@@ -14,7 +14,7 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 44.0 + 12 * 60 / 124  # the video: 44s plus the 12-beat opening
+DUR = 44.0 + 17 * 60 / 124  # the video: 44s plus the 17-beat opening
 HERE = os.path.dirname(os.path.abspath(__file__))
 SFX_DIR = os.path.join(HERE, 'assets', 'sfx')
 
@@ -79,7 +79,7 @@ SOUNDS = {k: e for k, e in SOUNDS.items() if os.path.exists(os.path.join(SFX_DIR
 sys.path.insert(0, HERE)
 import sfx as synth  # noqa: E402
 
-OPENING = 12 * 60 / 124  # the opening lines before "Introducing" use the real recordings
+OPENING = 17 * 60 / 124  # the opening lines before "Introducing" use the real recordings
 SYNTH_FROM, SYNTH_UNTIL = OPENING, OPENING + 3.9  # "Introducing" swell, then the low thump and whoosh on the logo
 SYNTH_KINDS = {'lock'}
 cues = json.load(open(sys.argv[1]))

@@ -332,8 +332,10 @@ function reveal(el, t, start, dur = 0.7, dist = 40) {
 // Scene list: [id, start beat, end beat]. Hard cuts between them, like the original.
 const BEAT = 60 / 124
 // The opening lines come first; every scene after them keeps its length, shifted by HOOK beats
-const HOOK_LINES = ["Everyone's building your personal AI assistant.", 'What if you could build your own?', 'In just a few clicks.']
-const HOOK = 4 * HOOK_LINES.length // four beats per line
+// [line, beats on screen]: long enough to read at a normal pace (about 3 words a second, plus a beat to land)
+const HOOK_LINES = [["Everyone's building your personal AI assistant.", 6], ['What if you could build your own?', 6], ['In just a few clicks.', 5]]
+const HOOK_STARTS = HOOK_LINES.reduce((acc, [, b]) => [...acc, acc[acc.length - 1] + b], [0]) // in beats
+const HOOK = HOOK_STARTS[HOOK_LINES.length]
 const SCENES = [
     ['s-hook', -HOOK, 0],
     ['s-intro', 0, 6],
@@ -542,13 +544,14 @@ function render(t) {
     $(id).style.transform = `scale(${zoom})`
 
     if (id === 's-hook') {
-        // One line every four beats, each rising in and blurring out like "Introducing"
-        const step = 4 * BEAT
-        const i = Math.min(HOOK_LINES.length - 1, Math.floor(lt / step))
+        // Each line rises in and blurs out like "Introducing", and holds long enough to read
+        let i = 0
+        while (i < HOOK_LINES.length - 1 && lt >= HOOK_STARTS[i + 1] * BEAT) i++
+        const start = HOOK_STARTS[i] * BEAT, step = HOOK_LINES[i][1] * BEAT
         const el = $('hook-t')
-        el.textContent = HOOK_LINES[i]
-        reveal(el, lt - i * step, i === 0 ? 0.3 : 0.05, 0.7, 20)
-        const out = prog(lt - i * step, step - 0.4, step)
+        el.textContent = HOOK_LINES[i][0]
+        reveal(el, lt - start, i === 0 ? 0.3 : 0.05, 0.5, 20)
+        const out = prog(lt - start, step - 0.3, step)
         if (out > 0) { el.style.opacity = 1 - out; el.style.filter = `blur(${out * 12}px)` }
     }
 
@@ -784,7 +787,7 @@ function buildCues() {
     })
 
     // Intro: an airy swell that lands on the logo cut
-    HOOK_LINES.forEach((_, i) => i && add(at['s-hook'] + i * 4 * BEAT, 'swish', 0.35))
+    HOOK_STARTS.slice(1, -1).forEach((b) => add(at['s-hook'] + b * BEAT, 'swish', 0.35))
     add(at['s-intro'], 'swell', 0.8, at['s-logo'] - at['s-intro'])
     // Logo
     add(at['s-logo'], 'impact', 1)
