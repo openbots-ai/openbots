@@ -59,7 +59,7 @@ const tokensCost = (id: string, t: { input: number; output: number }) => {
 const unitCost = (slot: string, option: string) => tokensCost(option, TOKENS[slot])
 
 // Bigger thumb and track than the dashboard's slider, so it's easy to grab on this page
-const sliderClass = 'mt-5 **:data-[slot=slider-thumb]:size-6 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-track]:data-horizontal:h-2'
+const sliderClass = 'mt-5 **:data-[slot=slider-thumb]:size-4 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-track]:data-horizontal:h-2'
 const optionClass = 'aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground'
 const cardClass = 'rounded-[2rem] bg-neutral-100/70 p-8 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8 md:p-10'
 
@@ -199,7 +199,7 @@ export function PricingPage() {
                 className="pb-20 pt-24 text-center md:pb-28 md:pt-36">
                 <StaggerItem>
                     <p className="type-label text-muted-foreground">Simple pricing</p>
-                    <h1 className="mx-auto mt-4 max-w-5xl text-balance text-6xl leading-[1.02] font-medium tracking-[-0.045em] md:text-8xl lg:text-9xl">Pay as you go</h1>
+                    <h1 className="type-display mx-auto mt-3 max-w-3xl text-balance">Pay as you go</h1>
                 </StaggerItem>
                 <StaggerItem>
                     <p className="type-body-lg text-muted-foreground mx-auto mt-5 max-w-xl text-balance">
