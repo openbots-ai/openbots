@@ -4,3 +4,4 @@ still-*.jpg
 vo-mix.wav
 sfx-real.wav
 el-vo-mix.wav
+__pycache__/
