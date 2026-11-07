@@ -72,6 +72,9 @@ def keystrokes(entry, count=12):
     return keys
 
 
+# Freesound doesn't allow downloads to every machine, so recordings can also be added by hand to assets/sfx/;
+# a kind whose file is missing is left silent
+SOUNDS = {k: e for k, e in SOUNDS.items() if os.path.exists(os.path.join(SFX_DIR, e['file'])) or os.environ.get('SFX_DOWNLOAD')}
 cues = json.load(open(sys.argv[1]))
 n = int(DUR * SR)
 mix = np.zeros((n + 10 * SR, 2))
