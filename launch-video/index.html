@@ -340,16 +340,16 @@ const SCENES = [
     ['s-hook', -HOOK, 0],
     ['s-intro', 0, 6],
     ['s-logo', 6, 14],
-    ['s-kinetic', 14, 22],
-    ['s-build', 22, 32],
-    ['s-text', 32, 44], // the track's drop
-    ['s-computer', 44, 60],
-    ['s-models', 60, 66],
-    ['s-private', 66, 72],
-    ['s-montage', 72, 77], // ten words, one per half-beat
-    ['s-end', 77, 44 / BEAT],
+    ['s-kinetic', 14, 20], // three words, two beats each
+    ['s-build', 20, 30],
+    ['s-text', 30, 42],
+    ['s-computer', 42, 58],
+    ['s-models', 58, 64],
+    ['s-private', 64, 70],
+    ['s-montage', 70, 75], // ten words, one per half-beat
+    ['s-end', 75, 44 / BEAT - 2],
 ].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
-const DURATION = 44.0 + HOOK * BEAT
+const DURATION = 44.0 + (HOOK - 2) * BEAT
 
 // Backdrop palettes per scene: four blob colors + base
 const PALETTES = {
@@ -386,7 +386,7 @@ function blink(root, t) {
     root.querySelectorAll('.eye').forEach((e) => e.setAttribute('transform', `scale(1 ${s})`))
 }
 
-const KINETIC = ['Your AI.', 'Your models.', 'Your rules.', 'Your phone.']
+const KINETIC = ['Your AI.', 'Your models.', 'Your rules.']
 // Montage shades, darkest to brightest, all from the brand indigo family
 const MONTAGE_SHADES = ['#14103d', '#2b237a', '#4a33b5', '#6f52e0']
 const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16))
@@ -535,7 +535,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [6, 14, 72, 77].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [6, 14, 70, 75].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -574,7 +574,7 @@ function render(t) {
         const i = Math.min(KINETIC.length - 1, Math.floor(lt / step))
         const w = $('kin-word')
         const last = i === KINETIC.length - 1
-        w.innerHTML = last ? `Your <span class="grad-text">phone.</span>` : KINETIC[i]
+        w.innerHTML = last ? `Your <span class="grad-text">rules.</span>` : KINETIC[i]
         const lp = outExpo(prog(lt - i * step + 1 / FPS, 0, 0.3))
         w.style.opacity = lp
         w.style.transform = `translateY(${(1 - lp) * 60}px) scale(${last ? lerp(1, 1.06, prog(lt - i * step, 0, 0.7)) : 1})`

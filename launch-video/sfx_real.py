@@ -14,7 +14,7 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 44.0 + 17 * 60 / 124  # the video: 44s plus the 17-beat opening
+DUR = 44.0 + 15 * 60 / 124  # the video: 44s, plus the 17-beat opening, minus the 2 beats "Your phone." had
 HERE = os.path.dirname(os.path.abspath(__file__))
 SFX_DIR = os.path.join(HERE, 'assets', 'sfx')
 
