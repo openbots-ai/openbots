@@ -35,11 +35,12 @@ const TOKENS: Record<string, { input: number; output: number }> = {
     computer: { input: 3000, output: 200 },
 }
 
-// The jobs the estimate prices, each with a volume slider
-const JOBS = [
-    { slot: 'brain', min: 100, max: 50000, step: 100, start: 1000, unitNote: 'Texts your agents send back each month.' },
-    { slot: 'computer', min: 0, max: 20000, step: 100, start: 0, unitNote: 'Clicks and keystrokes on your own computer. Leave it at 0 if you don’t use it.' },
-] as const
+// The jobs the estimate prices. Replies are the one thing you set; computer use follows them at a fixed ratio
+const JOBS = ['brain', 'computer'] as const
+const REPLIES = { min: 100, max: 50000, step: 100, start: 1000 }
+// Assumed computer-use steps for every reply when it's switched on
+const STEPS_PER_REPLY = 0.2
+const OFF = 'off'
 
 const TEXTING = [
     { id: 'sendblue', label: 'Sendblue (iMessage)', perText: 0, note: 'A flat plan on Sendblue' },
@@ -64,21 +65,26 @@ const optionClass = 'aria-pressed:border-primary aria-pressed:bg-primary aria-pr
 const cardClass = 'rounded-[2rem] bg-neutral-100/70 p-8 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8 md:p-10'
 
 function CostEstimator() {
-    const [volumes, setVolumes] = useState<Record<string, number>>(() => Object.fromEntries(JOBS.map((j) => [j.slot, j.start])))
-    const [choices, setChoices] = useState<Record<string, string>>(() => Object.fromEntries(JOBS.map((j) => [j.slot, slotOf(j.slot)?.default ?? ''])))
+    const [replies, setReplies] = useState(REPLIES.start)
+    const [choices, setChoices] = useState<Record<string, string>>({ brain: slotOf('brain')?.default ?? '', computer: OFF })
     const [texting, setTexting] = useState(TEXTING[0].id)
 
     const channel = TEXTING.find((t) => t.id === texting) ?? TEXTING[0]
 
+    // How much of each job a month holds, and the options it can run on (computer use can be switched off)
+    const volumeOf = (slot: string) => (slot === 'brain' ? replies : choices[slot] === OFF ? 0 : Math.round(replies * STEPS_PER_REPLY))
+    const optionsOf = (slot: string) => [...(slot === 'computer' ? [{ id: OFF, label: 'Off' }] : []), ...slotOf(slot)!.options]
+
     const lines = JOBS.map((job) => {
-        const slot = slotOf(job.slot)!
-        const option = slot.options.find((o) => o.id === choices[job.slot])
-        const amount = volumes[job.slot] * unitCost(job.slot, choices[job.slot])
-        return { job, slot, label: option?.label ?? '', volume: volumes[job.slot], amount }
+        const slot = slotOf(job)!
+        const label = optionsOf(job).find((o) => o.id === choices[job])?.label ?? ''
+        const volume = volumeOf(job)
+        const amount = volume === 0 ? 0 : volume * unitCost(job, choices[job])
+        return { job, slot, label, volume, amount }
     })
-    const textCost = volumes.brain * channel.perText
+    const textCost = replies * channel.perText
     const total = lines.reduce((sum, l) => sum + l.amount, 0) + textCost
-    const credits = lines.reduce((sum, l) => sum + creditsFor(l.job.slot, l.volume), 0)
+    const credits = lines.reduce((sum, l) => sum + creditsFor(l.job, l.volume), 0)
 
     return (
         <section className="pb-20 md:pb-28">
@@ -88,7 +94,7 @@ function CostEstimator() {
                     <h2 className="type-title mt-2">What will you pay your providers?</h2>
                 </div>
                 <p className="type-body text-muted-foreground max-w-md">
-                    Your agents can run their replies and their computer use on different models. Set how much each one does and pick what it runs on to see an approximate monthly bill. These are estimates from public list prices, not a quote.
+                    Your agents can run their replies and their computer use on different models. Set how many replies a month and pick what each one runs on to see an approximate monthly bill. These are estimates from public list prices, not a quote.
                 </p>
             </div>
 
@@ -97,44 +103,52 @@ function CostEstimator() {
                     <h3 className="type-heading">Choose your setup</h3>
                     <div className="mt-6 flex flex-col divide-y divide-black/5 border-t border-black/5 dark:divide-white/10 dark:border-white/10">
                         {JOBS.map((job) => {
-                            const slot = slotOf(job.slot)!
-                            const unit = SLOT_UNITS[job.slot]
+                            const slot = slotOf(job)!
+                            const unit = SLOT_UNITS[job]
+                            const volume = volumeOf(job)
                             return (
-                                <div key={job.slot} className="py-7">
+                                <div key={job} className="py-7">
                                     <div className="flex items-baseline justify-between gap-4">
                                         <div>
                                             <h4 className="type-subheading">{slot.label}</h4>
                                             <p className="type-body-sm text-muted-foreground mt-1">{slot.blurb}</p>
                                         </div>
-                                        <span className="shrink-0 text-right">
-                                            <span className={job.slot === 'brain' ? 'text-4xl font-medium tracking-[-0.05em] tabular-nums' : 'text-2xl font-medium tracking-[-0.04em] tabular-nums'}>
-                                                {count(volumes[job.slot])}
+                                        {(job === 'brain' || volume > 0) && (
+                                            <span className="shrink-0 text-right">
+                                                <span className={job === 'brain' ? 'text-4xl font-medium tracking-[-0.05em] tabular-nums' : 'text-2xl font-medium tracking-[-0.04em] tabular-nums'}>
+                                                    {job === 'brain' ? '' : '~'}{count(volume)}
+                                                </span>
+                                                <span className="type-caption text-muted-foreground block">{unit.many} a month</span>
                                             </span>
-                                            <span className="type-caption text-muted-foreground block">{unit.many} a month</span>
-                                        </span>
+                                        )}
                                     </div>
-                                    <Slider
-                                        className={sliderClass}
-                                        aria-label={`${slot.label}: ${unit.many} a month`}
-                                        min={job.min}
-                                        max={job.max}
-                                        step={job.step}
-                                        value={volumes[job.slot]}
-                                        onValueChange={(v) => setVolumes((prev) => ({ ...prev, [job.slot]: first(v) }))}
-                                    />
-                                    <p className="type-caption text-muted-foreground mt-3">{job.unitNote}</p>
+                                    {job === 'brain' && (
+                                        <>
+                                            <Slider
+                                                className={sliderClass}
+                                                aria-label={`${slot.label}: ${unit.many} a month`}
+                                                min={REPLIES.min}
+                                                max={REPLIES.max}
+                                                step={REPLIES.step}
+                                                value={replies}
+                                                onValueChange={(v) => setReplies(first(v))}
+                                            />
+                                            <p className="type-caption text-muted-foreground mt-3">Texts your agents send back each month.</p>
+                                        </>
+                                    )}
                                     <ToggleGroup
                                         variant="outline"
                                         className="mt-4 flex-wrap"
                                         aria-label={`${slot.label} model`}
-                                        value={[choices[job.slot]]}
-                                        onValueChange={(v) => v[0] && setChoices((prev) => ({ ...prev, [job.slot]: v[0] }))}>
-                                        {slot.options.map((o) => (
+                                        value={[choices[job]]}
+                                        onValueChange={(v) => v[0] && setChoices((prev) => ({ ...prev, [job]: v[0] }))}>
+                                        {optionsOf(job).map((o) => (
                                             <ToggleGroupItem key={o.id} value={o.id} size="lg" className={optionClass}>
                                                 {o.label}
                                             </ToggleGroupItem>
                                         ))}
                                     </ToggleGroup>
+                                    {job === 'computer' && <p className="type-caption text-muted-foreground mt-3">Assumes about {STEPS_PER_REPLY * 5} step for every 5 replies.</p>}
                                 </div>
                             )
                         })}
@@ -159,7 +173,7 @@ function CostEstimator() {
                     <p className="type-body-sm mt-2 text-white/60">About {count(credits)} budget credits</p>
                     <dl className="mt-8 flex flex-col gap-4 border-t border-white/15 pt-6">
                         {lines.map(({ job, slot, label, volume, amount }) => (
-                            <div key={job.slot} className={cn('flex items-baseline justify-between gap-4', volume === 0 && 'opacity-50')}>
+                            <div key={job} className={cn('flex items-baseline justify-between gap-4', volume === 0 && 'opacity-50')}>
                                 <div>
                                     <dt className="type-body-sm">{slot.label}</dt>
                                     <dd className="type-caption text-white/50">{volume === 0 ? 'Not used' : label}</dd>
