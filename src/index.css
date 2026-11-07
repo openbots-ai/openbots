@@ -176,7 +176,7 @@
  * Named type-* (not text-*) so class mergers never mistake them for text colors.
  * Sizes step up at the md breakpoint (48rem) where noted as mobile → desktop.
  *
- *   type-display      48 → 64   hero headline
+ *   type-display      56 → 80   hero headline, pricing headline
  *   type-title        36 → 48   section headings, CTA headline
  *   type-heading      24 → 28   feature card titles
  *   type-subheading   18        smaller card and list titles
@@ -189,12 +189,12 @@
  * Product mockups (phone, app windows) keep their own UI-scale sizes on purpose.
  */
 @utility type-display {
-    font-size: 3rem;
+    font-size: 3.5rem;
     line-height: 1.05;
     letter-spacing: -0.035em;
     font-weight: 500;
     @media (width >= 48rem) {
-        font-size: 4rem;
+        font-size: 5rem;
     }
 }
 @utility type-title {
