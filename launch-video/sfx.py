@@ -5,13 +5,15 @@ every whoosh, tick, pop and click lands on the frame it belongs to. Nothing here
 shaped noise, short tones and transients.
 """
 import json
+import os
 import subprocess
 import sys
 
 import numpy as np
 
 SR = 48000
-DUR = 97 * 60 / 124  # the video: 97 beats at 124 BPM (see SCENES in index.html)
+# Video length, from the timeline written by `node render.mjs --timeline timeline.json`
+DUR = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'timeline.json')))['duration']
 rng = np.random.default_rng(11)
 
 

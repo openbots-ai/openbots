@@ -14,8 +14,10 @@ import sys
 import numpy as np
 
 SR = 48000
-DUR = 97 * 60 / 124  # the video: 97 beats at 124 BPM (see SCENES in index.html)
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Scene starts and video length (`node render.mjs --timeline timeline.json`)
+TIMELINE = json.load(open(os.path.join(HERE, 'timeline.json')))
+DUR = TIMELINE['duration']
 SFX_DIR = os.path.join(HERE, 'assets', 'sfx')
 
 # kind -> Openverse id, file, url, license, creator, title, max seconds, gain (assets/sfx/sounds.json)
@@ -79,8 +81,9 @@ SOUNDS = {k: e for k, e in SOUNDS.items() if os.path.exists(os.path.join(SFX_DIR
 sys.path.insert(0, HERE)
 import sfx as synth  # noqa: E402
 
-OPENING = 17 * 60 / 124  # the opening lines before "Introducing" use the real recordings
-SYNTH_FROM, SYNTH_UNTIL = OPENING, OPENING + 3.9  # "Introducing" swell, then the low thump and whoosh on the logo
+# From "Introducing" (its swell) to just after the logo (the low thump and whoosh); the opening lines before it use
+# the real recordings
+SYNTH_FROM, SYNTH_UNTIL = TIMELINE['scenes']['s-intro'], TIMELINE['scenes']['s-logo'] + 1.0
 SYNTH_KINDS = {'lock'}
 cues = json.load(open(sys.argv[1]))
 n = int(DUR * SR)
