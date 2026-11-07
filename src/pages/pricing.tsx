@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, BarChart3, KeyRound } from 'lucide-react'
-import { SAME_AS_BRAIN, slotOf } from '@convex/lib/models'
+import { slotOf } from '@convex/lib/models'
 import { creditsFor, SLOT_UNITS } from '@convex/lib/usage'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -24,36 +24,21 @@ const PRICES: Record<string, [number, number]> = {
     'claude-haiku-4.5': [1, 5],
     'gemini-2.5-flash': [0.3, 2.5],
     'grok-4': [3, 15],
+    'claude-sonnet-5.5-computer-use': [3, 15],
+    'claude-opus-5.5-computer-use': [5, 25],
 }
 
 // What one unit of each job is assumed to use, in tokens: a reply carries the chat so far and the agent's
-// instructions, an image adds about a thousand tokens, and a decision is a short question with a short answer
+// instructions, and a computer-use step sends a screenshot each time, so it reads far more
 const TOKENS: Record<string, { input: number; output: number }> = {
     brain: { input: 1500, output: 150 },
-    vision: { input: 1100, output: 100 },
-    decisions: { input: 500, output: 30 },
+    computer: { input: 3000, output: 200 },
 }
 
-// Per-unit prices for the options that aren't billed by the token: a voice note is about 400 characters, a note
-// you send about 30 seconds, and a call is billed by the minute
-const FLAT: Record<string, number> = {
-    elevenlabs: 0.04,
-    'openai-tts': 0.006,
-    'cartesia-sonic': 0.012,
-    'deepgram-nova': 0.0022,
-    whisper: 0.003,
-    'gpt-realtime': 0.15,
-    'gemini-live': 0.1,
-}
-
-// The jobs the estimate prices, in the order the dashboard lists them, each with a volume slider
+// The jobs the estimate prices, each with a volume slider
 const JOBS = [
     { slot: 'brain', min: 100, max: 50000, step: 100, start: 1000, unitNote: 'Texts your agents send back each month.' },
-    { slot: 'voice', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Voice notes your agents send you.' },
-    { slot: 'listening', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Voice notes people send your agents.' },
-    { slot: 'vision', min: 0, max: 5000, step: 50, start: 0, unitNote: 'Photos and screenshots your agents read.' },
-    { slot: 'decisions', min: 0, max: 50000, step: 100, start: 0, unitNote: 'Quick yes-or-no calls, like “is this urgent?”.' },
-    { slot: 'calls', min: 0, max: 2000, step: 10, start: 0, unitNote: 'Minutes your agent spends talking live.' },
+    { slot: 'computer', min: 0, max: 20000, step: 100, start: 0, unitNote: 'Clicks and keystrokes on your own computer. Leave it at 0 if you don’t use it.' },
 ] as const
 
 const TEXTING = [
@@ -70,12 +55,11 @@ const tokensCost = (id: string, t: { input: number; output: number }) => {
     return (t.input * i + t.output * o) / 1_000_000
 }
 
-// What one unit of a job costs on a given option; "Same as Brain" borrows the Brain's model
-const unitCost = (slot: string, option: string, brainModel: string) => {
-    const id = option === SAME_AS_BRAIN ? brainModel : option
-    return id in PRICES ? tokensCost(id, TOKENS[slot] ?? TOKENS.brain) : (FLAT[id] ?? 0)
-}
+// What one unit of a job costs on a given option
+const unitCost = (slot: string, option: string) => tokensCost(option, TOKENS[slot])
 
+// Bigger thumb and track than the dashboard's slider, so it's easy to grab on this page
+const sliderClass = 'mt-5 **:data-[slot=slider-thumb]:size-6 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-track]:data-horizontal:h-2'
 const optionClass = 'aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground'
 const cardClass = 'rounded-[2rem] bg-neutral-100/70 p-8 ring-1 ring-black/4 dark:bg-white/5 dark:ring-white/8 md:p-10'
 
@@ -85,12 +69,11 @@ function CostEstimator() {
     const [texting, setTexting] = useState(TEXTING[0].id)
 
     const channel = TEXTING.find((t) => t.id === texting) ?? TEXTING[0]
-    const brainModel = choices.brain
 
     const lines = JOBS.map((job) => {
         const slot = slotOf(job.slot)!
         const option = slot.options.find((o) => o.id === choices[job.slot])
-        const amount = volumes[job.slot] * unitCost(job.slot, choices[job.slot], brainModel)
+        const amount = volumes[job.slot] * unitCost(job.slot, choices[job.slot])
         return { job, slot, label: option?.label ?? '', volume: volumes[job.slot], amount }
     })
     const textCost = volumes.brain * channel.perText
@@ -105,7 +88,7 @@ function CostEstimator() {
                     <h2 className="type-title mt-2">What will you pay your providers?</h2>
                 </div>
                 <p className="type-body text-muted-foreground max-w-md">
-                    Every part of an agent can run on a different model. Set how much each one does and pick what it runs on to see an approximate monthly bill. These are estimates from public list prices, not a quote.
+                    Your agents can run their replies and their computer use on different models. Set how much each one does and pick what it runs on to see an approximate monthly bill. These are estimates from public list prices, not a quote.
                 </p>
             </div>
 
@@ -131,7 +114,7 @@ function CostEstimator() {
                                         </span>
                                     </div>
                                     <Slider
-                                        className="mt-5"
+                                        className={sliderClass}
                                         aria-label={`${slot.label}: ${unit.many} a month`}
                                         min={job.min}
                                         max={job.max}
@@ -200,7 +183,7 @@ function CostEstimator() {
                         </div>
                     </dl>
                     <p className="type-caption mt-auto pt-8 text-white/50">
-                        Assumes about {count(TOKENS.brain.input)} tokens in and {TOKENS.brain.output} out per reply. Real bills depend on how long your chats run. Jev has no per-use price listed, so it counts as $0.
+                        Assumes about {count(TOKENS.brain.input)} tokens in and {TOKENS.brain.output} out per reply. Real bills depend on how long your chats run.
                     </p>
                 </aside>
             </div>
