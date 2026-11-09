@@ -1,6 +1,4 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { ReactLenis } from 'lenis/react'
-import 'lenis/dist/lenis.css'
 import { MotionConfig } from 'motion/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
@@ -78,10 +76,6 @@ export default function App() {
 
     return (
         <MotionConfig reducedMotion="user">
-            <ReactLenis
-                root
-                options={{ lerp: 0.1, smoothWheel: true, anchors: { offset: -80 } }}
-            />
             <Page />
         </MotionConfig>
     )

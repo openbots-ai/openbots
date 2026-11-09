@@ -15,7 +15,7 @@ import {
     UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { callBackground } from '@/lib/avatars'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
@@ -30,8 +30,8 @@ const RISHI = 1
 const MOCHI = 2
 
 const contacts: Contact[] = [
-    // One exchange each that shows what a chatbot can't do: Tofu works across your apps and files, Rishi keeps
-    // watch, remembers what you told it and waits for your YES before spending money
+    // What a chatbot can't do: Tofu works across your apps and files, Rishi keeps watch and remembers what you
+    // told it, and both wait for your YES before sending or spending anything
     {
         name: 'Tofu',
         role: 'Paperwork',
@@ -40,7 +40,14 @@ const contacts: Contact[] = [
         time: '9:41 AM',
         messages: [
             { from: ME, text: 'pull every receipt from my email and downloads this year into a spreadsheet for my taxes?' },
+            { from: 'them', text: 'on it. going through your email and Downloads now 🐯' },
             { from: 'them', text: 'done 🐯 63 receipts, sorted by category in Taxes 2026.xlsx on your desktop. $4,212 looks deductible.' },
+            { from: ME, text: 'did you count the new laptop?' },
+            { from: 'them', text: 'yep, $1,299 under equipment. two receipts were too blurry to read, so I flagged them in the sheet.' },
+            { from: ME, text: 'perfect. send it to my accountant' },
+            { from: 'them', text: 'drafted the email with the sheet attached. reply YES and I’ll send it' },
+            { from: ME, text: 'YES' },
+            { from: 'them', text: 'sent ✓ copy saved in your Taxes folder 🐯' },
         ],
     },
     {
@@ -51,7 +58,14 @@ const contacts: Contact[] = [
         time: '9:38 AM',
         messages: [
             { from: ME, text: 'keep an eye on flights to lisbon for my sister’s wedding, under $500' },
-            { from: 'them', text: 'found one ✈️ TAP, Jun 12–19, $462, aisle seat like you like. reply YES and I’ll book it 🐶' },
+            { from: 'them', text: 'on it. I’ll check every morning and text you when something fits 🐶' },
+            { from: 'them', text: 'found one ✈️ TAP, Jun 12–19, $462, aisle seat like you like. reply YES and I’ll book it' },
+            { from: ME, text: 'can I come back a day later?' },
+            { from: 'them', text: 'Jun 20 is $478, same seat, still under your $500. want that one instead?' },
+            { from: ME, text: 'YES' },
+            { from: 'them', text: 'booked ✓ confirmation’s in your Downloads 🐶' },
+            { from: ME, text: 'you’re the best' },
+            { from: 'them', text: 'I’ll text you the day before so you can check in 🧳' },
         ],
     },
     {
@@ -290,7 +304,8 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                 </div>
             </div>
 
-            <div className="flex flex-1 flex-col gap-0.5 overflow-hidden px-4 pt-[164px]">
+            {/* Anchored to the compose bar, so in a long chat older bubbles slide up under the header */}
+            <div className="flex min-h-0 flex-1 flex-col justify-end gap-0.5 overflow-hidden px-4 pt-[164px]">
                 {/* popLayout lets everything else glide into place while a bubble enters or leaves */}
                 <AnimatePresence
                     initial={false}
@@ -643,29 +658,27 @@ function Screen({ step, settled, slide }: { step: Step; settled: boolean; slide:
 const PHONE_HEIGHT = 690
 const fitScale = () => Math.min(1.6, (window.innerHeight - 64 - 32) / PHONE_HEIGHT, (window.innerWidth - 32) / 336)
 
-// Scroll that walks through one step, in % of the screen's height
-const VH_PER_STEP = 70
-// Within each step, the first part of the scroll shows the reply being typed and the rest shows it landed
-const TYPING_SPLIT = 0.45
-// How far (in steps) you must scroll back past a beat before it is undone, so tiny jitters never replay an animation
-const BACKTRACK = 0.12
-// Scroll position (in steps) at which a beat begins
-const beatStart = (beat: number) => (beat >> 1) + (beat & 1 ? TYPING_SPLIT : 0)
-// A fast scroll passes several beats in a blink: screens change at most this often, straight to the latest beat, so
-// transitions don't pile up
-const BEAT_GAP_MS = 120
-// The call (when it's on) rings briefly, then scrolling drags the answer slider across the rest of its step
-const SLIDE_FROM = 0.2
-const SLIDE_TO = 0.9
+// Autoplay timing (ms): the typing half of a beat, the settled half, and how long the last beat holds before looping
+const TYPING_MS = 600
+const SETTLED_MS = 1100
+const readingTime = (step: Step) => {
+    if (step.view !== 'chat' || step.shown === 0) return SETTLED_MS
+    const text = contacts[step.chat].messages?.[step.shown - 1]?.text ?? ''
+    return Math.max(SETTLED_MS, text.split(/\s+/).length * 220)
+}
+const SWIPE_MS = 800
+const HOLD_MS = 2500
+// A row tap only flashes its highlight before the chat opens, like a real iMessage tap
+const TAP_MS = 150
+const isTap = (step: Step) => step.view === 'list' && step.press !== undefined
+const LAST_BEAT = steps.length * 2 - 1
 
 export function PhoneDemo() {
     const ref = useRef<HTMLDivElement>(null)
-    // Beat = step index * 2, plus 1 once the step's typing part has been scrolled past
+    // Beat = step index * 2, plus 1 once the step's typing part is over
     const [beat, setBeat] = useState(1)
-    const beatRef = useRef(1)
-    const lastChange = useRef(0)
-    const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const [fit, setFit] = useState(fitScale)
+    const inView = useInView(ref, { amount: 0.4 })
     const still = useReducedMotion()
 
     useEffect(() => {
@@ -674,31 +687,36 @@ export function PhoneDemo() {
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
-    // The phone starts a little small and grows to full size as it scrolls up to where it pins, under the 64px header
-    const { scrollYProgress: approach } = useScroll({ target: ref, offset: ['start end', 'start 64px'] })
-    const grown = useSpring(useTransform(approach, [0, 1], [0.85, 1]), { stiffness: 140, damping: 30 })
+    // The phone starts a little small and grows to full size as it scrolls into view
+    const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'start 0.35'] })
+    const grown = useSpring(useTransform(scrollYProgress, [0, 1], [0.85, 1]), { stiffness: 140, damping: 30 })
+    const slide = useMotionValue(0)
 
-    // While pinned, scrolling walks through the story one beat at a time, and back
-    const { scrollYProgress: story } = useScroll({ target: ref, offset: ['start 64px', 'end end'] })
-    useMotionValueEvent(story, 'change', (v) => {
-        const at = Math.min(steps.length - 0.001, Math.max(0, v * steps.length))
-        const next = Math.max(1, Math.floor(at) * 2 + (at % 1 >= TYPING_SPLIT ? 1 : 0))
-        // Moving forward applies at once; moving back only once clearly past the current beat's start
-        if (next === beatRef.current || (next < beatRef.current && at > beatStart(beatRef.current) - BACKTRACK)) return
-        beatRef.current = next
-        const commit = () => {
-            pending.current = undefined
-            lastChange.current = performance.now()
-            setBeat(beatRef.current)
+    // Step through the beats on a timer while the phone is on screen, then start over
+    useEffect(() => {
+        if (!inView || still) return
+        const ringing = RING >= 0 && beat === RING * 2 + 1
+        if (ringing) {
+            const swipe = animate(slide, 1, { delay: 0.4, duration: SWIPE_MS / 1000, ease: 'easeInOut' })
+            const id = setTimeout(() => setBeat(beat + 1), 400 + SWIPE_MS + 150)
+            return () => {
+                swipe.stop()
+                clearTimeout(id)
+            }
         }
-        const wait = BEAT_GAP_MS - (performance.now() - lastChange.current)
-        if (wait <= 0) commit()
-        else pending.current ??= setTimeout(commit, wait)
-    })
-    useEffect(() => () => clearTimeout(pending.current), [])
-    const slide = useTransform(story, (v) => (RING < 0 ? 0 : Math.min(1, Math.max(0, (v * steps.length - RING - SLIDE_FROM) / (SLIDE_TO - SLIDE_FROM)))))
+        const id = setTimeout(
+            () => {
+                if (beat === LAST_BEAT) slide.set(0)
+                setBeat(beat === LAST_BEAT ? 1 : beat + 1)
+            },
+            beat === LAST_BEAT ? HOLD_MS : isTap(steps[beat >> 1]) ? (beat & 1 ? TAP_MS : 0) : beat & 1 ? readingTime(steps[beat >> 1]) : TYPING_MS,
+        )
+        return () => clearTimeout(id)
+    }, [inView, beat, slide, still])
 
-    const step = steps[beat >> 1]
+    // With reduced motion the phone rests on the finished conversation instead of playing
+    const shownBeat = still ? LAST_BEAT : beat
+    const step = steps[shownBeat >> 1]
     const onCall = step.view === 'call' && step.phase === 'answering'
 
     return (
@@ -706,9 +724,8 @@ export function PhoneDemo() {
             ref={ref}
             aria-hidden
             className="relative"
-            style={{ height: `calc(${steps.length * VH_PER_STEP}vh + 100svh - 4rem)` }}>
-            {/* Pinned under the header while the story scrolls by */}
-            <div className="sticky top-16 flex h-[calc(100svh-4rem)] items-center justify-center">
+            style={{ height: PHONE_HEIGHT * fit }}>
+            <div className="flex h-full items-center justify-center">
                 <div style={{ transform: `scale(${fit})` }}>
                     <motion.div
                         initial={{ y: 80, opacity: 0 }}
@@ -735,7 +752,7 @@ export function PhoneDemo() {
                             }}>
                             <Screen
                                 step={step}
-                                settled={(beat & 1) === 1}
+                                settled={(shownBeat & 1) === 1}
                                 slide={slide}
                             />
                         </div>
