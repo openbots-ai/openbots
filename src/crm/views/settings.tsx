@@ -291,7 +291,7 @@ function SettingsForm({ workspace }: { workspace: Doc<'workspace'> & { ownerVeri
             </Section>
 
             {dirty && (
-                <Card className="sticky bottom-4 flex flex-row items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-lg">
+                <Card className="sticky bottom-[calc(var(--browser-bar)+1rem)] flex flex-row items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-lg">
                     <span className="text-[13px] text-neutral-600">You have unsaved changes</span>
                     <span className="flex gap-2">
                         <Btn onClick={() => setForm(toForm(workspace))} disabled={saving}>

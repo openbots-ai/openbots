@@ -30,7 +30,8 @@ export function Shell() {
 
     return (
         <NavContext value={go}>
-            <div className="flex h-dvh bg-[#f5f5f7] text-neutral-900 antialiased">
+            {/* Fixed and large-viewport tall so it runs behind Safari's floating bar without making the document scroll */}
+            <div className="fixed inset-x-0 top-0 flex h-lvh bg-[#f5f5f7] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-neutral-900 antialiased">
                 <div className="hidden md:block">
                     <Sidebar view={view} workspace={workspace} />
                 </div>

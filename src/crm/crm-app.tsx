@@ -23,7 +23,12 @@ export default function CrmApp() {
         meta.content = 'noindex, nofollow'
         document.head.append(meta)
         document.title = 'OpenBots CRM'
-        return () => meta.remove()
+        // Sign-in and loading screens stop above Safari's bar: match them so no white strip shows behind it
+        document.body.style.backgroundColor = '#f5f5f7'
+        return () => {
+            meta.remove()
+            document.body.style.backgroundColor = ''
+        }
     }, [])
 
     if (!client) {

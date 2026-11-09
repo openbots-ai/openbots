@@ -16,7 +16,7 @@ export const Header = () => {
     const [open, setOpen] = useState(false)
 
     return (
-        <header className="bg-background/80 sticky top-0 z-20 backdrop-blur">
+        <header className="bg-background/80 sticky top-0 z-20 pt-[env(safe-area-inset-top)] backdrop-blur">
             <nav className="mx-auto flex h-16 max-w-6xl items-center gap-10 px-6">
                 <a
                     href="/"
