@@ -15,7 +15,7 @@ import {
     UserRoundPlus,
     Video,
 } from 'lucide-react'
-import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue, type Variants } from 'motion/react'
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform, type MotionValue, type Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { callBackground } from '@/lib/avatars'
 import { AgentAvatar } from '@/components/landing/agent-avatar'
@@ -304,7 +304,8 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                 </div>
             </div>
 
-            {/* Anchored to the compose bar, so in a long chat older bubbles slide up under the header */}
+            {/* Fills from the top like iMessage: the spacer takes the free room, and once the chat is too long for the
+                screen there is none left, so justify-end slides older bubbles up under the header */}
             <div className="flex min-h-0 flex-1 flex-col justify-end gap-0.5 overflow-hidden px-4 pt-[164px]">
                 {/* popLayout lets everything else glide into place while a bubble enters or leaves */}
                 <AnimatePresence
@@ -359,6 +360,7 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                         </motion.div>
                     )}
                 </AnimatePresence>
+                <div className="flex-1" />
             </div>
 
             <div className="flex items-center gap-2 px-3 pb-7 pt-2">
@@ -681,15 +683,18 @@ export function PhoneDemo() {
     const inView = useInView(ref, { amount: 0.4 })
     const still = useReducedMotion()
 
+    // Only a width change resizes the phone: mobile browser bars change the height on every scroll, which made it jump
     useEffect(() => {
-        const onResize = () => setFit(fitScale())
+        let width = window.innerWidth
+        const onResize = () => {
+            if (window.innerWidth === width) return
+            width = window.innerWidth
+            setFit(fitScale())
+        }
         window.addEventListener('resize', onResize)
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
-    // The phone starts a little small and grows to full size as it scrolls into view
-    const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'start 0.35'] })
-    const grown = useSpring(useTransform(scrollYProgress, [0, 1], [0.85, 1]), { stiffness: 140, damping: 30 })
     const slide = useMotionValue(0)
 
     // Step through the beats on a timer while the phone is on screen, then start over
@@ -727,12 +732,7 @@ export function PhoneDemo() {
             style={{ height: PHONE_HEIGHT * fit }}>
             <div className="flex h-full items-center justify-center">
                 <div style={{ transform: `scale(${fit})` }}>
-                    <motion.div
-                        initial={{ y: 80, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.35, duration: 0.9, ease }}
-                        style={{ scale: still ? 1 : grown }}
-                        className="relative aspect-[1350/2760] w-[336px]">
+                    <div className="relative aspect-[1350/2760] w-[336px]">
                         {/* Soft shadow behind the device body */}
                         <div
                             className="absolute shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3),0_15px_30px_-15px_rgba(0,0,0,0.2)]"
@@ -776,7 +776,7 @@ export function PhoneDemo() {
                                 />
                             )}
                         </AnimatePresence>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
         </div>
