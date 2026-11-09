@@ -270,6 +270,23 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
     const { count, pending } = arrival(messages, shown, settled)
     const visible = messages.slice(0, count)
     const typing = pending?.from === 'them'
+    const viewport = useRef<HTMLDivElement>(null)
+    const column = useRef<HTMLDivElement>(null)
+    const lift = useMotionValue(0)
+
+    // Like a real chat: messages fill from the top, and once they outgrow the screen the whole conversation slides up
+    // so the newest one sits right above the compose bar
+    useEffect(() => {
+        let first = true
+        const observer = new ResizeObserver(() => {
+            const target = -Math.max(0, column.current!.offsetHeight - viewport.current!.clientHeight)
+            if (first) lift.set(target)
+            else animate(lift, target, layoutSpring)
+            first = false
+        })
+        observer.observe(column.current!)
+        return () => observer.disconnect()
+    }, [lift])
 
     return (
         <div className="relative flex h-full flex-col bg-white text-[13px] leading-snug text-black">
@@ -304,63 +321,67 @@ function ChatScreen({ contact, shown, settled, pressBack, badge }: { contact: Co
                 </div>
             </div>
 
-            {/* Fills from the top like iMessage: the spacer takes the free room, and once the chat is too long for the
-                screen there is none left, so justify-end slides older bubbles up under the header */}
-            <div className="flex min-h-0 flex-1 flex-col justify-end gap-0.5 overflow-hidden px-4 pt-[164px]">
-                {/* popLayout lets everything else glide into place while a bubble enters or leaves */}
-                <AnimatePresence
-                    initial={false}
-                    mode="popLayout">
-                    {visible.map((m, i) => {
-                        const mine = m.from === ME
-                        const firstOfRun = visible[i - 1]?.from !== m.from
-                        const lastOfRun = visible[i + 1]?.from !== m.from && !(typing && i === visible.length - 1 && !mine)
-                        return (
+            <div
+                ref={viewport}
+                className="min-h-0 flex-1 overflow-hidden">
+                <motion.div
+                    ref={column}
+                    style={{ y: lift }}
+                    className="relative flex flex-col gap-0.5 px-4 pb-1 pt-[164px]">
+                    {/* popLayout lets everything else glide into place while a bubble enters or leaves */}
+                    <AnimatePresence
+                        initial={false}
+                        mode="popLayout">
+                        {visible.map((m, i) => {
+                            const mine = m.from === ME
+                            const firstOfRun = visible[i - 1]?.from !== m.from
+                            const lastOfRun = visible[i + 1]?.from !== m.from && !(typing && i === visible.length - 1 && !mine)
+                            return (
+                                <motion.div
+                                    key={i}
+                                    layout="position"
+                                    // Incoming bubbles grow from their tail; yours rise up from the compose bar
+                                    initial={mine ? { opacity: 0, y: 22, scale: 0.97 } : { opacity: 0, scale: 0.86 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                                    transition={{ default: bubbleSpring, opacity: fade, layout: layoutSpring }}
+                                    style={{ originX: mine ? 1 : 0, originY: 1 }}
+                                    className={cn('flex flex-col', mine ? 'items-end' : 'items-start', firstOfRun && i > 0 && 'mt-2')}>
+                                    <p
+                                        className={cn(
+                                            'imsg relative max-w-[78%] rounded-[18px] px-3 py-1.5',
+                                            mine ? 'imsg-me bg-[#0A84FF] text-white' : 'imsg-them bg-[#E9E9EB]',
+                                            lastOfRun && 'imsg-tail'
+                                        )}>
+                                        {m.text}
+                                    </p>
+                                    {mine && i === visible.length - 1 && (
+                                        <motion.span
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ ...fade, delay: 0.35 }}
+                                            className="mr-1 mt-0.5 text-[10px] font-medium text-neutral-400">
+                                            Delivered
+                                        </motion.span>
+                                    )}
+                                </motion.div>
+                            )
+                        })}
+                        {typing && (
                             <motion.div
-                                key={i}
+                                key="typing"
                                 layout="position"
-                                // Incoming bubbles grow from their tail; yours rise up from the compose bar
-                                initial={mine ? { opacity: 0, y: 22, scale: 0.97 } : { opacity: 0, scale: 0.86 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, transition: { duration: 0.12 } }}
                                 transition={{ default: bubbleSpring, opacity: fade, layout: layoutSpring }}
-                                style={{ originX: mine ? 1 : 0, originY: 1 }}
-                                className={cn('flex flex-col', mine ? 'items-end' : 'items-start', firstOfRun && i > 0 && 'mt-2')}>
-                                <p
-                                    className={cn(
-                                        'imsg relative max-w-[78%] rounded-[18px] px-3 py-1.5',
-                                        mine ? 'imsg-me bg-[#0A84FF] text-white' : 'imsg-them bg-[#E9E9EB]',
-                                        lastOfRun && 'imsg-tail'
-                                    )}>
-                                    {m.text}
-                                </p>
-                                {mine && i === visible.length - 1 && (
-                                    <motion.span
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ ...fade, delay: 0.35 }}
-                                        className="mr-1 mt-0.5 text-[10px] font-medium text-neutral-400">
-                                        Delivered
-                                    </motion.span>
-                                )}
+                                style={{ originX: 0, originY: 1 }}
+                                className="mt-2 flex">
+                                <TypingDots />
                             </motion.div>
-                        )
-                    })}
-                    {typing && (
-                        <motion.div
-                            key="typing"
-                            layout="position"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                            transition={{ default: bubbleSpring, opacity: fade, layout: layoutSpring }}
-                            style={{ originX: 0, originY: 1 }}
-                            className="mt-2 flex">
-                            <TypingDots />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-                <div className="flex-1" />
+                        )}
+                    </AnimatePresence>
+                </motion.div>
             </div>
 
             <div className="flex items-center gap-2 px-3 pb-7 pt-2">
