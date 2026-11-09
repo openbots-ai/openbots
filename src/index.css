@@ -142,6 +142,25 @@
     @apply font-sans;
     }
 }
+/*
+ * iOS 26 Safari turns its floating bar opaque when a solid colour sits at the bottom edge inside a
+ * sticky element, as the phone demo does, and keeps it opaque. A transparent strip on top gives it nothing to pick up.
+ */
+.safari-bar-fix {
+    display: none;
+    position: sticky;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 6px;
+    background-color: transparent;
+    z-index: 999;
+}
+@supports (-webkit-touch-callout: none) {
+    .safari-bar-fix {
+        display: block;
+    }
+}
 /* iMessage bubble tails (phone screens are always light) */
 .imsg-tail::before,
 .imsg-tail::after {
