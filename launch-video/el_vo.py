@@ -29,15 +29,16 @@ SETTINGS = {'stability': 0.9, 'similarity_boost': 0.75, 'style': 0.0, 'use_speak
 PASSAGES = [
     # Capitals are how ElevenLabs is asked to stress a word: "YOUR" carries the line
     ('s-hook', None, 0.3, "Everyone's building YOUR personal AI assistant. But what if you could build your own in just a few clicks."),
-    ('s-logo', 'OpenBots', 0.05, 'Introducing OpenBots.'),
-    ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
+    # A presenter's beat after "Introducing", and a little more life (lower stability) so the name lands
+    ('s-logo', 'OpenBots', 0.05, 'Introducing… OpenBots.', {'stability': 0.75}),
+    ('s-kinetic', None, 0.05, 'YOUR AI, YOUR models, YOUR rules.'),
     ('s-build', None, 0.15, 'Build your AI piece by piece. Pick the model behind every part.'),
     ('s-text', None, 0.15, 'Just text it. iMessage or SMS. No new app.'),
     ('s-computer', None, 0.25, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
     ('s-models', None, 0.15, 'Bring any model. Even local ones.'),
     ('s-private', None, 0.15, 'Private by design. Encrypted on your machine.'),
     ('s-montage', None, 0.4, 'And so much more.'),
-    ('s-end', None, 0.25, 'OpenBots. Available now.'),
+    ('s-end', None, 0.25, 'OpenBots.'),
 ]
 
 
@@ -50,9 +51,10 @@ def paths(i, text):
 def voice(i):
     """Voice passage i (once), returning its audio at 48 kHz and the start time of every word in it."""
     text = PASSAGES[i][3]
+    settings = dict(SETTINGS, **(PASSAGES[i][4] if len(PASSAGES[i]) > 4 else {}))
     mp3, timing = paths(i, text)
     if not os.path.exists(mp3):
-        body = {'text': text, 'model_id': MODEL, 'voice_settings': SETTINGS,
+        body = {'text': text, 'model_id': MODEL, 'voice_settings': settings,
                 'previous_text': ' '.join(p[3] for p in PASSAGES[:i])[-500:],
                 'next_text': ' '.join(p[3] for p in PASSAGES[i + 1:])[:500]}
         # ElevenLabs occasionally rejects a request in a burst; retry a couple of times before giving up
@@ -71,6 +73,10 @@ def voice(i):
     words, cur, t0 = [], '', None
     for ch, t in zip(al['characters'], al['character_start_times_seconds']):
         if ch.isspace():
+            if cur:
+                words.append((cur, t0))
+            cur, t0 = '', None
+        elif ch in '—…':  # a pause mark ends a word too
             if cur:
                 words.append((cur, t0))
             cur, t0 = '', None
@@ -96,7 +102,7 @@ timeline = json.load(open(sys.argv[1]))
 starts, DUR = timeline['scenes'], timeline['duration']
 n = int(DUR * SR)
 vo = np.zeros(n)
-for i, (scene, anchor, offset, text) in enumerate(PASSAGES):
+for i, (scene, anchor, offset, text, *_) in enumerate(PASSAGES):
     a, words = voice(i)
     at = starts[scene] + offset
     if anchor:

@@ -43,7 +43,8 @@ for ch in range(2):
     ir = rng.standard_normal(ir_len) * np.exp(-ir_t / 2.0)
     ir /= np.sqrt((ir ** 2).sum())
     tail[:, ch] = np.fft.irfft(np.fft.rfft(tail_src[:, ch], size) * np.fft.rfft(ir, size), size)[:len(tail)]
-mix[start:] += tail[:n - start] * 1.4
+seg = tail[:n - start]
+mix[start:start + len(seg)] += seg * 1.4
 
 # Fade to silence with the picture, then loudness-normalise (-14 LUFS) with a limiter so nothing clips
 mix *= (1 - ramp(DUR - 1.4, DUR) ** 2)[:, None]
