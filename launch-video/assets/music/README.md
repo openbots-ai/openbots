@@ -17,7 +17,7 @@ Build the bed and the final mix:
 `groovy-quiet-start.flac` is the original ElevenLabs groovy track (`music.mp3`), split with Demucs and rebuilt so the
 opening has no groove while the voiceover talks: just the track's own keys in a soft room (lowpass 3.5 kHz, 0.5 s
 reverb, 15% dry), a little quieter, fading in over 0.6 s; no bass, no drums. On the logo (7.26 s, a beat on the 124 BPM grid)
-the groove comes in, softened to be calmer: drums ~5 dB down with a 7 kHz lowpass on the hats, bass at 85%. Then:
+the full track comes in. Then:
 
     python3 score.py assets/music/groovy-quiet-start.flac score.wav
     python3 el_vo.py timeline.json sfx-real.wav final-mix.wav score.wav
