@@ -22,7 +22,7 @@ export default function HeroSection() {
                     </h1>
                 </StaggerItem>
                 <StaggerItem>
-                    <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance">
+                    <p className="type-body-lg text-muted-foreground mx-auto mt-6 max-w-xl text-balance md:max-w-2xl md:text-[1.375rem] md:leading-normal">
                         <span data-cursor-target="phrase" className="whitespace-nowrap">Build it piece by piece.</span> Pick the model behind every single part, set its personality and rules, and decide what it knows. Then just text it in iMessage.
                     </p>
                 </StaggerItem>
