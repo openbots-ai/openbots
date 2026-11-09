@@ -30,8 +30,10 @@ PASSAGES = [
     # Capitals are how ElevenLabs is asked to stress a word: "YOUR" carries the line
     ('s-hook', None, 0.3, "Everyone's building YOUR personal AI assistant. But what if you could build your own in just a few clicks."),
     # A presenter's beat after "Introducing", and a little more life (lower stability) so the name lands
-    ('s-logo', 'OpenBots', 0.05, 'Introducing… OpenBots.', {'stability': 0.75}),
-    ('s-kinetic', None, 0.05, 'YOUR AI, YOUR models, YOUR rules.'),
+    # (the pause inside this take was shortened to 0.35s by hand so it fits the short "Introducing" screen; "OpenBots"
+    # lands just after the logo pops in)
+    ('s-logo', 'OpenBots', 0.26, 'Introducing… OpenBots.', {'stability': 0.75}),
+    ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
     ('s-build', None, 0.15, 'Build your AI piece by piece. Pick the model behind every part.'),
     ('s-text', None, 0.15, 'Just text it. iMessage or SMS. No new app.'),
     ('s-computer', None, 0.25, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),

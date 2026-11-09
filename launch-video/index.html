@@ -338,16 +338,16 @@ const HOOK_LINES = [["Everyone's building your personal AI assistant.", 0], ['Wh
 const HOOK = 13 // beats: long enough for the last card to be read after it is spoken
 const SCENES = [
     ['s-hook', -HOOK, 0],
-    ['s-intro', 0, 4], // "Introducing", a beat, then "OpenBots" on the logo
-    ['s-logo', 4, 10],
-    ['s-kinetic', 10, 18], // "YOUR AI, YOUR models, YOUR rules", each as the voiceover says it
-    ['s-build', 18, 28],
-    ['s-text', 28, 38],
-    ['s-computer', 38, 54],
-    ['s-models', 54, 60],
-    ['s-private', 60, 69], // room for a pause before "And so much more"
-    ['s-montage', 69, 74], // ten words, one per half-beat
-    ['s-end', 74, 83],
+    ['s-intro', 0, 2], // just long enough for the voice to say "Introducing" before the logo
+    ['s-logo', 2, 8],
+    ['s-kinetic', 8, 14], // "Your AI, your models, your rules", each as the voiceover says it
+    ['s-build', 14, 24],
+    ['s-text', 24, 34],
+    ['s-computer', 34, 50],
+    ['s-models', 50, 56],
+    ['s-private', 56, 65], // room for a pause before "And so much more"
+    ['s-montage', 65, 70], // ten words, one per half-beat
+    ['s-end', 70, 79],
 ].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
 const DURATION = SCENES[SCENES.length - 1][2]
 
@@ -387,7 +387,7 @@ function blink(root, t) {
 }
 
 const KINETIC = ['Your AI.', 'Your models.', 'Your rules.']
-const KINETIC_AT = [0, 1.45, 2.58] // seconds into the scene, as the voiceover says each "YOUR"
+const KINETIC_AT = [0, 0.82, 1.5] // seconds into the scene, as the voiceover says each one
 // Montage shades, darkest to brightest, all from the brand indigo family
 const MONTAGE_SHADES = ['#14103d', '#2b237a', '#4a33b5', '#6f52e0']
 const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16))
@@ -536,7 +536,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [4, 10, 69, 74].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [2, 8, 65, 70].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -557,7 +557,7 @@ function render(t) {
     }
 
     if (id === 's-intro') {
-        reveal($('intro-t'), lt, 0.36, 0.35, 20) // as the voiceover starts "Introducing"
+        reveal($('intro-t'), lt, 0.25, 0.35, 20) // as the voiceover starts "Introducing"
         const out = prog(lt, s1 - s0 - 0.12, s1 - s0)
         if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
