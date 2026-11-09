@@ -334,18 +334,18 @@ const BEAT = 60 / 124
 // The opening lines come first; every scene after them keeps its length, shifted by HOOK beats
 // [line, beats on screen]: long enough to read at a normal pace (about 3 words a second, plus a beat to land)
 // [line, seconds it appears]: each card comes up as the voiceover reaches it (word times from assets/vo/*/p00-*.json)
-const HOOK_LINES = [["Everyone's building your personal AI assistant.", 0], ['What if you could build your own?', 3.0], ['In just a few clicks.', 4.3]]
+const HOOK_LINES = [["Everyone's building your personal AI assistant.", 0], ['What if you could build your own?', 3.1], ['In just a few clicks.', 4.4]]
 const HOOK = 13 // beats: long enough for the last card to be read after it is spoken
 const SCENES = [
     ['s-hook', -HOOK, 0],
-    ['s-intro', 0, 4],
-    ['s-logo', 4, 10],
-    ['s-kinetic', 10, 17], // three words, each as the voiceover says it
-    ['s-build', 17, 27],
-    ['s-text', 27, 37],
-    ['s-computer', 37, 53],
-    ['s-models', 53, 59],
-    ['s-private', 59, 65],
+    ['s-intro', 0, 2], // just long enough for the voice to say "Introducing" before the logo
+    ['s-logo', 2, 8],
+    ['s-kinetic', 8, 14], // "Your AI, your models, your rules", each as the voiceover says it
+    ['s-build', 14, 24],
+    ['s-text', 24, 34],
+    ['s-computer', 34, 50],
+    ['s-models', 50, 56],
+    ['s-private', 56, 65], // room for a pause before "And so much more"
     ['s-montage', 65, 70], // ten words, one per half-beat
     ['s-end', 70, 79],
 ].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
@@ -387,7 +387,7 @@ function blink(root, t) {
 }
 
 const KINETIC = ['Your AI.', 'Your models.', 'Your rules.']
-const KINETIC_AT = [0, 1.35, 2.55] // seconds into the scene, as the voiceover says each one
+const KINETIC_AT = [0, 0.82, 1.5] // seconds into the scene, as the voiceover says each one
 // Montage shades, darkest to brightest, all from the brand indigo family
 const MONTAGE_SHADES = ['#14103d', '#2b237a', '#4a33b5', '#6f52e0']
 const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16))
@@ -536,7 +536,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [4, 10, 65, 70].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [2, 8, 65, 70].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -557,8 +557,8 @@ function render(t) {
     }
 
     if (id === 's-intro') {
-        reveal($('intro-t'), lt, 0.3, 0.6, 20)
-        const out = prog(lt, s1 - s0 - 0.35, s1 - s0)
+        reveal($('intro-t'), lt, 0.25, 0.35, 20) // as the voiceover starts "Introducing"
+        const out = prog(lt, s1 - s0 - 0.12, s1 - s0)
         if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
 

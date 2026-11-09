@@ -21,15 +21,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VO_DIR = os.path.join(HERE, 'assets', 'vo')
 VOICE_ID = 'cgSgspJ2msm6clMCkdW9'  # Jessica - Playful, Bright, Warm
 MODEL = 'eleven_multilingual_v2'
-# Steady, even delivery: higher stability and no added style keep it from sounding performed
-SETTINGS = {'stability': 0.7, 'similarity_boost': 0.75, 'style': 0.0, 'use_speaker_boost': True, 'speed': 1.0}
+# Steady, even delivery: near-maximum stability, no added style and a slightly slower pace keep it from sounding performed
+SETTINGS = {'stability': 0.9, 'similarity_boost': 0.75, 'style': 0.0, 'use_speaker_boost': True, 'speed': 0.95}
 
 # (scene, anchor word or None, seconds after the scene starts, passage). With an anchor, the passage is placed so
 # that word lands at that moment; otherwise the passage starts there.
 PASSAGES = [
     ('s-hook', None, 0.3, "Everyone's building your personal AI assistant. But what if you could build your own in just a few clicks."),
     ('s-logo', 'OpenBots', 0.05, 'Introducing OpenBots.'),
-    ('s-kinetic', None, 0.05, 'Your AI. Your models. Your rules.'),
+    ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
     ('s-build', None, 0.15, 'Build your AI piece by piece. Pick the model behind every part.'),
     ('s-text', None, 0.15, 'Just text it. iMessage or SMS. No new app.'),
     ('s-computer', None, 0.25, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
