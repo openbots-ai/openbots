@@ -27,7 +27,8 @@ SETTINGS = {'stability': 0.9, 'similarity_boost': 0.75, 'style': 0.0, 'use_speak
 # (scene, anchor word or None, seconds after the scene starts, passage). With an anchor, the passage is placed so
 # that word lands at that moment; otherwise the passage starts there.
 PASSAGES = [
-    ('s-hook', None, 0.3, "Everyone's building your personal AI assistant. But what if you could build your own in just a few clicks."),
+    # Capitals are how ElevenLabs is asked to stress a word: "YOUR" carries the line
+    ('s-hook', None, 0.3, "Everyone's building YOUR personal AI assistant. But what if you could build your own in just a few clicks."),
     ('s-logo', 'OpenBots', 0.05, 'Introducing OpenBots.'),
     ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
     ('s-build', None, 0.15, 'Build your AI piece by piece. Pick the model behind every part.'),
