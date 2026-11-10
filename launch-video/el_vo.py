@@ -28,18 +28,18 @@ SETTINGS = {'stability': 0.9, 'similarity_boost': 0.75, 'style': 0.0, 'use_speak
 # that word lands at that moment; otherwise the passage starts there.
 PASSAGES = [
     # Capitals are how ElevenLabs is asked to stress a word: "YOUR" carries the line
-    ('s-hook', None, 0.3, "Everyone's building YOUR personal AI assistant. But what if you could build your own in just a few clicks."),
+    ('s-hook', None, 0.3, "Everyone's building YOUR personal AI assistant. But what if you could just build your own, in only a few clicks."),
     # A presenter's beat after "Introducing", and a little more life (lower stability) so the name lands
     # (the pause inside this take was shortened to 0.35s by hand so it fits the short "Introducing" screen; "OpenBots"
     # lands just after the logo pops in)
     ('s-logo', 'OpenBots', 0.26, 'Introducing… OpenBots.', {'stability': 0.75}),
-    ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
-    ('s-build', None, 0.15, 'Build your personal AI piece by piece. Pick the model behind every part.'),
-    ('s-text', None, 0.15, 'Just text it. iMessage or SMS.'),  # trimmed from the take that also said "No new app."
-    ('s-computer', None, 0.25, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
-    ('s-models', None, 0.15, 'Bring any model. Even local ones.'),
-    ('s-private', None, 0.15, 'Private by design. Encrypted on your machine.'),
-    ('s-montage', None, 0.4, 'And so much more.'),
+    ('s-kinetic', None, 0.05, "It's your AI, your models, and your rules."),
+    ('s-build', None, 0.15, 'You build your personal AI piece by piece, and pick the model behind every part.'),
+    ('s-text', None, 0.15, 'Then you just text it, over iMessage or SMS.'),
+    ('s-computer', None, 0.25, "It even works right on your Mac, where you're already signed into everything. Just ask it to send your forms, and it'll take care of the rest."),
+    ('s-models', None, 0.15, 'You can bring any model you like, even local ones.'),
+    ('s-private', None, 0.15, "And it's private by design: your conversations stay encrypted on your machine."),
+    ('s-montage', None, 0.4, "And there's so much more."),
     ('s-end', None, 0.25, 'OpenBots.'),
 ]
 

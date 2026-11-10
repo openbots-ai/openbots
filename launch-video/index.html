@@ -346,20 +346,20 @@ const BEAT = 60 / 124
 // The opening lines come first; every scene after them keeps its length, shifted by HOOK beats
 // [line, beats on screen]: long enough to read at a normal pace (about 3 words a second, plus a beat to land)
 // [line, seconds it appears]: each card comes up as the voiceover reaches it (word times from assets/vo/*/p00-*.json)
-const HOOK_LINES = [["Everyone's building your personal AI assistant.", 0], ['What if you could build your own?', 3.4], ['In just a few clicks.', 4.65]]
-const HOOK = 13 // beats: long enough for the last card to be read after it is spoken
+const HOOK_LINES = [["Everyone's building your personal AI assistant.", 0], ['What if you could build your own?', 3.4], ['In just a few clicks.', 5.6]]
+const HOOK = 16 // beats: long enough for the last card to be read after it is spoken
 const SCENES = [
     ['s-hook', -HOOK, 0],
     ['s-intro', 0, 2], // just long enough for the voice to say "Introducing" before the logo
     ['s-logo', 2, 8],
-    ['s-kinetic', 8, 14], // "Your AI, your models, your rules", each as the voiceover says it
-    ['s-build', 14, 24],
-    ['s-text', 24, 34],
-    ['s-computer', 34, 50],
-    ['s-models', 50, 56],
-    ['s-private', 56, 65], // room for a pause before "And so much more"
-    ['s-montage', 65, 70], // ten words, one per half-beat
-    ['s-end', 70, 79],
+    ['s-kinetic', 8, 16], // "It's your AI, your models, and your rules", each as the voiceover says it
+    ['s-build', 16, 26],
+    ['s-text', 26, 36],
+    ['s-computer', 36, 53],
+    ['s-models', 53, 60],
+    ['s-private', 60, 71], // room for a pause before "And there's so much more"
+    ['s-montage', 71, 76], // ten words, one per half-beat
+    ['s-end', 76, 85],
 ].map(([id, a, b]) => [id, (a + HOOK) * BEAT, (b + HOOK) * BEAT])
 const DURATION = SCENES[SCENES.length - 1][2]
 
@@ -399,7 +399,7 @@ function blink(root, t) {
 }
 
 const KINETIC = ['Your AI.', 'Your models.', 'Your rules.']
-const KINETIC_AT = [0, 1.02, 1.9] // seconds into the scene, as the voiceover says each one (with a short pause between)
+const KINETIC_AT = [0, 1.55, 2.6] // seconds into the scene, as the voiceover says each one
 // Montage shades, darkest to brightest, all from the brand indigo family
 const MONTAGE_SHADES = ['#14103d', '#2b237a', '#4a33b5', '#6f52e0']
 const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16))
@@ -548,7 +548,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [2, 8, 65, 70].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [2, 8, 71, 76].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 

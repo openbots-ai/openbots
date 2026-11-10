@@ -15,7 +15,7 @@ Build the bed and the final mix:
 ## In use now: the groovy track with a calm start
 
 `groovy-quiet-start.flac` is the original ElevenLabs groovy track (`music.mp3`) with no music at all while the opening
-talks: it is silent until the logo (7.26 s, a beat on the 124 BPM grid), where the full groove drops in. Then:
+talks: it is silent until the logo (8.71 s, a beat on the 124 BPM grid), where the full groove drops in. Then:
 
     python3 score.py assets/music/groovy-quiet-start.flac score.wav
     python3 el_vo.py timeline.json sfx-real.wav final-mix.wav score.wav
