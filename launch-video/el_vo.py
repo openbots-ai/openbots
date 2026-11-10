@@ -34,7 +34,7 @@ PASSAGES = [
     # lands just after the logo pops in)
     ('s-logo', 'OpenBots', 0.26, 'Introducing… OpenBots.', {'stability': 0.75}),
     ('s-kinetic', None, 0.05, 'Your AI, your models, your rules.'),
-    ('s-build', None, 0.15, 'Build your AI piece by piece. Pick the model behind every part.'),
+    ('s-build', None, 0.15, 'Build your personal AI piece by piece. Pick the model behind every part.'),
     ('s-text', None, 0.15, 'Just text it. iMessage or SMS.'),  # trimmed from the take that also said "No new app."
     ('s-computer', None, 0.25, 'On your Mac. Signed into everything. Ask it to send your forms, and it takes care of the rest.'),
     ('s-models', None, 0.15, 'Bring any model. Even local ones.'),
