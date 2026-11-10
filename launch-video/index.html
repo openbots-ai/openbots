@@ -135,15 +135,16 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .tofu .ring { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid hsl(28 90% 60%); opacity: 0; }
 .tofu .lbl { position: absolute; left: 50%; top: 36px; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: rgb(20 20 26 / .88); color: #f2f2f6; font-size: 10px; font-weight: 600; box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .18); }
 
-/* Polaroid look (index.html?polaroid): the instant-film feel over the full-screen video, with no frames: warm, faded colour
-   with lifted blacks and soft contrast, film grain, a vignette and a faint drifting light leak */
+/* Polaroid look (index.html?polaroid): instant-film feel on the background only (the gradient behind everything);
+   phones, laptop, text and logo stay clean. Warm, faded colour, grain, a vignette and a faint drifting light leak. */
 body:not(.polaroid) #film, body:not(.polaroid) #leak { display: none; }
-body.polaroid #stage { filter: sepia(.2) saturate(.9) contrast(.86) brightness(1.07); }
-body.polaroid .grain { opacity: .3; }
-body.polaroid #film { position: absolute; inset: 0; pointer-events: none; z-index: 20;
-    background: radial-gradient(125% 125% at 50% 45%, transparent 58%, rgb(45 25 10 / .3) 100%),
-                linear-gradient(rgb(255 214 170 / .05), rgb(255 214 170 / .05)); }
-body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; z-index: 21; mix-blend-mode: screen; }
+body.polaroid #aurora { filter: blur(90px) sepia(.28) saturate(.85) contrast(.84) brightness(1.08); }
+body.polaroid #film { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(125% 125% at 50% 45%, transparent 55%, rgb(45 25 10 / .35) 100%),
+                linear-gradient(rgb(255 214 170 / .07), rgb(255 214 170 / .07)); }
+body.polaroid #film::after { content: ''; position: absolute; inset: 0; opacity: .35; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
 </style>
 </head>
 <body>
@@ -157,6 +158,7 @@ body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; z-inde
     <div class="aurora" id="aurora">
         <div class="blob" id="b1"></div><div class="blob" id="b2"></div><div class="blob" id="b3"></div><div class="blob" id="b4"></div>
     </div>
+    <div id="film"></div><div id="leak"></div>
 
     <!-- 1. Bloom + "Introducing" -->
     <!-- 0. Opening lines, in the same type as "Introducing" -->
@@ -318,7 +320,6 @@ body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; z-inde
     <div class="grain"></div>
     <div id="flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none"></div>
 </div>
-<div id="film"></div><div id="leak"></div>
 
 <script>
 // Everything is a pure function of time, so a frame grabber can seek to any frame deterministically.
