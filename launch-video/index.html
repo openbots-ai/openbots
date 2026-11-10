@@ -134,9 +134,30 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
 .tofu img { width: 56px; display: block; margin: -24px 0 0 -28px; filter: drop-shadow(0 6px 8px rgb(0 0 0 / .5)); transform-origin: 50% 50%; }
 .tofu .ring { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid hsl(28 90% 60%); opacity: 0; }
 .tofu .lbl { position: absolute; left: 50%; top: 36px; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: rgb(20 20 26 / .88); color: #f2f2f6; font-size: 10px; font-weight: 600; box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .18); }
-</style></style>
+
+/* Polaroid look (index.html?polaroid): every scene is an instant photo dropped onto a stack on a dark desk */
+@font-face { font-family: Caveat; src: url(assets/caveat.woff2) format('woff2'); font-weight: 600; }
+body.polaroid { background: #0d0b1c; }
+body.polaroid #desk { position: absolute; inset: 0; overflow: hidden;
+    background: radial-gradient(90% 80% at 50% 40%, #1d1a3a 0%, #0d0b1c 70%), #0d0b1c; }
+body.polaroid #desk::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+body.polaroid .card { position: absolute; left: 240px; top: 52px; width: 1440px; height: 976px; background: #f7f4ec; border-radius: 4px;
+    box-shadow: 0 30px 70px rgb(0 0 0 / .55), 0 4px 10px rgb(0 0 0 / .3); transform-origin: 50% 55%; }
+body.polaroid #pol { padding: 40px 40px 0; }
+body.polaroid #photo { position: relative; width: 1360px; height: 765px; overflow: hidden; background: #000; }
+body.polaroid #photo #stage { width: 1920px; height: 1080px; inset: auto; left: 0; top: 0; transform: scale(0.70833); transform-origin: 0 0;
+    filter: sepia(.18) saturate(.88) contrast(.94) brightness(1.04); }
+body.polaroid #photo::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 120% at 50% 45%, transparent 55%, rgb(40 20 0 / .35) 100%), linear-gradient(rgb(255 200 140 / .06), rgb(255 200 140 / .06)); }
+body.polaroid #cap { height: 171px; display: flex; align-items: center; justify-content: center; font-family: Caveat, cursive; font-weight: 600;
+    font-size: 68px; color: #2a2550; letter-spacing: .01em; }
+body.polaroid #snap { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+body:not(.polaroid) .back, body:not(.polaroid) #cap, body:not(.polaroid) #snap { display: none; }
+</style>
 </head>
 <body>
+<div id="desk"><div class="card back" id="back1"></div><div class="card back" id="back2"></div><div class="card" id="pol"><div id="photo">
 <div id="stage">
     <!-- Shared logo gradients live outside the scenes: defs inside a display:none scene stop rendering -->
     <svg width="0" height="0" style="position:absolute"><defs>
@@ -308,6 +329,7 @@ body { font-family: Figtree, Inter, sans-serif; color: #fff; -webkit-font-smooth
     <div class="grain"></div>
     <div id="flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none"></div>
 </div>
+</div><div id="cap"></div></div><div id="snap"></div></div>
 
 <script>
 // Everything is a pure function of time, so a frame grabber can seek to any frame deterministically.
@@ -840,6 +862,35 @@ function buildCues() {
 
 window.DURATION = DURATION
 window.FPS = FPS
+
+// Polaroid look: each scene is a photo that drops onto the stack with a camera flash, tilted, with a handwritten caption
+const POLAROID = location.search.includes('polaroid')
+if (POLAROID) document.body.classList.add('polaroid')
+const CAPTIONS = { 's-hook': 'the idea', 's-intro': 'day one', 's-logo': 'OpenBots', 's-kinetic': 'all yours', 's-build': 'piece by piece',
+    's-text': 'just text it', 's-computer': 'on my Mac', 's-models': 'any model', 's-private': 'private by design', 's-montage': 'and so much more', 's-end': 'OpenBots' }
+const tiltOf = (i) => [-2.2, 1.6, -1.1, 2.4, -1.8, 1.2, -2.6, 1.9, -0.9, 2.1, -1.4][i % 11]
+const baseRender = render
+render = (t) => {
+    baseRender(t)
+    if (!POLAROID) return
+    let i = SCENES.findIndex(([, a, b]) => t >= a && t < b)
+    if (i < 0) i = SCENES.length - 1
+    const [id, s0] = SCENES[i]
+    const lt = t - s0
+    // The new photo drops in: from slightly bigger and more tilted, settling onto the stack
+    const p = outBack(prog(lt, 0, 0.45))
+    const tilt = tiltOf(i)
+    $('pol').style.transform = `translate(${(1 - p) * 30}px, ${(1 - p) * -40}px) rotate(${tilt + (1 - p) * 4}deg) scale(${lerp(1.12, 1, p)})`
+    $('pol').style.opacity = clamp(prog(lt, 0, 0.12) * 1.2)
+    // The two photos underneath are the previous scenes', at their own tilts
+    $('back1').style.transform = `translate(-26px, 14px) rotate(${i > 0 ? tiltOf(i - 1) : -4}deg)`
+    $('back2').style.transform = `translate(30px, 22px) rotate(${i > 1 ? tiltOf(i - 2) : 3.5}deg)`
+    $('back1').style.opacity = $('back2').style.opacity = i === 0 ? clamp(prog(t, 0, 0.6)) : 1
+    $('cap').textContent = CAPTIONS[id] || ''
+    $('cap').style.opacity = clamp(prog(lt, 0.25, 0.55))
+    // A quick camera flash as each photo lands
+    $('snap').style.opacity = lt < 0.16 ? 0.35 * (1 - lt / 0.16) : 0
+}
 window.seek = (frame) => render(frame / FPS)
 window.CUES = buildCues()
 

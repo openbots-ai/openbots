@@ -1,5 +1,6 @@
 // Renders index.html to an MP4 frame by frame: node render.mjs [out.mp4] [--4k] [--stills t1,t2,...]
 // --4k draws every frame at twice the resolution (3840x2160) instead of upscaling, so text and UI stay sharp
+// --polaroid uses the Polaroid look (index.html?polaroid)
 // --workers N draws frames in N browsers at once (each on its own CPU core), then stitches them
 import { createRequire } from 'node:module'
 const { chromium } = createRequire(import.meta.url)('playwright')
@@ -13,11 +14,12 @@ const stillsArg = args.indexOf('--stills')
 const cuesArg = args.indexOf('--cues')
 const timelineArg = args.indexOf('--timeline')
 const uhd = args.includes('--4k')
+const query = '?render' + (args.includes('--polaroid') ? '&polaroid' : '')
 const workersArg = args.indexOf('--workers')
 const workers = workersArg >= 0 ? Number(args[workersArg + 1]) : 1
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: uhd ? 2 : 1 })
-await page.goto(pathToFileURL(path.join(dir, 'index.html')).href + '?render')
+await page.goto(pathToFileURL(path.join(dir, 'index.html')).href + query)
 await page.evaluate(() => document.fonts.ready)
 const { fps, duration } = await page.evaluate(() => ({ fps: window.FPS, duration: window.DURATION }))
 
@@ -49,7 +51,7 @@ if (timelineArg >= 0) {
         await Promise.all(Array.from({ length: workers }, async (_, w) => {
             const b = await chromium.launch()
             const pg = await b.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: uhd ? 2 : 1 })
-            await pg.goto(pathToFileURL(path.join(dir, 'index.html')).href + '?render')
+            await pg.goto(pathToFileURL(path.join(dir, 'index.html')).href + query)
             await pg.evaluate(() => document.fonts.ready)
             for (let f = w; f < total; f += workers) {
                 await pg.evaluate((n) => window.seek(n), f)
