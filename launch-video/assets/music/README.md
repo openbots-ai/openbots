@@ -12,7 +12,7 @@ Build the bed and the final mix:
     ffmpeg -i assets/music/launch-music-no-dings.flac -af "atrim=start=0.02,asetpts=PTS-STARTPTS" score-new.wav
     python3 el_vo.py timeline.json sfx-real.wav final-mix.wav score-new.wav
 
-## In use now: the groovy track with a calm start
+## Earlier: the groovy track with a calm start
 
 `groovy-quiet-start.flac` is the original ElevenLabs groovy track (`music.mp3`) with no music at all while the opening
 talks: it is silent until the logo (7.26 s, a beat on the 124 BPM grid), where the full groove drops in. Then:
@@ -20,7 +20,7 @@ talks: it is silent until the logo (7.26 s, a beat on the 124 BPM grid), where t
     python3 score.py assets/music/groovy-quiet-start.flac score.wav
     python3 el_vo.py timeline.json sfx-real.wav final-mix.wav score.wav
 
-## Fitted to the cuts: `arrange.py`
+## In use now (openbots-launch-final.mp4): fitted to the cuts with `arrange.py`
 
 `arrange.py` re-arranges the groovy track from its Demucs stems (`groovy-stems/`) so its sections follow the video:
 silent opening, the groove drops on the logo, filters down under the word swaps, slams back on the builder, lifts on
