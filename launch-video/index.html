@@ -170,8 +170,7 @@ body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; mix-bl
     <div class="scene" id="s-logo">
         <div class="center">
             <div id="logo-row" style="display:flex;align-items:center;gap:44px">
-                <svg id="logo-mark" viewBox="-30 -30 60 60" width="220" height="220" style="overflow:visible;position:relative;z-index:2">
-                    <circle id="logo-ring" r="10" fill="none" stroke="#c9c6ff" stroke-width="1.2" opacity="0"/>
+                <svg id="logo-mark" viewBox="-30 -30 60 60" width="220" height="220">
                     <g transform="translate(-12 3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
                     <g transform="translate(12 -3) rotate(-18)"><g class="eye"><ellipse rx="9.5" ry="15" fill="url(#lb)"/><ellipse cx="-2.5" cy="-6" rx="4.5" ry="7" fill="url(#lg)"/><circle cx="-3" cy="-7.5" r="2.6" fill="#fff" fill-opacity=".92"/></g></g>
                 </svg>
@@ -549,7 +548,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [8, 67, 72].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [2, 8, 67, 72].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -571,37 +570,16 @@ function render(t) {
 
     if (id === 's-intro') {
         reveal($('intro-t'), lt, 0.25, 0.35, 20) // as the voiceover starts "Introducing"
-        // On the way out the word is pulled into the middle of the screen, where the logo's eyes open
-        const out = prog(lt, s1 - s0 - 0.28, s1 - s0)
-        if (out > 0) {
-            const e = out * out
-            $('intro-t').style.opacity = 1 - e
-            $('intro-t').style.transform = `scale(${1 - 0.7 * e})`
-            $('intro-t').style.letterSpacing = `${-0.2 * e}em`
-            $('intro-t').style.filter = `blur(${e * 10}px)`
-        } else $('intro-t').style.letterSpacing = ''
+        const out = prog(lt, s1 - s0 - 0.12, s1 - s0)
+        if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
     }
 
     if (id === 's-logo') {
-        // The bot wakes up: two closed eyes in the middle of the screen snap open on the beat, a ring of light pulses
-        // out from them, then they glide left as "OpenBots" wipes in beside them
-        const word = $('logo-word'), mark = $('logo-mark')
-        const dx = (word.offsetWidth + 44) / 2 // from the logo's place in the row to the centre of the screen
-        const open = outBack(prog(lt, 0.04, 0.3))
-        const slide = inOut(prog(lt, 0.28, 0.62))
-        mark.style.opacity = prog(lt, 0, 0.04)
-        mark.style.transform = `translateX(${dx * (1 - slide)}px) scale(${lerp(1.35, 1, slide)})`
-        if (lt < 0.28) mark.querySelectorAll('.eye').forEach((e) => e.setAttribute('transform', `scale(1 ${Math.max(0.06, open)})`))
-        else blink($('s-logo'), lt + 1.0)
-        const ring = prog(lt, 0.06, 0.7)
-        $('logo-ring').setAttribute('r', String(lerp(12, 70, outExpo(ring))))
-        $('logo-ring').setAttribute('opacity', String(ring > 0 && ring < 1 ? 0.9 * (1 - ring) : 0))
-        $('logo-ring').setAttribute('stroke-width', String(lerp(2.4, 0.3, ring)))
-        const w = outExpo(prog(lt, 0.5, 1.0))
-        word.style.opacity = prog(lt, 0.48, 0.6)
-        word.style.clipPath = `inset(-20% ${(1 - w) * 100}% -20% 0)`
-        word.style.transform = `translateX(${(1 - w) * -40}px)`
-        word.style.filter = `blur(${(1 - w) * 8}px)`
+        const p = outBack(prog(lt, 0, 0.7))
+        $('logo-mark').style.transform = `scale(${lerp(0.3, 1, p)})`
+        $('logo-mark').style.opacity = prog(lt, 0, 0.25)
+        reveal($('logo-word'), lt, 0.35, 0.7, 50)
+        blink($('s-logo'), lt + 1.0)
     }
 
     if (id === 's-kinetic') {
