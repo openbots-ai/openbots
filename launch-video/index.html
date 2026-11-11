@@ -164,10 +164,11 @@ body.polaroid #leak { position: absolute; inset: 0; pointer-events: none; mix-bl
     <!-- 0. Opening lines, in the same type as "Introducing" -->
     <div class="scene" id="s-hook"><div class="center"><div class="sub" id="hook-t" style="font-size:44px;color:#fff;text-align:center"></div></div></div>
 
-    <div class="scene" id="s-intro"><div class="center"><div class="sub" id="intro-t" style="font-size:44px;color:#fff">Introducing</div></div></div>
+    <div class="scene" id="s-intro"><div class="center"><div class="sub" id="intro-t" style="font-size:44px;color:#fff;position:relative">Intr<span id="intro-o">o</span>ducing</div></div></div>
 
     <!-- 2. Logo + "OpenBots" -->
     <div class="scene" id="s-logo">
+        <div id="logo-env" style="position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 50% 50%, #8a86e6 0%, #5a4fd0 35%, #2e2690 70%, #16114a 100%)"></div>
         <div class="center">
             <div id="logo-row" style="display:flex;align-items:center;gap:44px">
                 <svg id="logo-mark" viewBox="-30 -30 60 60" width="220" height="220">
@@ -391,6 +392,18 @@ function backdrop(t, pal, intensity) {
     })
 }
 
+// The logo row at scale k, offset (dx, dy) from the centre of the frame, with a little motion blur
+function logoAt(k, dx, dy, motion) {
+    const row = $('logo-row')
+    row.style.transform = `translate(${dx}px, ${dy}px) scale(${k})`
+    row.style.filter = `blur(${motion * 6}px)`
+    $('logo-mark').style.transform = ''
+    $('logo-mark').style.opacity = 1
+    $('logo-word').style.opacity = 1
+    $('logo-word').style.transform = ''
+    $('logo-word').style.filter = ''
+}
+
 function blink(root, t) {
     // Quick blink every ~2.2s
     const ph = (t % 2.2) / 2.2
@@ -548,7 +561,7 @@ function render(t) {
     $('aurora').style.opacity = id === 's-hook' ? outExpo(prog(lt, 0, 1.6)) : 1
 
     // White flash on a few hard cuts, a staple of the style
-    const flashAt = [2, 8, 67, 72].map((b) => (b + HOOK) * BEAT)
+    const flashAt = [8, 67, 72].map((b) => (b + HOOK) * BEAT)
     const f = flashAt.map((x) => (t >= x && t < x + 0.18 ? 1 - (t - x) / 0.18 : 0)).reduce((a, b) => Math.max(a, b), 0)
     $('flash').style.opacity = f * 0.55
 
@@ -570,15 +583,42 @@ function render(t) {
 
     if (id === 's-intro') {
         reveal($('intro-t'), lt, 0.25, 0.35, 20) // as the voiceover starts "Introducing"
-        const out = prog(lt, s1 - s0 - 0.12, s1 - s0)
-        if (out > 0) { $('intro-t').style.opacity = 1 - out; $('intro-t').style.filter = `blur(${out * 12}px)` }
+    }
+
+    // Zoom-through into the logo: the camera rushes into the "o" of "Introducing"; through its hole is the logo's
+    // brighter world, which the camera flies into as the "o" passes the edges of the frame on the beat
+    const T0 = SCENES.find(([sid]) => sid === 's-logo')[1], ZOOM = 0.42
+    const z = prog(t, T0 - ZOOM, T0)
+    if (id === 's-intro' && z > 0) {
+        const el = $('intro-t'), o = $('intro-o')
+        el.style.transform = ''
+        const r = o.getBoundingClientRect()
+        const cx = r.left + r.width / 2, cy = r.top + r.height * 0.6
+        const ox = o.offsetLeft + o.offsetWidth / 2, oy = o.offsetTop + o.offsetHeight * 0.6
+        const S = Math.exp(Math.log(170) * Math.pow(z, 2.3))
+        el.style.transformOrigin = `${ox}px ${oy}px`
+        el.style.transform = `scale(${S})`
+        el.style.opacity = 1
+        el.style.filter = `blur(${z * z * 3}px)`
+        // The logo's world, seen through the hole in the "o"
+        const lg = $('s-logo')
+        lg.style.display = 'block'
+        lg.style.transform = ''
+        const hole = 0.2 * 44 * S * prog(z, 0.3, 0.5) // the hole opens up once the zoom is under way
+        lg.style.clipPath = `circle(${hole}px at ${cx}px ${cy}px)`
+        $('logo-env').style.opacity = 1
+        logoAt(Math.min(0.6, hole * 1.5 / 1150), cx - 960, cy - 540, 0) // sized to sit inside the hole
+    } else if (id === 's-intro') {
+        $('intro-t').style.transformOrigin = ''
+        $('s-logo').style.clipPath = ''
     }
 
     if (id === 's-logo') {
-        const p = outBack(prog(lt, 0, 0.7))
-        $('logo-mark').style.transform = `scale(${lerp(0.3, 1, p)})`
-        $('logo-mark').style.opacity = prog(lt, 0, 0.25)
-        reveal($('logo-word'), lt, 0.35, 0.7, 50)
+        // Through the "o": the camera keeps flying in while the bright world fades into the backdrop
+        $('s-logo').style.clipPath = ''
+        $('logo-env').style.opacity = 1 - prog(lt, 0.05, 0.5)
+        const p = outExpo(prog(lt, 0, 0.6))
+        logoAt(lerp(0.6, 1, p), 0, 0, 1 - p)
         blink($('s-logo'), lt + 1.0)
     }
 
