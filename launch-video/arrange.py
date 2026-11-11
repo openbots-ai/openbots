@@ -10,8 +10,9 @@ as the video, so it can be cut and re-joined on beats. Video beats are counted f
   opening lines     silent
   logo, word swaps  the groove comes in filtered down (muffled drums and melody: quiet, tension)
   builder           the groove slams back in, full
-  text / computer   full groove
-  any model         the lift (the bars with the synth chords)
+  text it           the groove with a sparkle on top (its melody an octave up)
+  computer          the bars with the synth chords
+  any model         the groove with the sparkle
   private           breakdown: drums out
   montage           drums back in, full
   end card          one last hit that rings out
@@ -44,6 +45,7 @@ def load(name, af=None):
 
 stems = {k: load(k) for k in ('drums', 'bass', 'other')}
 low = {k: load(k, 'lowpass=f=350,lowpass=f=350') for k in ('drums', 'other')}  # filtered-down versions
+sparkle = load('other', 'rubberband=pitch=2,highpass=f=600')  # the melody an octave up, a light layer for variety
 if '--keep-lead' in args:
     # For a track tagged instrumental: what Demucs calls "vocals" is its lead (synth, guitar), so it stays, with the melody
     m = min(len(stems['other']), len(load('vocals')))
@@ -60,9 +62,11 @@ END = beat('s-end')
 PLAN = [
     (0, beat('s-kinetic'), 32, (1, 1, 1), True),
     (beat('s-kinetic'), beat('s-build'), 38, (1, 1, 1), True),
-    (beat('s-build'), beat('s-computer'), 36, (1, 1, 1), False),
-    (beat('s-computer'), beat('s-models'), 40, (1, 1, 1), False),
-    (beat('s-models'), beat('s-private'), 60, (1, 1, 1), False),
+    # The chorus changes a little each time it comes round, so it doesn't loop the same bars:
+    (beat('s-build'), beat('s-text'), 36, (1, 1, 1), False),  # the plain groove
+    (beat('s-text'), beat('s-computer'), 46, (1, 1, 1), False),  # + a sparkle (the melody an octave up)
+    (beat('s-computer'), beat('s-models'), 60, (1, 1, 1), False),  # the bars with the synth chords
+    (beat('s-models'), beat('s-private'), 32, (1, 1, 1), False),  # back to the groove, with the sparkle
     (beat('s-private'), beat('s-montage'), 66, (0, 0.7, 1), False),
     (beat('s-montage'), END, 65, (1, 1, 1), False),
     (END, END + 1, 36, (1, 1, 1), False),
@@ -94,6 +98,10 @@ def at(t):
 for v0, v1, s0, gains, filt in PLAN:
     a = at(v0)
     seg = piece(s0, v1 - v0, gains, filt)
+    if '--stems' not in args and v0 in (beat('s-text'), beat('s-models')):
+        sp = int((SRC0 + s0 * B) * SR)
+        part = sparkle[sp:sp + len(seg)]
+        seg[:len(part)] += part * 0.55
     if v1 == beat('s-build'):
         # Into the drop, the way launch videos do it: the muffled groove opens up over two beats (a filter sweep)...
         full = piece(s0, v1 - v0, gains, False)
