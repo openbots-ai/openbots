@@ -9,11 +9,10 @@ as the video, so it can be cut and re-joined on beats. Video beats are counted f
 
   opening lines     silent
   logo, word swaps  the groove comes in filtered down (muffled drums and melody: quiet, tension)
-  builder           the groove with the track's opening melody on top
-  text it           a bar of hats only, then the groove with the melody an octave up
+  builder           the full groove (after a filter sweep and half a beat of silence)
+  text it           a bar with the drums muffled under the bass, then the full groove
   computer          the bars with the synth chords
-  any model         the lift: the opening melody an octave up
-  (each of these ends on a quick drum roll into the next)
+  any model         the full groove
   private           breakdown: drums out
   montage           drums back in, full
   end card          one last hit that rings out
@@ -46,8 +45,7 @@ def load(name, af=None):
 
 stems = {k: load(k) for k in ('drums', 'bass', 'other')}
 low = {k: load(k, 'lowpass=f=350,lowpass=f=350') for k in ('drums', 'other')}  # filtered-down versions
-sparkle = load('other', 'rubberband=pitch=2,highpass=f=600')  # the melody an octave up
-no_kick = load('drums', 'highpass=f=180,highpass=f=180')  # hats and claps only
+warm = load('other', 'lowpass=f=2200,lowpass=f=2200')
 if '--keep-lead' in args:
     # For a track tagged instrumental: what Demucs calls "vocals" is its lead (synth, guitar), so it stays, with the melody
     m = min(len(stems['other']), len(load('vocals')))
@@ -105,33 +103,15 @@ def src(stem, s0, length):
     return out
 
 
-def drum_fill(seg, beats):
-    """The last half beat's drums become a quick roll: their first 32nd note, four times, getting louder."""
-    g, k = int((beats - 0.5) * B * SR), int(B / 8 * SR)
-    hit = seg[g:g + k].copy()
-    hit[-fade:] *= np.linspace(1, 0, fade)[:, None]
-    seg[g:g + 4 * k] = 0
-    for i in range(4):
-        seg[g + i * k:g + (i + 1) * k] += hit[:len(seg) - g - i * k] * (0.6 + 0.15 * i)
-    return seg
-
-
 def vary(v0, v1, s0, seg):
-    """The main groove is mostly drums and bass, so each pass gets something of its own (the track's opening melody,
-    in the same key, laid over the groove; hats only for a bar; the bars with chords; the melody an octave up) and
-    a drum roll into the next section."""
-    L, beats = len(seg), v1 - v0
-    if v0 == beat('s-build'):  # the groove, now with the opening melody on top
-        seg += src(stems['other'], 0, L) * 0.85
-    elif v0 == beat('s-text'):  # kick drops out for a bar (hats and claps only), then everything plus the sparkle
+    """Variety without anything bright or metallic: on "just text it" the drums go muffled for a bar under the bass
+    (like the opening) before the full groove comes back; the Mac scene uses the bars with the synth chords."""
+    if v0 in (beat('s-computer'), beat('s-private')):
+        # The chord bars carry some bright, ringing tones up top; softened, so the chords stay warm and nothing rings
+        seg -= src(stems['other'], s0, len(seg)) - src(warm, s0, len(seg))
+    if v0 == beat('s-text'):
         bar = int(4 * B * SR)
-        seg[:bar] -= src(stems['drums'], s0, L)[:bar] - src(no_kick, s0, L)[:bar]
-        seg += src(stems['other'], 10, L) * 0.6
-        seg[bar:] += src(sparkle, s0, L)[bar:] * 0.5
-    elif v0 == beat('s-models'):  # the lift: the opening melody an octave up over the groove
-        seg += src(sparkle, 0, L) * 0.7 + src(stems['other'], 0, L) * 0.5
-    if v1 in (beat('s-text'), beat('s-computer'), beat('s-models')):
-        seg = drum_fill(seg, beats)
+        seg[:bar] -= src(stems['drums'], s0, len(seg))[:bar] - src(low['drums'], s0, len(seg))[:bar]
     return seg
 
 
@@ -139,7 +119,7 @@ for v0, v1, s0, gains, filt in PLAN:
     a = at(v0)
     seg = piece(s0, v1 - v0, gains, filt)
     if '--stems' not in args:
-        seg = vary(v0, v1, s0, seg)
+        seg = vary(v0, v1, s0, seg * 1)
     if v1 == beat('s-build'):
         # Into the drop, the way launch videos do it: the muffled groove opens up over two beats (a filter sweep)...
         full = piece(s0, v1 - v0, gains, False)
@@ -150,15 +130,6 @@ for v0, v1, s0, gains, filt in PLAN:
         g = int((v1 - v0 - 0.5) * B * SR)
         seg[g - fade:g] *= np.linspace(1, 0, fade)[:, None]
         seg[g:] = 0
-    if v1 == beat('s-montage'):
-        # Out of the breakdown: a stutter (the montage's first sixteenth, repeated and climbing) over the last beat
-        hit = piece(s0 + v1 - v0, 0.25, (1, 1, 1), False)[:int(B / 4 * SR)]
-        hit[-fade:] *= np.linspace(1, 0, fade)[:, None]
-        g = int((v1 - v0 - 1) * B * SR)
-        seg[g:] = 0
-        for i in range(4):
-            j = g + i * len(hit)
-            seg[j:j + len(hit)] += hit[:len(seg) - j] * (0.5 + 0.17 * i)
     seg[:fade] *= np.linspace(0, 1, fade)[:, None]
     seg[-fade:] *= np.linspace(1, 0, fade)[:, None]
     if v0 == END:  # the last hit: shorten it to a stab and let it ring out through a long reverb
@@ -174,14 +145,12 @@ for v0, v1, s0, gains, filt in PLAN:
         seg = np.pad(stab, ((0, len(tail) - len(stab)), (0, 0))) + tail * 1.6
     mix[a:a + len(seg)] += seg[:len(mix) - a]
 
-# A deep hit on each drop (the builder, the montage, the end card)
-sys.path.insert(0, HERE)
-import sfx as synth  # noqa: E402
-boom = synth.sound('impact', 0)
-for v in (beat('s-build'), beat('s-montage'), END):
-    mix[at(v):at(v) + len(boom)] += boom * 0.45
-
 mix = mix[:n]
+# The sound effects (whooshes, clicks, typing, pops) live in the highs; the music's top end is rolled off a little so
+# they sit on top of it instead of fighting it
+lp = np.fft.rfftfreq(len(mix), 1 / SR)
+shelf = 1 / np.sqrt(1 + (lp / 7000) ** 4)
+mix = np.stack([np.fft.irfft(np.fft.rfft(mix[:, c]) * shelf, len(mix)) for c in range(2)], 1)
 t = np.arange(n) / SR
 mix *= (1 - np.clip((t - (DUR - 1.4)) / 1.4, 0, 1) ** 2)[:, None]
 mix /= max(1.0, np.abs(mix).max() / 0.98)
