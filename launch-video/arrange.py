@@ -8,8 +8,7 @@ Uses Demucs' stems of music.mp3 (assets/music/groovy-stems/). The track is 124 B
 as the video, so it can be cut and re-joined on beats. Video beats are counted from the logo (the drop):
 
   opening lines     silent
-  logo              full groove drops in
-  word swaps        drums and melody filtered down (tension)
+  logo, word swaps  the groove comes in filtered down (muffled drums and melody: quiet, tension)
   builder           the groove slams back in, full
   text / computer   full groove
   any model         the lift (the bars with the synth chords)
@@ -54,7 +53,7 @@ def beat(scene):
 # (from video beat, to video beat, source beat, gains for drums / bass / other, filtered?)
 END = beat('s-end')
 PLAN = [
-    (0, beat('s-kinetic'), 32, (1, 1, 1), False),
+    (0, beat('s-kinetic'), 32, (1, 1, 1), True),
     (beat('s-kinetic'), beat('s-build'), 38, (1, 1, 1), True),
     (beat('s-build'), beat('s-computer'), 36, (1, 1, 1), False),
     (beat('s-computer'), beat('s-models'), 40, (1, 1, 1), False),
