@@ -10,6 +10,9 @@ const app = defineApp({
         ENCRYPTION_KEY: v.optional(v.string()),
         // Clerk's Frontend API URL (Clerk dashboard → Configure → API keys), e.g. https://your-app.clerk.accounts.dev
         CLERK_JWT_ISSUER_DOMAIN: v.optional(v.string()),
+        // Who sees the site's visitor counts in Analytics: Clerk user IDs (user_…) or verified sign-in emails, comma
+        // separated. Unset, nobody does.
+        SITE_OWNER: v.optional(v.string()),
     },
 })
 

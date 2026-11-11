@@ -94,6 +94,16 @@ static site (the repo includes a `vercel.json`).
    `ENCRYPTION_KEY`, since saved keys can't be read without it. Until it has run, the dashboard shows a setup screen
    instead of the sign-in page.
 
+   To see how many people visit the public website, name yourself the site's owner. Your Clerk user ID (`user_…`,
+   from the Clerk dashboard → Users) or your sign-in email both work; separate several with commas. Add `--prod` for
+   production:
+
+   ```sh
+   npx convex env set SITE_OWNER you@example.com
+   ```
+
+   A **Site visitors** section then appears in Analytics for you and nobody else.
+
 5. **Run the site.** `npm run dev` and open <http://localhost:5173/dashboard>. Sign up with an email code or Google.
 
 6. **Deploy to production** when you're ready:

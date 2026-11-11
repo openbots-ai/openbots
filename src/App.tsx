@@ -12,6 +12,7 @@ import Footer from '@/components/landing/footer'
 import { ComingSoon } from '@/pages/coming-soon'
 import { PrivacyPage, TermsPage } from '@/pages/legal'
 import { isCrmPath } from '@/crm/lib/route'
+import { recordVisit } from '@/lib/visit'
 
 // Loaded only on /dashboard so the landing bundle never ships Convex or the dashboard
 const CrmApp = lazy(() => import('@/crm/crm-app'))
@@ -66,6 +67,13 @@ function Page() {
     return <Landing />
 }
 
+// Counts this page view for the owner's Analytics (convex/siteVisits.ts). It runs after Page has rendered, so an
+// unknown path already reads as the landing page, and /features (which reloads as /#features) isn't counted twice.
+function VisitCounter() {
+    useEffect(() => recordVisit(window.location.pathname.replace(/\/+$/, '') || '/'), [])
+    return null
+}
+
 export default function App() {
     if (isCrmPath(window.location.pathname)) {
         return (
@@ -78,6 +86,7 @@ export default function App() {
     return (
         <MotionConfig reducedMotion="user">
             <Page />
+            <VisitCounter />
             {/* Cookieless visit counts for the public pages only; the dashboard is never tracked */}
             <Analytics />
         </MotionConfig>

@@ -103,9 +103,10 @@ const privacySections: Section[] = [
                 />
                 <P>
                     The texts your agents send and receive, and the history of those conversations, are not stored by us. They stay on the computer that runs your engine. We do
-                    not use advertising trackers. To count visits to our public pages we use Vercel Web Analytics, which sets no cookies and records the page, referrer,
-                    country and device type, not who you are; the dashboard is not tracked. Our hosting providers keep basic technical logs, such as IP addresses, to run
-                    and protect the service.
+                    not use advertising trackers. We count visits to our public pages in two ways, neither of which uses cookies or tells us who you are: Vercel Web
+                    Analytics records the page, referrer, country and device type, and our own counter keeps a daily total of views per page, for which your browser
+                    stores only the date of your last visit. If your browser sends Do Not Track or Global Privacy Control, our counter skips you. The dashboard is not
+                    tracked. Our hosting providers keep basic technical logs, such as IP addresses, to run and protect the service.
                 </P>
             </>
         ),

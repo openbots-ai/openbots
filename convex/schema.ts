@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 // What's here: each user's workspace and settings, their agents, models, knowledge and numbers, the keys they save
-// in Connections (encrypted), the people they allow to text their agents, and anonymous daily counts. What's never
+// in Connections (encrypted), the people they allow to text their agents, and anonymous daily counts (usage, and visits to the public website). What's never
 // here: messages or contacts. Those live on the user's own engine (runner/), which reads this configuration and reports
 // back only counts, what it has set up, and the numbers (never the texts) of the last few strangers it ignored.
 
@@ -304,4 +304,12 @@ export default defineSchema({
         sealed: v.string(),
         updatedAt: v.number(),
     }).index('by_workspace_and_service', ['workspaceId', 'service']),
+    // Visits to the public website, counted per page per UTC day (see convex/siteVisits.ts). Nothing about who
+    // visited: no IP, no ID. Only the site's owner (SITE_OWNER) can read it.
+    siteVisits: defineTable({
+        day: v.string(),
+        path: v.string(),
+        views: v.number(),
+        visitors: v.number(),
+    }).index('by_day_and_path', ['day', 'path']),
 })

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Hand, MessagesSquare, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { Eye, Globe, Hand, MessagesSquare, ShieldCheck, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -85,6 +85,71 @@ function BudgetTile({ label, used, limit, note }: { label: string; used: number;
     )
 }
 
+const visitConfig = {
+    visitors: { label: 'Visitors', color: 'var(--primary)' },
+    views: { label: 'Page views', color: 'var(--muted-foreground)' },
+} satisfies ChartConfig
+const PAGE_NAMES: Record<string, string> = { '/': 'Home' }
+const pageName = (path: string) => PAGE_NAMES[path] ?? path
+
+// Visits to the public website, only for the site's owner (SITE_OWNER on the Convex deployment). For anyone else
+// the server returns null and nothing shows.
+function SiteVisitors({ today }: { today: string }) {
+    const rows = useQuery(api.siteVisits.summary, { since: addDays(today, -29) })
+    if (!rows) return null
+    const days = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29))
+    const byDay = days.map((day) => {
+        const mine = rows.filter((r) => r.day === day)
+        return { day, visitors: mine.reduce((n, r) => n + r.visitors, 0), views: mine.reduce((n, r) => n + r.views, 0) }
+    })
+    const visitors = byDay.reduce((n, d) => n + d.visitors, 0)
+    const views = byDay.reduce((n, d) => n + d.views, 0)
+    const pages = [...new Set(rows.map((r) => r.path))]
+        .map((path) => ({ path, views: rows.filter((r) => r.path === path).reduce((n, r) => n + r.views, 0) }))
+        .sort((a, b) => b.views - a.views)
+
+    return (
+        <Section title="Site visitors" aside="Only you see this · last 30 days">
+            <div className="space-y-5">
+                <div className="grid grid-cols-3 gap-3">
+                    <Tile icon={Users} label="Visitors" value={compact(visitors)} note="Different people per day, added up" />
+                    <Tile icon={Eye} label="Page views" value={compact(views)} note="Every page opened" />
+                    <Tile icon={UserPlus} label="Today" value={compact(byDay[29].visitors)} note={`${compact(byDay[29].views)} page views`} />
+                </div>
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                    <ChartContainer config={visitConfig} className="aspect-auto h-48 w-full">
+                        <AreaChart data={byDay} margin={{ left: 0, right: 8 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="day" tickLine={false} axisLine={false} minTickGap={40} tickFormatter={dayLabel} />
+                            <YAxis tickLine={false} axisLine={false} width={36} allowDecimals={false} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(_, payload) => dayLabel(payload[0]?.payload.day ?? '')} />} />
+                            <Area dataKey="views" type="monotone" fill="var(--color-views)" fillOpacity={0.08} stroke="var(--color-views)" strokeWidth={1.5} />
+                            <Area dataKey="visitors" type="monotone" fill="var(--color-visitors)" fillOpacity={0.2} stroke="var(--color-visitors)" strokeWidth={2} />
+                        </AreaChart>
+                    </ChartContainer>
+                    <div className="space-y-2">
+                        <span className="flex items-center gap-1.5 text-[12px] text-neutral-500">
+                            <Globe className="size-3.5" />
+                            Top pages
+                        </span>
+                        {pages.length ? (
+                            pages.map(({ path, views: n }) => (
+                                <span key={path} className="flex min-w-0 items-center gap-2 text-[12px]">
+                                    <span className="w-20 shrink-0 truncate text-neutral-800">{pageName(path)}</span>
+                                    <Progress value={Math.round((n / views) * 100)} aria-label={`${pageName(path)} share of page views`} className="min-w-8 flex-1" />
+                                    <span className="w-10 text-right font-mono text-[11px] text-neutral-500 tabular-nums">{compact(n)}</span>
+                                </span>
+                            ))
+                        ) : (
+                            <span className="block text-[12px] text-neutral-400">No visits in the last 30 days yet</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </Section>
+    )
+}
+
 export function AnalyticsView() {
     const go = useNav()
     const now = useNow()
@@ -125,6 +190,8 @@ export function AnalyticsView() {
                         <Tile icon={Hand} label="Handoffs" value={activity && compact(activity.handoffs)} note="Texted to you, last 30 days" />
                         <Tile icon={Users} label="New contacts" value={activity && compact(activity.newContacts)} note="First texts, last 30 days" />
                     </div>
+
+                    <SiteVisitors today={today} />
 
                     {workspace && !workspace.ownerVerified && (
                         <Card role="alert" className="flex flex-row flex-wrap items-center justify-between gap-2 rounded-lg border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
