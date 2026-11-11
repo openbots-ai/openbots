@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { MotionConfig } from 'motion/react'
+import { Analytics } from '@vercel/analytics/react'
 import { Header } from '@/components/landing/header'
 import HeroSection from '@/components/landing/hero-section'
 import Trust from '@/components/landing/trust'
@@ -77,6 +78,8 @@ export default function App() {
     return (
         <MotionConfig reducedMotion="user">
             <Page />
+            {/* Cookieless visit counts for the public pages only; the dashboard is never tracked */}
+            <Analytics />
         </MotionConfig>
     )
 }

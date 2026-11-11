@@ -4,7 +4,7 @@ import { CONTACT_EMAIL, PRIVACY_EMAIL } from '@/lib/site'
 
 type Section = { id: string; title: string; body: ReactNode }
 
-const LAST_UPDATED = 'October 26, 2026'
+const LAST_UPDATED = 'November 11, 2026'
 
 const P = ({ children }: { children: ReactNode }) => <p className="type-body text-muted-foreground mt-4">{children}</p>
 
@@ -103,7 +103,9 @@ const privacySections: Section[] = [
                 />
                 <P>
                     The texts your agents send and receive, and the history of those conversations, are not stored by us. They stay on the computer that runs your engine. We do
-                    not use advertising or analytics trackers; our hosting providers keep basic technical logs, such as IP addresses, to run and protect the service.
+                    not use advertising trackers. To count visits to our public pages we use Vercel Web Analytics, which sets no cookies and records the page, referrer,
+                    country and device type, not who you are; the dashboard is not tracked. Our hosting providers keep basic technical logs, such as IP addresses, to run
+                    and protect the service.
                 </P>
             </>
         ),
