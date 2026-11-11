@@ -1,4 +1,4 @@
-"""Re-arranges a track so its sections follow the video's cuts: python3 arrange.py score-fit.wav [--stems DIR --start SEC]
+"""Re-arranges a track so its sections follow the video's cuts: python3 arrange.py score-fit.wav [--stems DIR --start SEC [--keep-lead]]
 
 By default it uses the groovy ElevenLabs track. With --stems, it uses another 124 BPM track's Demucs stems (drums,
 bass, other; the vocals stem is left out, so nothing is sung) played straight through from the downbeat at --start,
@@ -44,6 +44,11 @@ def load(name, af=None):
 
 stems = {k: load(k) for k in ('drums', 'bass', 'other')}
 low = {k: load(k, 'lowpass=f=350,lowpass=f=350') for k in ('drums', 'other')}  # filtered-down versions
+if '--keep-lead' in args:
+    # For a track tagged instrumental: what Demucs calls "vocals" is its lead (synth, guitar), so it stays, with the melody
+    m = min(len(stems['other']), len(load('vocals')))
+    stems['other'] = stems['other'][:m] + load('vocals')[:m]
+    low['other'] = low['other'][:m] + load('vocals', 'lowpass=f=350,lowpass=f=350')[:m]
 
 
 def beat(scene):
