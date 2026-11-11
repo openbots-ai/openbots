@@ -2,7 +2,10 @@
 
 Each track is locked to the video's 124 BPM, split into parts by Demucs, and arranged by `arrange.py` (muffled under
 "Introducing OpenBots" and the word swaps, full from the builder, breakdown under the privacy line, back for the
-montage, one last hit on the end card). All from [Jamendo](https://www.jamendo.com) via Openverse, CC BY 3.0: credit
+montage, one last hit on the end card), plus the edits launch videos use: a filter sweep into the builder, half a
+beat of silence before each big hit, a deep hit on each drop, and a stutter out of the breakdown.
+
+`openbots-launch-song-fit.mp4` is the original groovy track with the same edits. All from [Jamendo](https://www.jamendo.com) via Openverse, CC BY 3.0: credit
 "Music: <title> by <artist> (CC BY 3.0)" in the video description.
 
 | Video | Track | Artist | Style |

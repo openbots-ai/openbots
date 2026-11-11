@@ -74,13 +74,45 @@ if '--stems' in args:  # another track: play it straight through, keeping only t
 n = int(DUR * SR)
 mix = np.zeros((n + 8 * SR, 2))
 fade = int(0.006 * SR)
-for v0, v1, s0, gains, filt in PLAN:
-    a, length = int((SC['s-logo'] + v0 * B) * SR), int((v1 - v0) * B * SR)
-    s = int((SRC0 + s0 * B) * SR)
+
+
+def piece(s0, beats, gains, filt):
+    """`beats` beats of the track from source beat s0, as the stems mixed with `gains` (filtered down if `filt`)."""
+    s, length = int((SRC0 + s0 * B) * SR), int(beats * B * SR)
     seg = np.zeros((length + fade, 2))
     for (k, src), g in zip(stems.items(), gains):
         src = low[k] if filt and k in low else src
-        seg += src[s:s + length + fade] * g
+        part = src[s:s + length + fade] * g
+        seg[:len(part)] += part
+    return seg
+
+
+def at(t):
+    return int((SC['s-logo'] + t * B) * SR)
+
+
+for v0, v1, s0, gains, filt in PLAN:
+    a = at(v0)
+    seg = piece(s0, v1 - v0, gains, filt)
+    if v1 == beat('s-build'):
+        # Into the drop, the way launch videos do it: the muffled groove opens up over two beats (a filter sweep)...
+        full = piece(s0, v1 - v0, gains, False)
+        u = np.clip((np.arange(len(seg)) / SR - (v1 - v0 - 2.5) * B) / (2 * B), 0, 1)[:, None] ** 2
+        seg = seg * (1 - u) + full * u
+    if v1 in (beat('s-build'), END):
+        # ...then half a beat of silence right before the hit
+        g = int((v1 - v0 - 0.5) * B * SR)
+        seg[g - fade:g] *= np.linspace(1, 0, fade)[:, None]
+        seg[g:] = 0
+    if v1 == beat('s-montage'):
+        # Out of the breakdown: a stutter (the montage's first sixteenth, repeated and climbing) over the last beat
+        hit = piece(s0 + v1 - v0, 0.25, (1, 1, 1), False)[:int(B / 4 * SR)]
+        hit[-fade:] *= np.linspace(1, 0, fade)[:, None]
+        g = int((v1 - v0 - 1) * B * SR)
+        seg[g:] = 0
+        for i in range(4):
+            j = g + i * len(hit)
+            seg[j:j + len(hit)] += hit[:len(seg) - j] * (0.5 + 0.17 * i)
     seg[:fade] *= np.linspace(0, 1, fade)[:, None]
     seg[-fade:] *= np.linspace(1, 0, fade)[:, None]
     if v0 == END:  # the last hit: shorten it to a stab and let it ring out through a long reverb
@@ -95,6 +127,13 @@ for v0, v1, s0, gains, filt in PLAN:
             tail[:, ch] = np.fft.irfft(np.fft.rfft(stab[:, ch], size) * np.fft.rfft(ir, size), size)[:len(tail)]
         seg = np.pad(stab, ((0, len(tail) - len(stab)), (0, 0))) + tail * 1.6
     mix[a:a + len(seg)] += seg[:len(mix) - a]
+
+# A deep hit on each drop (the builder, the montage, the end card)
+sys.path.insert(0, HERE)
+import sfx as synth  # noqa: E402
+boom = synth.sound('impact', 0)
+for v in (beat('s-build'), beat('s-montage'), END):
+    mix[at(v):at(v) + len(boom)] += boom * 0.45
 
 mix = mix[:n]
 t = np.arange(n) / SR
