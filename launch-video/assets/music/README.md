@@ -19,3 +19,13 @@ talks: it is silent until the logo (7.26 s, a beat on the 124 BPM grid), where t
 
     python3 score.py assets/music/groovy-quiet-start.flac score.wav
     python3 el_vo.py timeline.json sfx-real.wav final-mix.wav score.wav
+
+## Fitted to the cuts: `arrange.py`
+
+`arrange.py` re-arranges the groovy track from its Demucs stems (`groovy-stems/`) so its sections follow the video:
+silent opening, the groove drops on the logo, filters down under the word swaps, slams back on the builder, lifts on
+"any model", breaks down (drums out) under the privacy line, comes back for the montage, and ends on one hit that
+rings out on the end card.
+
+    python3 arrange.py score-fit.wav
+    python3 el_vo.py timeline.json sfx-real.wav mix-fit.wav score-fit.wav
