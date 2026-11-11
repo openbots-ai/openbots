@@ -9,10 +9,11 @@ as the video, so it can be cut and re-joined on beats. Video beats are counted f
 
   opening lines     silent
   logo, word swaps  the groove comes in filtered down (muffled drums and melody: quiet, tension)
-  builder           the groove slams back in, full
-  text it           the groove with a sparkle on top (its melody an octave up)
+  builder           the groove with the track's opening melody on top
+  text it           a bar of hats only, then the groove with the melody an octave up
   computer          the bars with the synth chords
-  any model         the groove with the sparkle
+  any model         the lift: the opening melody an octave up
+  (each of these ends on a quick drum roll into the next)
   private           breakdown: drums out
   montage           drums back in, full
   end card          one last hit that rings out
@@ -45,7 +46,8 @@ def load(name, af=None):
 
 stems = {k: load(k) for k in ('drums', 'bass', 'other')}
 low = {k: load(k, 'lowpass=f=350,lowpass=f=350') for k in ('drums', 'other')}  # filtered-down versions
-sparkle = load('other', 'rubberband=pitch=2,highpass=f=600')  # the melody an octave up, a light layer for variety
+sparkle = load('other', 'rubberband=pitch=2,highpass=f=600')  # the melody an octave up
+no_kick = load('drums', 'highpass=f=180,highpass=f=180')  # hats and claps only
 if '--keep-lead' in args:
     # For a track tagged instrumental: what Demucs calls "vocals" is its lead (synth, guitar), so it stays, with the melody
     m = min(len(stems['other']), len(load('vocals')))
@@ -63,10 +65,10 @@ PLAN = [
     (0, beat('s-kinetic'), 32, (1, 1, 1), True),
     (beat('s-kinetic'), beat('s-build'), 38, (1, 1, 1), True),
     # The chorus changes a little each time it comes round, so it doesn't loop the same bars:
-    (beat('s-build'), beat('s-text'), 36, (1, 1, 1), False),  # the plain groove
-    (beat('s-text'), beat('s-computer'), 46, (1, 1, 1), False),  # + a sparkle (the melody an octave up)
-    (beat('s-computer'), beat('s-models'), 60, (1, 1, 1), False),  # the bars with the synth chords
-    (beat('s-models'), beat('s-private'), 32, (1, 1, 1), False),  # back to the groove, with the sparkle
+    (beat('s-build'), beat('s-text'), 36, (1, 1, 1), False),
+    (beat('s-text'), beat('s-computer'), 46, (1, 1, 1), False),
+    (beat('s-computer'), beat('s-models'), 60, (1, 1, 1), False),
+    (beat('s-models'), beat('s-private'), 32, (1, 1, 1), False),
     (beat('s-private'), beat('s-montage'), 66, (0, 0.7, 1), False),
     (beat('s-montage'), END, 65, (1, 1, 1), False),
     (END, END + 1, 36, (1, 1, 1), False),
@@ -95,13 +97,49 @@ def at(t):
     return int((SC['s-logo'] + t * B) * SR)
 
 
+def src(stem, s0, length):
+    i = int((SRC0 + s0 * B) * SR)
+    out = np.zeros((length, 2))
+    part = stem[i:i + length]
+    out[:len(part)] = part
+    return out
+
+
+def drum_fill(seg, beats):
+    """The last half beat's drums become a quick roll: their first 32nd note, four times, getting louder."""
+    g, k = int((beats - 0.5) * B * SR), int(B / 8 * SR)
+    hit = seg[g:g + k].copy()
+    hit[-fade:] *= np.linspace(1, 0, fade)[:, None]
+    seg[g:g + 4 * k] = 0
+    for i in range(4):
+        seg[g + i * k:g + (i + 1) * k] += hit[:len(seg) - g - i * k] * (0.6 + 0.15 * i)
+    return seg
+
+
+def vary(v0, v1, s0, seg):
+    """The main groove is mostly drums and bass, so each pass gets something of its own (the track's opening melody,
+    in the same key, laid over the groove; hats only for a bar; the bars with chords; the melody an octave up) and
+    a drum roll into the next section."""
+    L, beats = len(seg), v1 - v0
+    if v0 == beat('s-build'):  # the groove, now with the opening melody on top
+        seg += src(stems['other'], 0, L) * 0.85
+    elif v0 == beat('s-text'):  # kick drops out for a bar (hats and claps only), then everything plus the sparkle
+        bar = int(4 * B * SR)
+        seg[:bar] -= src(stems['drums'], s0, L)[:bar] - src(no_kick, s0, L)[:bar]
+        seg += src(stems['other'], 10, L) * 0.6
+        seg[bar:] += src(sparkle, s0, L)[bar:] * 0.5
+    elif v0 == beat('s-models'):  # the lift: the opening melody an octave up over the groove
+        seg += src(sparkle, 0, L) * 0.7 + src(stems['other'], 0, L) * 0.5
+    if v1 in (beat('s-text'), beat('s-computer'), beat('s-models')):
+        seg = drum_fill(seg, beats)
+    return seg
+
+
 for v0, v1, s0, gains, filt in PLAN:
     a = at(v0)
     seg = piece(s0, v1 - v0, gains, filt)
-    if '--stems' not in args and v0 in (beat('s-text'), beat('s-models')):
-        sp = int((SRC0 + s0 * B) * SR)
-        part = sparkle[sp:sp + len(seg)]
-        seg[:len(part)] += part * 0.55
+    if '--stems' not in args:
+        seg = vary(v0, v1, s0, seg)
     if v1 == beat('s-build'):
         # Into the drop, the way launch videos do it: the muffled groove opens up over two beats (a filter sweep)...
         full = piece(s0, v1 - v0, gains, False)
